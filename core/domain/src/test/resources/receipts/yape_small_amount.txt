@@ -1,0 +1,7 @@
+Yape
+Enviaste un pago
+S/0.10
+Para
+TIENDA ABC
+15/06/2026 10:30
+Operación 998877
