@@ -13,12 +13,26 @@ object FixedExpenseBreakdownCalculator {
         utilitiesText: String,
         phoneText: String,
         debtsText: String,
+    ): DomainResult<Money> = sumAll(
+        presetParts = listOf(educationText, rentText, utilitiesText, phoneText, debtsText),
+        customLines = emptyList(),
+    )
+
+    fun sumAll(
+        presetParts: List<String>,
+        customLines: List<PlanWizardLineItem>,
     ): DomainResult<Money> {
-        val parts = listOf(educationText, rentText, utilitiesText, phoneText, debtsText)
         var total = BigDecimal.ZERO
 
-        for (part in parts) {
+        for (part in presetParts) {
             when (val parsed = parsePart(part)) {
+                is DomainResult.Err -> return parsed
+                is DomainResult.Ok -> total = total.add(parsed.value.amount)
+            }
+        }
+
+        for (line in customLines) {
+            when (val parsed = parsePart(line.amountText)) {
                 is DomainResult.Err -> return parsed
                 is DomainResult.Ok -> total = total.add(parsed.value.amount)
             }
@@ -27,27 +41,18 @@ object FixedExpenseBreakdownCalculator {
         return Money.of(total)
     }
 
-    /** @deprecated Use [sumParts] with five categories. Kept for gradual migration. */
-    fun sumParts(
-        rentText: String,
-        utilitiesText: String,
-        debtsText: String,
-    ): DomainResult<Money> = sumParts(
-        educationText = "",
-        rentText = rentText,
-        utilitiesText = utilitiesText,
-        phoneText = "",
-        debtsText = debtsText,
-    )
-
     fun formatTotal(
         educationText: String,
         rentText: String,
         utilitiesText: String,
         phoneText: String,
         debtsText: String,
+        customLines: List<PlanWizardLineItem> = emptyList(),
     ): String = when (
-        val result = sumParts(educationText, rentText, utilitiesText, phoneText, debtsText)
+        val result = sumAll(
+            presetParts = listOf(educationText, rentText, utilitiesText, phoneText, debtsText),
+            customLines = customLines,
+        )
     ) {
         is DomainResult.Ok -> result.value.amount.stripTrailingZeros().toPlainString()
         is DomainResult.Err -> ""

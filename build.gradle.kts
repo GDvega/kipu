@@ -4,6 +4,7 @@ import dev.iurysouza.modulegraph.gradle.ModuleGraphExtension
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.hilt) apply false
@@ -22,6 +23,14 @@ subprojects {
             tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }.configureEach {
                 dependsOn(":core:domain:jar")
             }
+        }
+    }
+}
+
+allprojects {
+    if (tasks.findByName("prepareKotlinBuildScriptModel") == null) {
+        tasks.register("prepareKotlinBuildScriptModel") {
+            description = "Placeholder to satisfy IDE sync in experimental Gradle 9 / AGP 9 versions"
         }
     }
 }

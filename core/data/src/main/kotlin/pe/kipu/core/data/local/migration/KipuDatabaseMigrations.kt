@@ -4,6 +4,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import pe.kipu.core.data.local.seed.DefaultEnvelopeSeed
 import pe.kipu.core.domain.plan.FinancialPlanIds
+import pe.kipu.core.domain.plan.PlanEnvelopeTemplates
 
 object KipuDatabaseMigrations {
 
@@ -181,6 +182,80 @@ object KipuDatabaseMigrations {
         }
     }
 
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                ALTER TABLE movements ADD COLUMN commitmentId TEXT DEFAULT NULL
+                REFERENCES commitments(id) ON DELETE SET NULL
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                CREATE INDEX IF NOT EXISTS index_movements_commitmentId ON movements(commitmentId)
+                """.trimIndent(),
+            )
+        }
+    }
+
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                ALTER TABLE commitments ADD COLUMN savingsHorizonMonths INTEGER DEFAULT NULL
+                """.trimIndent(),
+            )
+        }
+    }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                ALTER TABLE financial_plans ADD COLUMN incomeProfile TEXT NOT NULL DEFAULT 'FIXED'
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                ALTER TABLE financial_plans ADD COLUMN payFrequency TEXT NOT NULL DEFAULT 'MONTHLY'
+                """.trimIndent(),
+            )
+            val repairedEnvelopeIds = PlanEnvelopeTemplates.wizardEnvelopeIdsCsv()
+            db.execSQL(
+                """
+                UPDATE financial_plans
+                SET envelopeIds = ?
+                WHERE id = ? AND (envelopeIds = '' OR envelopeIds IS NULL)
+                """.trimIndent(),
+                arrayOf(repairedEnvelopeIds, FinancialPlanIds.PRIMARY),
+            )
+        }
+    }
+
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN initialBalanceCents INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
+
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE gatherings ADD COLUMN isSettled INTEGER NOT NULL DEFAULT 0",
+            )
+        }
+    }
+
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN budgetCycle TEXT NOT NULL DEFAULT 'WEEKLY'",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -190,5 +265,11 @@ object KipuDatabaseMigrations {
         MIGRATION_6_7,
         MIGRATION_7_8,
         MIGRATION_8_9,
+        MIGRATION_9_10,
+        MIGRATION_10_11,
+        MIGRATION_11_12,
+        MIGRATION_12_13,
+        MIGRATION_13_14,
+        MIGRATION_14_15,
     )
 }

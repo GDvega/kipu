@@ -4,6 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.CategoryDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -18,7 +19,9 @@ class RoomCategoryRepository @Inject constructor(
 ) : CategoryRepository {
 
     override fun observeCategories(): Flow<List<Category>> =
-        categoryDao.observeAll().map { entities -> entities.map { it.toDomain() } }
+        categoryDao.observeAll()
+            .map { entities -> entities.map { it.toDomain() } }
+            .withImmediateDefault(emptyList())
 
     override suspend fun getById(id: EntityId): Category? =
         categoryDao.getById(id)?.toDomain()

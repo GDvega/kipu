@@ -41,6 +41,7 @@ data class SuggestedMovement(
         categoryId: EntityId,
         recordedAt: Instant,
         createdAt: Instant,
+        status: MovementStatus = MovementStatus.PENDING_CONFIRMATION,
     ): DomainResult<Movement> {
         val resolvedType = type
             ?: return DomainResult.Err(DomainError.InvalidField("Movement type is required to confirm"))
@@ -53,7 +54,7 @@ data class SuggestedMovement(
             categoryId = categoryId,
             channel = channel ?: PaymentChannel.OTHER,
             source = source,
-            status = MovementStatus.PENDING_CONFIRMATION,
+            status = status,
             description = message,
             counterpartyName = counterpartyName,
             operationNumber = operationReference,

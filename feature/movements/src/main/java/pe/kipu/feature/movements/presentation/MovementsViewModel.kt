@@ -4,11 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.model.ConfirmMovementResult
@@ -28,6 +33,8 @@ import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.usecase.CreateManualMovementUseCase
+import pe.kipu.core.domain.usecase.LinkMovementToCommitmentUseCase
+import pe.kipu.core.domain.usecase.ObserveSavingsGoalCommitmentsUseCase
 import pe.kipu.core.domain.usecase.UpdateMovementCategoryUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
 import pe.kipu.feature.movements.presentation.ManualMovementChannelOption
@@ -35,15 +42,17 @@ import pe.kipu.feature.movements.ui.ManualMovementFormState
 
 @HiltViewModel
 class MovementsViewModel @Inject constructor(
-    movementRepository: MovementRepository,
-    categoryRepository: CategoryRepository,
-    observePendingNotificationMovements: ObservePendingNotificationMovementsUseCase,
-    observeMovementDuplicatePairs: ObserveMovementDuplicatePairsUseCase,
+    private val movementRepository: MovementRepository,
+    private val categoryRepository: CategoryRepository,
+    private val observePendingNotificationMovements: ObservePendingNotificationMovementsUseCase,
+    private val observeMovementDuplicatePairs: ObserveMovementDuplicatePairsUseCase,
+    private val observeSavingsGoalCommitments: ObserveSavingsGoalCommitmentsUseCase,
     private val resolveDuplicateMovement: ResolveDuplicateMovementUseCase,
     private val dismissDuplicatePair: DismissDuplicatePairUseCase,
     private val confirmPendingNotificationMovement: ConfirmPendingNotificationMovementUseCase,
     private val dismissPendingNotificationMovement: DismissPendingNotificationMovementUseCase,
     private val updateMovementCategory: UpdateMovementCategoryUseCase,
+    private val linkMovementToCommitment: LinkMovementToCommitmentUseCase,
     private val createManualMovement: CreateManualMovementUseCase,
 ) : ViewModel() {
 
@@ -52,56 +61,107 @@ class MovementsViewModel @Inject constructor(
     private val selectedFilter = MutableStateFlow(MovementChannelFilter.ALL)
     private val categoryFilterId = MutableStateFlow<String?>(null)
     private val categoryChangeTarget = MutableStateFlow<Movement?>(null)
+    private val goalLinkTarget = MutableStateFlow<Movement?>(null)
+    private val showAddOptionsDialog = MutableStateFlow(false)
+    private val manualMovementForm = MutableStateFlow<ManualMovementFormState?>(null)
+    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    
+    private val _events = MutableSharedFlow<MovementsEvent>()
+    val events = _events.asSharedFlow()
+
+    private var knownAutoApprovedIds = mutableSetOf<String>()
 
     private val _uiState = MutableStateFlow<MovementsUiState>(MovementsUiState.Loading)
     val uiState: StateFlow<MovementsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(
-                combine(
-                    movementRepository.observeMovements(),
-                    categoryRepository.observeCategories(),
-                    observePendingNotificationMovements(),
-                    observeMovementDuplicatePairs(),
-                    selectedFilter,
-                ) { movements, categories, pendingNotifications, duplicatePairs, filter ->
-                    MovementsData(
-                        movements = movements.filter { it.status == MovementStatus.CONFIRMED },
-                        categories = categories,
-                        pendingNotificationIncomes = pendingNotifications,
-                        duplicatePairs = duplicatePairs,
-                        selectedFilter = filter,
-                    )
-                },
-                categoryFilterId,
-                pendingResolution,
-                pendingNotificationConfirm,
-                categoryChangeTarget,
-            ) { data, categoryId, pending, pendingConfirm, changeTarget ->
-                MovementsUiState.Content(
-                    movements = data.movements,
-                    categories = data.categories,
-                    categoryNamesById = data.categories.associate { it.id to it.name },
-                    selectedFilter = data.selectedFilter,
-                    categoryFilterId = categoryId,
-                    categoryFilterName = categoryId?.let { id -> data.categories.find { it.id == id }?.name },
-                    pendingNotificationIncomes = data.pendingNotificationIncomes,
-                    duplicatePairs = data.duplicatePairs,
-                    pendingResolution = pending,
-                    pendingNotificationConfirm = pendingConfirm,
-                    categoryChangeTarget = changeTarget,
-                    showAddOptionsDialog = currentContent()?.showAddOptionsDialog ?: false,
-                    manualMovementForm = currentContent()?.manualMovementForm,
-                )
-            }
-                .catch {
-                    _uiState.value = MovementsUiState.Error("No pudimos cargar tus movimientos")
-                }
+            reloadRequests
+                .onStart { emit(Unit) }
+                .flatMapLatest { observeMovementsState() }
                 .collect { state ->
                     _uiState.value = state
                 }
         }
+    }
+
+    fun retryLoad() {
+        reloadRequests.tryEmit(Unit)
+    }
+
+    fun clearStalePendingNotificationConfirm() {
+        pendingNotificationConfirm.value = null
+    }
+
+    private fun observeMovementsState(): kotlinx.coroutines.flow.Flow<MovementsUiState> {
+        val dataFlow = combine(
+            combine(
+                movementRepository.observeMovements(),
+                categoryRepository.observeCategories(),
+                observePendingNotificationMovements(),
+                observeMovementDuplicatePairs(),
+                selectedFilter,
+            ) { movements, categories, pendingNotifications, duplicatePairs, filter ->
+                MovementsData(
+                    movements = movements.filter { it.status == MovementStatus.CONFIRMED },
+                    categories = categories,
+                    pendingNotificationIncomes = pendingNotifications,
+                    duplicatePairs = duplicatePairs,
+                    selectedFilter = filter,
+                )
+            },
+            observeSavingsGoalCommitments(),
+        ) { data, savingsGoals ->
+            data.copy(savingsGoals = savingsGoals)
+        }
+
+        return combine(
+            dataFlow,
+            combine(categoryFilterId, pendingResolution, pendingNotificationConfirm) { categoryId, pending, pendingConfirm ->
+                Triple(categoryId, pending, pendingConfirm)
+            },
+            combine(categoryChangeTarget, goalLinkTarget) { changeTarget, linkTarget ->
+                changeTarget to linkTarget
+            },
+            combine(showAddOptionsDialog, manualMovementForm) { showAdd, manualForm ->
+                showAdd to manualForm
+            }
+        ) { data, (categoryId, pending, pendingConfirm), (changeTarget, linkTarget), (showAdd, manualForm) ->
+            MovementsUiState.Content(
+                movements = data.movements,
+                categories = data.categories,
+                categoryNamesById = data.categories.associate { it.id to it.name },
+                selectedFilter = data.selectedFilter,
+                categoryFilterId = categoryId,
+                categoryFilterName = categoryId?.let { id -> data.categories.find { it.id == id }?.name },
+                pendingNotificationIncomes = data.pendingNotificationIncomes,
+                duplicatePairs = data.duplicatePairs,
+                pendingResolution = pending,
+                pendingNotificationConfirm = pendingConfirm,
+                categoryChangeTarget = changeTarget,
+                goalLinkTarget = linkTarget,
+                savingsGoals = data.savingsGoals,
+                showAddOptionsDialog = showAdd,
+                manualMovementForm = manualForm,
+            ) as MovementsUiState
+        }.onEach { state ->
+            if (state is MovementsUiState.Content) {
+                val autoApproved = state.movements.filter { 
+                    it.source == pe.kipu.core.domain.model.MovementSource.NOTIFICATION && 
+                    it.status == pe.kipu.core.domain.model.MovementStatus.CONFIRMED && 
+                    !it.operationNumber.isNullOrBlank() 
+                }
+                val newIds = autoApproved.map { it.id }.toSet() - knownAutoApprovedIds
+                if (newIds.isNotEmpty() && knownAutoApprovedIds.isNotEmpty()) {
+                    _events.emit(MovementsEvent.ShowSnackbar("${newIds.size} movimientos auto-registrados"))
+                }
+                knownAutoApprovedIds.addAll(newIds)
+            }
+        }
+            .onStart { emit(MovementsUiState.Loading) }
+            .catch {
+                emit(MovementsUiState.Error("No pudimos cargar tus movimientos"))
+            }
     }
 
     fun applyCategoryFilter(categoryId: String?) {
@@ -129,6 +189,22 @@ class MovementsViewModel @Inject constructor(
         viewModelScope.launch {
             updateMovementCategory(movement.id, categoryId)
             categoryChangeTarget.value = null
+        }
+    }
+
+    fun onLinkGoalClick(movement: Movement) {
+        goalLinkTarget.value = movement
+    }
+
+    fun onDismissGoalLink() {
+        goalLinkTarget.value = null
+    }
+
+    fun onGoalSelected(commitmentId: String?) {
+        val movement = goalLinkTarget.value ?: return
+        viewModelScope.launch {
+            linkMovementToCommitment(movement.id, commitmentId)
+            goalLinkTarget.value = null
         }
     }
 
@@ -189,77 +265,84 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onAddMovementClick() {
-        updateContent { it.copy(showAddOptionsDialog = true) }
+        showAddOptionsDialog.value = true
     }
 
     fun onDismissAddOptions() {
-        updateContent { it.copy(showAddOptionsDialog = false) }
+        showAddOptionsDialog.value = false
     }
 
     fun onRegisterManualClicked(defaultChannel: PaymentChannel) {
         val defaultCategoryId = currentContent()?.categories?.firstOrNull()?.id
-        updateContent {
-            it.copy(
-                showAddOptionsDialog = false,
-                manualMovementForm = ManualMovementFormState(
-                    channel = defaultChannel,
-                    categoryId = defaultCategoryId,
-                ),
+        showAddOptionsDialog.value = false
+        manualMovementForm.value = ManualMovementFormState(
+            channel = defaultChannel,
+            categoryId = defaultCategoryId,
+        )
+    }
+
+    fun onDismissManualMovement() {
+        manualMovementForm.value = null
+    }
+
+    fun onManualMovementTypeSelected(type: MovementType) {
+        manualMovementForm.update { it?.copy(movementType = type, errorMessage = null) }
+    }
+
+    fun onManualChannelSelected(option: ManualMovementChannelOption) {
+        manualMovementForm.update { it?.copy(channel = option.channel, errorMessage = null) }
+    }
+
+    fun onManualAmountChanged(value: String) {
+        manualMovementForm.update {
+            it?.copy(
+                amountText = value,
+                amountErrorMessage = ManualMovementAmountValidator.errorMessage(value),
+                errorMessage = null,
             )
         }
     }
 
-    fun onDismissManualMovement() {
-        updateContent { it.copy(manualMovementForm = null) }
-    }
-
-    fun onManualMovementTypeSelected(type: MovementType) {
-        updateManualForm { it.copy(movementType = type, errorMessage = null) }
-    }
-
-    fun onManualChannelSelected(option: ManualMovementChannelOption) {
-        updateManualForm { it.copy(channel = option.channel, errorMessage = null) }
-    }
-
-    fun onManualAmountChanged(value: String) {
-        updateManualForm { it.copy(amountText = value, errorMessage = null) }
-    }
-
     fun onManualCategorySelected(categoryId: String) {
-        updateManualForm { it.copy(categoryId = categoryId, errorMessage = null) }
+        manualMovementForm.update { it?.copy(categoryId = categoryId, errorMessage = null) }
     }
 
     fun onManualDescriptionChanged(value: String) {
-        updateManualForm { it.copy(description = value) }
+        manualMovementForm.update { it?.copy(description = value) }
     }
 
     fun onManualCounterpartyChanged(value: String) {
-        updateManualForm { it.copy(counterpartyName = value) }
+        manualMovementForm.update { it?.copy(counterpartyName = value) }
     }
 
     fun onSaveManualMovement() {
-        val content = currentContent() ?: return
-        val form = content.manualMovementForm ?: return
+        val form = manualMovementForm.value ?: return
         val categoryId = form.categoryId
         if (categoryId.isNullOrBlank()) {
-            updateManualForm { it.copy(errorMessage = "Elige una categoría") }
+            manualMovementForm.update { it?.copy(errorMessage = "Elige una categoría") }
+            return
+        }
+
+        val amountError = ManualMovementAmountValidator.errorMessage(form.amountText)
+        if (amountError != null) {
+            manualMovementForm.update { it?.copy(amountErrorMessage = amountError) }
             return
         }
 
         val amount = when (val parsed = MoneyInputParser.parsePen(form.amountText)) {
             is DomainResult.Ok -> parsed.value
             is DomainResult.Err -> {
-                updateManualForm { it.copy(errorMessage = "Ingresa un monto válido") }
+                manualMovementForm.update { it?.copy(amountErrorMessage = ManualMovementAmountValidator.INVALID_AMOUNT_MESSAGE) }
                 return
             }
         }
         if (amount.isZero()) {
-            updateManualForm { it.copy(errorMessage = "El monto debe ser mayor a cero") }
+            manualMovementForm.update { it?.copy(amountErrorMessage = ManualMovementAmountValidator.ZERO_AMOUNT_MESSAGE) }
             return
         }
 
         viewModelScope.launch {
-            updateManualForm { it.copy(isSaving = true, errorMessage = null) }
+            manualMovementForm.update { it?.copy(isSaving = true, errorMessage = null) }
             createManualMovement(
                 type = form.movementType,
                 amount = amount,
@@ -269,11 +352,11 @@ class MovementsViewModel @Inject constructor(
                 counterpartyName = form.counterpartyName,
             ).fold(
                 onSuccess = {
-                    updateContent { it.copy(manualMovementForm = null) }
+                    manualMovementForm.value = null
                 },
                 onFailure = {
-                    updateManualForm {
-                        it.copy(
+                    manualMovementForm.update {
+                        it?.copy(
                             isSaving = false,
                             errorMessage = "No pudimos guardar el movimiento",
                         )
@@ -284,16 +367,4 @@ class MovementsViewModel @Inject constructor(
     }
 
     private fun currentContent(): MovementsUiState.Content? = _uiState.value as? MovementsUiState.Content
-
-    private fun updateContent(transform: (MovementsUiState.Content) -> MovementsUiState.Content) {
-        val current = currentContent() ?: return
-        _uiState.update { transform(current) }
-    }
-
-    private fun updateManualForm(transform: (ManualMovementFormState) -> ManualMovementFormState) {
-        updateContent { content ->
-            val form = content.manualMovementForm ?: return@updateContent content
-            content.copy(manualMovementForm = transform(form))
-        }
-    }
 }

@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.export.ExportFormat
@@ -39,36 +42,49 @@ class ProfileViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ProfileEvent>()
     val events: SharedFlow<ProfileEvent> = _events.asSharedFlow()
 
+    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     init {
         viewModelScope.launch {
-            userPreferencesRepository.observePreferences()
-                .catch {
-                    _uiState.value = ProfileUiState.Error("No pudimos cargar tus preferencias")
-                }
-                .collect { preferences ->
-                    val accessGranted = notificationAccessChecker.isAccessGranted()
-                    _uiState.update { current ->
-                        val previous = current as? ProfileUiState.Content
-                        val dialogVisible = previous?.showNotificationAccessDialog == true &&
-                            !accessGranted &&
-                            preferences.notificationsEnabled
-                        ProfileUiState.Content(
-                            themeMode = preferences.themeMode,
-                            notificationsEnabled = preferences.notificationsEnabled,
-                            notificationAccessGranted = accessGranted,
-                            showNotificationAccessDialog = dialogVisible,
-                            onboardingCompleted = preferences.onboardingCompleted,
-                            showExportWarningDialog = previous?.showExportWarningDialog == true,
-                            pendingExportFormat = previous?.pendingExportFormat,
-                            showWipeFirstConfirmDialog = previous?.showWipeFirstConfirmDialog == true,
-                            showWipeFinalConfirmDialog = previous?.showWipeFinalConfirmDialog == true,
-                            isExporting = previous?.isExporting == true,
-                            isWiping = previous?.isWiping == true,
-                            statusMessage = previous?.statusMessage,
-                        )
-                    }
+            reloadRequests
+                .onStart { emit(Unit) }
+                .flatMapLatest {
+                    userPreferencesRepository.observePreferences()
+                        .map { preferences ->
+                            val accessGranted = notificationAccessChecker.isAccessGranted()
+                            val current = _uiState.value
+                            val previous = current as? ProfileUiState.Content
+                            val dialogVisible = previous?.showNotificationAccessDialog == true &&
+                                !accessGranted &&
+                                preferences.notificationsEnabled
+                            ProfileUiState.Content(
+                                themeMode = preferences.themeMode,
+                                notificationsEnabled = preferences.notificationsEnabled,
+                                autoApproveHighConfidenceNotifications = preferences.autoApproveHighConfidenceNotifications,
+                                notificationAccessGranted = accessGranted,
+                                showNotificationAccessDialog = dialogVisible,
+                                onboardingCompleted = preferences.onboardingCompleted,
+                                showExportWarningDialog = previous?.showExportWarningDialog == true,
+                                pendingExportFormat = previous?.pendingExportFormat,
+                                showWipeFirstConfirmDialog = previous?.showWipeFirstConfirmDialog == true,
+                                showWipeFinalConfirmDialog = previous?.showWipeFinalConfirmDialog == true,
+                                isExporting = previous?.isExporting == true,
+                                isWiping = previous?.isWiping == true,
+                                statusMessage = previous?.statusMessage,
+                            )
+                        }
+                        .map<ProfileUiState.Content, ProfileUiState> { it }
+                        .catch {
+                            emit(ProfileUiState.Error("No pudimos cargar tus preferencias"))
+                        }
+                }.collect { state ->
+                    _uiState.value = state
                 }
         }
+    }
+
+    fun retryLoad() {
+        reloadRequests.tryEmit(Unit)
     }
 
     fun refreshNotificationAccessStatus() {
@@ -109,6 +125,10 @@ class ProfileViewModel @Inject constructor(
             updatePreferences { current -> current.copy(notificationsEnabled = false) }
             dismissNotificationAccessDialog()
         }
+    }
+
+    fun onAutoApproveToggleChanged(enabled: Boolean) {
+        updatePreferences { current -> current.copy(autoApproveHighConfidenceNotifications = enabled) }
     }
 
     fun onNotificationAccessDialogConfirm() {
@@ -180,7 +200,7 @@ class ProfileViewModel @Inject constructor(
                     setStatusMessage("Exportación lista para compartir.")
                 }
                 .onFailure {
-                    _uiState.value = ProfileUiState.Error("No pudimos exportar tus datos")
+                    setStatusMessage("No pudimos exportar tus datos. Intenta de nuevo.")
                 }
             _uiState.update { current ->
                 (current as? ProfileUiState.Content)?.copy(isExporting = false) ?: current
@@ -245,7 +265,7 @@ class ProfileViewModel @Inject constructor(
                     _events.emit(ProfileEvent.DataWiped)
                 }
                 .onFailure {
-                    _uiState.value = ProfileUiState.Error("No pudimos eliminar tus datos")
+                    setStatusMessage("No pudimos eliminar tus datos. Intenta de nuevo.")
                 }
             _uiState.update { current ->
                 (current as? ProfileUiState.Content)?.copy(isWiping = false) ?: current
@@ -277,7 +297,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferencesRepository.updatePreferences(transform)
                 .onFailure {
-                    _uiState.value = ProfileUiState.Error("No pudimos guardar tus preferencias")
+                    setStatusMessage("No pudimos guardar tus preferencias. Intenta de nuevo.")
                 }
         }
     }

@@ -3,6 +3,7 @@ package pe.kipu.feature.envelopes.presentation
 import pe.kipu.core.domain.model.Category
 import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.model.Movement
+import pe.kipu.core.domain.model.WeeklyEnvelopeBalanceSummary
 import pe.kipu.feature.envelopes.ui.EnvelopeCreateFormState
 
 data class EnvelopeBudgetUiModel(
@@ -17,10 +18,13 @@ sealed interface EnvelopesUiState {
         val budgets: List<EnvelopeBudgetUiModel>,
         val categories: List<Category>,
         val usedCategoryIds: Set<String>,
+        val planBalance: WeeklyEnvelopeBalanceSummary? = null,
         val adjustTarget: EnvelopeBudgetState? = null,
         val showCreateDialog: Boolean = false,
         val createForm: EnvelopeCreateFormState = EnvelopeCreateFormState(),
         val deleteTarget: EnvelopeBudgetState? = null,
+        val adjustLimitError: String? = null,
+        val budgetCycle: pe.kipu.core.domain.model.BudgetCycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
     ) : EnvelopesUiState
 
     data class Error(val message: String) : EnvelopesUiState

@@ -11,4 +11,6 @@ sealed interface RegisterNotificationIncomeResult {
     data class ParseFailed(val error: DomainError) : RegisterNotificationIncomeResult
 
     data class ValidationFailed(val error: DomainError) : RegisterNotificationIncomeResult
+
+    data class AutoApproved(val movement: Movement) : RegisterNotificationIncomeResult
 }

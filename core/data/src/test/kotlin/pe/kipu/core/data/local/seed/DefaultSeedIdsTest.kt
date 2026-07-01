@@ -1,19 +1,21 @@
 package pe.kipu.core.data.local.seed
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import pe.kipu.core.domain.plan.CommitmentIds
-import pe.kipu.core.domain.plan.FinancialPlanIds
 
 class DefaultSeedIdsTest {
 
     @Test
-    fun financialPlanSeedUsesDomainPrimaryId() {
-        assertEquals(FinancialPlanIds.PRIMARY, DefaultFinancialPlanSeed.plan.id)
+    fun newUserHasNoDemoCommitmentSeed() {
+        assertTrue(DefaultCommitmentSeed.commitments.isEmpty())
     }
 
     @Test
-    fun emergencyFundSeedUsesDomainCommitmentId() {
-        assertEquals(CommitmentIds.EMERGENCY_FUND, DefaultCommitmentSeed.commitments.first().id)
+    fun financialPlanSeedIsNotPersistedAutomatically() {
+        val recordingDb = RecordingSqliteDatabase()
+
+        DefaultFinancialPlanSeed.insertInto(recordingDb)
+
+        assertTrue(recordingDb.executedSql.isEmpty())
     }
 }

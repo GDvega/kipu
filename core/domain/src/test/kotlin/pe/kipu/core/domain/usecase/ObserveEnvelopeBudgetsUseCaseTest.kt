@@ -21,7 +21,7 @@ import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
-import pe.kipu.core.domain.time.WeekRangeCalculator
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 class ObserveEnvelopeBudgetsUseCaseTest {
 
@@ -29,9 +29,9 @@ class ObserveEnvelopeBudgetsUseCaseTest {
     fun `emits recalculated budget states when movements change`() = runTest {
         val reference = Instant.parse("2026-06-17T15:00:00Z")
         val timeProvider = FixedTimeProvider(reference)
-        val weekRangeCalculator = WeekRangeCalculator(timeProvider)
-        val weekRange = weekRangeCalculator.currentWeekRange()
-        val movementInstant = weekRange.start.plusSeconds(3_600)
+        val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
+        val cycleRange = cycleRangeCalculator.currentCycleRange(pe.kipu.core.domain.model.BudgetCycle.WEEKLY, )
+        val movementInstant = cycleRange.start.plusSeconds(3_600)
         val envelope = Envelope(
             id = "envelope-food",
             name = "Comida",
@@ -52,10 +52,11 @@ class ObserveEnvelopeBudgetsUseCaseTest {
         val useCase = ObserveEnvelopeBudgetsUseCase(
             envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
             movementRepository = FakeMovementRepository(listOf(movement)),
+            gatheringExpenseRepository = FakeGatheringExpenseRepository(),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
-                CalculateCategoryWeeklySpentUseCase(),
+                CalculateCategoryPeriodSpentUseCase(),
             ),
-            weekRangeCalculator = weekRangeCalculator,
+            cycleRangeCalculator = cycleRangeCalculator,
             timeProvider = timeProvider,
         )
 
@@ -86,5 +87,14 @@ class ObserveEnvelopeBudgetsUseCaseTest {
 
         override suspend fun save(movement: Movement) = Result.success(Unit)
         override suspend fun delete(id: String) = Result.success(Unit)
+    }
+
+    private class FakeGatheringExpenseRepository : pe.kipu.core.domain.repository.GatheringExpenseRepository {
+        override fun observeTotalsByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, pe.kipu.core.domain.model.Money>())
+        override fun observeExpensesByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, List<pe.kipu.core.domain.model.GatheringExpense>>())
+        override fun observeLinkedMovementIds() = flowOf(emptySet<pe.kipu.core.domain.model.EntityId>())
+        override fun observeActiveGatheringLinkedMovementIds() = flowOf(emptySet<pe.kipu.core.domain.model.EntityId>())
+        override suspend fun isMovementLinked(movementId: pe.kipu.core.domain.model.EntityId) = false
+        override suspend fun save(expense: pe.kipu.core.domain.model.GatheringExpense) = Result.success(Unit)
     }
 }

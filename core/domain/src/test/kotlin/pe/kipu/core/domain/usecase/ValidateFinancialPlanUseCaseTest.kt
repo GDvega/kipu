@@ -48,7 +48,7 @@ class ValidateFinancialPlanUseCaseTest {
 
         assertTrue(result is FinancialPlanValidationResult.Invalid)
         assertEquals(
-            Money.of(BigDecimal("420.00")).getOrError(),
+            Money.of(BigDecimal("116.00")).getOrError(),
             (result as FinancialPlanValidationResult.Invalid).deficit,
         )
     }
@@ -100,6 +100,78 @@ class ValidateFinancialPlanUseCaseTest {
     }
 
     @Test
+    fun `analyze monthly surplus matches validation and includes commitments`() {
+        val plan = plan(income = "3300.00", fixed = "1800.00")
+        val envelopes = listOf(
+            envelope("80.00"),
+            envelope("30.00"),
+            envelope("40.00"),
+            envelope("100.00"),
+            envelope("35.00"),
+        )
+        val commitments = listOf(
+            savingsGoal(target = "500.00", current = "120.00"),
+        )
+
+        val breakdown = useCase.analyze(plan, envelopes, commitments)
+
+        assertEquals(FinancialPlanValidationResult.Valid, breakdown.validation)
+        assertEquals(
+            BigDecimal("284.00"),
+            breakdown.monthlySurplus.setScale(2),
+        )
+    }
+
+    @Test
+    fun `savings goal uses monthly quota instead of full remaining target`() {
+        val plan = plan(income = "3500.00", fixed = "1800.00")
+        val envelopes = listOf(
+            envelope("80.00"),
+            envelope("30.00"),
+            envelope("40.00"),
+            envelope("100.00"),
+            envelope("35.00"),
+        )
+        val fullTargetBurden = useCase.analyze(
+            plan = plan,
+            envelopes = envelopes,
+            commitments = listOf(
+                savingsGoal(target = "1000.00", current = "150.00", horizonMonths = 1),
+            ),
+        )
+        val quotaBurden = useCase.analyze(
+            plan = plan,
+            envelopes = envelopes,
+            commitments = listOf(
+                savingsGoal(target = "1000.00", current = "150.00", horizonMonths = 5),
+            ),
+        )
+
+        assertTrue(fullTargetBurden.validation is FinancialPlanValidationResult.Invalid)
+        assertEquals(FinancialPlanValidationResult.Valid, quotaBurden.validation)
+    }
+
+    @Test
+    fun `linked income on savings goal reduces monthly burden`() {
+        val plan = plan(income = "3000.00", fixed = "1800.00")
+        val envelopes = listOf(
+            envelope("150.00"),
+            envelope("80.00"),
+            envelope("60.00"),
+        )
+        val goal = savingsGoal(target = "1000.00", current = "150.00", horizonMonths = 5)
+        val withoutLinked = useCase.analyze(plan, envelopes, listOf(goal))
+        val withLinked = useCase.analyze(
+            plan = plan,
+            envelopes = envelopes,
+            commitments = listOf(goal),
+            linkedIncomeByCommitmentId = mapOf(goal.id to Money.of(BigDecimal("200.00")).getOrError()),
+        )
+
+        assertTrue(withoutLinked.commitmentsBurden.amount > withLinked.commitmentsBurden.amount)
+    }
+
+    @Test
     fun `converts usd savings goal burden to pen using reference rate`() {
         val plan = plan(income = "5000.00", fixed = "1000.00")
         val envelopes = listOf(envelope("100.00"))
@@ -123,12 +195,17 @@ class ValidateFinancialPlanUseCaseTest {
         categoryId = CategoryIds.FOOD,
     )
 
-    private fun savingsGoal(target: String, current: String): Commitment = Commitment(
+    private fun savingsGoal(
+        target: String,
+        current: String,
+        horizonMonths: Int? = null,
+    ): Commitment = Commitment(
         id = "goal-1",
         type = CommitmentType.SAVINGS_GOAL,
         title = "Meta",
         targetAmount = Money.of(BigDecimal(target)).getOrError(),
         currentAmount = Money.of(BigDecimal(current)).getOrError(),
+        savingsHorizonMonths = horizonMonths,
     )
 
     private fun socialDebt(amount: String): Commitment = Commitment(

@@ -54,9 +54,12 @@ class ConfirmPendingNotificationMovementUseCase @Inject constructor(
                     ConfirmMovementResult.Saved(candidate)
                 }
 
-                DuplicateResolution.MERGE,
-                DuplicateResolution.CANCEL,
-                -> ConfirmMovementResult.Cancelled
+                DuplicateResolution.MERGE -> {
+                    movementRepository.delete(movementId).getOrThrow()
+                    ConfirmMovementResult.Cancelled
+                }
+
+                DuplicateResolution.CANCEL -> ConfirmMovementResult.Cancelled
             }
         }
     }

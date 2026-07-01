@@ -4,6 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.EnvelopeDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -18,7 +19,9 @@ class RoomEnvelopeRepository @Inject constructor(
 ) : EnvelopeRepository {
 
     override fun observeEnvelopes(): Flow<List<Envelope>> =
-        envelopeDao.observeAll().map { entities -> entities.map { it.toDomain() } }
+        envelopeDao.observeAll()
+            .map { entities -> entities.map { it.toDomain() } }
+            .withImmediateDefault(emptyList())
 
     override suspend fun getById(id: EntityId): Envelope? =
         envelopeDao.getById(id)?.toDomain()

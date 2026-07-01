@@ -24,11 +24,31 @@ export ANDROID_SERIAL=<serial>   # ej. ZT322PDDPK (Moto G24)
 ./gradlew :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
 ```
 
-### Última ejecución automatizada (19 jun 2026 — Moto G24, Android 14)
+### Última ejecución automatizada (22 jun 2026 — Redmi 23129RA5FL, serial `340e501b`)
 
 | Módulo | Resultado |
 |--------|-----------|
-| `:app` | **11/11 PASS** |
+| `:core:data` | **11/11 PASS** vía `adb shell am instrument` |
+| `:app` | **3/15 PASS** — solo `ReceiptShareIntentParserTest`; tests Compose/UI se cuelgan en MIUI |
+
+**Dispositivo:** Android 15, MIUI. Instalación manual OK (`adb install -r`); Gradle `connectedDebugAndroidTest` falla con `INSTALL_FAILED_USER_RESTRICTED` (activar **Instalar vía USB** en Opciones de desarrollador).
+
+**Workaround ejecutado:**
+```bash
+export ANDROID_SERIAL=340e501b
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb install -r core/data/build/outputs/apk/androidTest/debug/data-debug-androidTest.apk
+adb shell am instrument -w pe.kipu.core.data.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+**Pendiente:** tests UI `:app` (Compose/MainActivity) — bloqueados en MIUI; mantener pantalla encendida y desactivar optimización de batería para Kipu durante E2E.
+
+### Ejecución anterior (20 jun 2026 — remediación auditoría, post-fix)
+
+| Módulo | Resultado |
+|--------|-----------|
+| `:app` | **12/12 PASS** (incl. `PrivacyPolicyScreenTest`) |
 | `:core:data` | **5/5 PASS** |
 
 Incluye wizard de plan (4 pasos), navegación, crear junta, share intent, duplicados, migraciones y wipe instrumentado.
@@ -42,8 +62,12 @@ Incluye wizard de plan (4 pasos), navegación, crear junta, share intent, duplic
 | `:app` | `KipuNavigationE2ETest` | Perfil → Ver juntas |
 | `:app` | `KipuNavigationE2ETest` | Crear junta (nombre + participantes) |
 | `:app` | `PlanWizardE2ETest` | Sobres → Ingresos → wizard 4 pasos → guardar |
+| `:app` | `KipuNavigationE2ETest` | Perfil → Política de privacidad |
 | `:app` | `DuplicateResolutionDialogTest` | Diálogo duplicados en español |
-| `:core:data` | `KipuDatabaseMigrationInstrumentedTest` | Migraciones v4→v6 y v6→v7 |
+| `:app` | `PendingNotificationDuplicateDialogTest` | Duplicado notificación — Fusionar / No es duplicado |
+| `:app` | `PrivacyPolicyScreenTest` | Política de privacidad en español |
+| `:app` | `PendingPlanWizardInstrumentedTest` | DataStore `pendingPlanWizard` → navega a wizard ingresos |
+| `:core:data` | `KipuDatabaseMigrationInstrumentedTest` | Migraciones v4→v6, v6→v7, v7→v8, v8→11, v11→v12 |
 | `:core:data` | `RoomUserDataWipeInstrumentedTest` | Wipe Room + re-seed + prefs |
 | `:core:data` | `MovementDaoInstrumentedTest` | DAO movimientos |
 | `:core:domain` (JVM) | `MonitoredPaymentAppsTest` | Package names Yape/Plin verificados |
@@ -77,7 +101,7 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 | C2 | Confirmar gasto | Editar si hace falta → Confirmar | Movimiento en lista Movimientos |
 | C3 | Duplicado | Repetir mismo comprobante | Diálogo "Posible duplicado" |
 
-### Juntas (F16c)
+### Juntas (Fase 18)
 
 | # | Caso | Pasos | Esperado |
 |---|------|-------|----------|
@@ -93,6 +117,7 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 | E1 | Export JSON | Perfil → Exportar JSON | Chooser de compartir; JSON incluye juntas |
 | E2 | Export CSV | Perfil → Exportar CSV | Solo movimientos (documentado en UI) |
 | E3 | Wipe | Eliminar todos los datos (doble confirmación) | Onboarding reinicia; categorías seed presentes |
+| E4 | Privacidad | Perfil → Política de privacidad | Pantalla scrollable; texto en español |
 
 ### Navegación / regresión
 
@@ -106,12 +131,9 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 
 ## Criterios de salida QA
 
-- Todos los tests instrumentados PASS en dispositivo físico arm64 (**Moto G24: 16/16 PASS**, 19 jun 2026)
-- N1–N5 verificados en **dispositivo físico** con apps reales
-- C1–C3 verificados al menos una vez
-- J1–J4 verificados
-- E1–E3 verificados
-- `:app:lintDebug` + `assembleRelease` PASS
+- Todos los tests instrumentados PASS en dispositivo físico arm64
+- N1–N5, C1–C3, J1–J4, E1–E4 verificados en hardware
+- `:app:lintDebug` + `assembleRelease` PASS — ver `docs/release/PLAY_STORE.md`
 
 ## Hallazgos conocidos
 
@@ -121,4 +143,4 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 | E2E-02 | Orden de tests en `KipuNavigationE2ETest`: `@FixMethodOrder(NAME_ASCENDING)` |
 | F12-05 | Automatizado parcial: packages corregidos + test JVM; ingreso real requiere hardware |
 | F14c | Emulador x86 requiere `-Pkipu.x86Emulator=true`; release sigue arm64-only |
-| F12-06 | MERGE en duplicados desde notificación no soportado en MVP |
+| F12-06 | MERGE en duplicados desde notificación | ✅ Fase 25 — Fusionar / No es duplicado / Cancelar |

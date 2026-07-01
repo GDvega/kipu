@@ -44,6 +44,7 @@ class SaveFinancialPlanUseCaseTest {
             planId = FinancialPlanIds.PRIMARY,
             estimatedMonthlyIncome = Money.of(BigDecimal("5000.00")).getOrError(),
             fixedExpenses = Money.of(BigDecimal("1000.00")).getOrError(),
+            initialBalance = Money.of(BigDecimal("500.00")).getOrError(),
         )
 
         assertTrue(result.isSuccess)

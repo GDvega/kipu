@@ -2,8 +2,9 @@ package pe.kipu.app
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.math.BigDecimal
@@ -27,7 +28,7 @@ import pe.kipu.feature.receipts.presentation.ReceiptDuplicateDialog
 class ReceiptDuplicateDialogTest {
 
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun showsDuplicateResolutionActionsInSpanish() {

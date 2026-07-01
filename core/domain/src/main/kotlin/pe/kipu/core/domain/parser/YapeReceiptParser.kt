@@ -43,6 +43,7 @@ class YapeReceiptParser @Inject constructor() : ReceiptParser {
                 channel = PaymentChannel.YAPE,
                 operationReference = operationReference,
                 amountCents = ReceiptFieldExtractor.amountCents(amount),
+                fallbackNonce = ReceiptFieldExtractor.stableTextNonce(text),
             ),
             source = MovementSource.RECEIPT,
             confidence = confidence,

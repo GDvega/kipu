@@ -3,46 +3,46 @@ package pe.kipu.core.designsystem.theme
 import androidx.compose.ui.graphics.Color
 
 // Brand — teal Kipu
-val KipuPrimary = Color(0xFF00D4AA)
-val KipuPrimaryDark = Color(0xFF00B894)
-val KipuPrimaryLight = Color(0xFF00A884)
-val KipuPrimaryDim = Color(0x3300D4AA)
-val KipuOnPrimary = Color(0xFF0A0A0F)
+val KipuPrimary = Color(0xFF34D399) // Emerald 400 - Softer and more professional for dark theme
+val KipuPrimaryDark = Color(0xFF10B981) // Emerald 500
+val KipuPrimaryLight = Color(0xFF059669) // Emerald 600 - Good contrast for light theme
+val KipuPrimaryDim = Color(0x3334D399)
+val KipuOnPrimary = Color(0xFF022C22)
 
-// Dark surfaces
-val KipuBg = Color(0xFF0A0A0F)
-val KipuBgElevated = Color(0xFF12121A)
-val KipuBgCard = Color(0xFF16161F)
-val KipuBgHover = Color(0xFF1E1E28)
-val KipuBgInput = Color(0xFF0F0F16)
-val KipuBorder = Color(0xFF2A2A36)
+// Dark surfaces - Deep Indigo inspired
+val KipuBg = Color(0xFF0A0A14) // Deep Indigo almost black
+val KipuBgElevated = Color(0xFF141423) // Slightly raised indigo
+val KipuBgCard = Color(0xFF1B1B2C) // Card background
+val KipuBgHover = Color(0xFF26263A)
+val KipuBgInput = Color(0xFF05050A)
+val KipuBorder = Color(0xFF33334C)
 
-// Light surfaces — warm neutrals
-val KipuBackgroundLight = Color(0xFFF5F3EE)
-val KipuBackgroundLightElevated = Color(0xFFEDEAE3)
+// Light surfaces — crisp and modern
+val KipuBackgroundLight = Color(0xFFF7F8FA) // Crisp off-white
+val KipuBackgroundLightElevated = Color(0xFFF0F2F5)
 val KipuSurfaceLight = Color(0xFFFFFFFF)
-val KipuSurfaceLightVariant = Color(0xFFF0EDE6)
-val KipuOnSurfaceLight = Color(0xFF1C1C22)
-val KipuOnSurfaceLightVariant = Color(0xFF6B6B78)
-val KipuBorderLight = Color(0xFFD9D6CE)
-val KipuPrimaryContainerLight = Color(0xFFCCF5EC)
-val KipuOnPrimaryContainerLight = Color(0xFF005C48)
+val KipuSurfaceLightVariant = Color(0xFFEDF0F3)
+val KipuOnSurfaceLight = Color(0xFF11141C)
+val KipuOnSurfaceLightVariant = Color(0xFF646B7C)
+val KipuBorderLight = Color(0xFFD6DBE5)
+val KipuPrimaryContainerLight = Color(0xFFD1FBF1)
+val KipuOnPrimaryContainerLight = Color(0xFF004D3C)
 
 // Text — dark theme defaults
-val KipuTextPrimary = Color(0xFFF0F0F5)
-val KipuTextSecondary = Color(0xFF8A8A98)
-val KipuTextMuted = Color(0xFF5A5A68)
-val KipuTextDim = Color(0xFF3A3A48)
+val KipuTextPrimary = Color(0xFFF8FAFC) // Slate 50 for max contrast
+val KipuTextSecondary = Color(0xFF94A3B8) // Slate 400
+val KipuTextMuted = Color(0xFF64748B) // Slate 500
+val KipuTextDim = Color(0xFF475569) // Slate 600
 
-// Accents — work on both themes
-val KipuAmber = Color(0xFFF59E0B)
-val KipuAmberDim = Color(0x33F59E0B)
-val KipuRed = Color(0xFFEF4444)
-val KipuRedDim = Color(0x33EF4444)
-val KipuBlue = Color(0xFF3B82F6)
-val KipuBlueDim = Color(0x333B82F6)
-val KipuPurple = Color(0xFF8B5CF6)
-val KipuPurpleDim = Color(0x338B5CF6)
+// Accents — Vibrant and Premium
+val KipuAmber = Color(0xFFF59E0B) // Amber
+val KipuAmberDim = Color(0x26F59E0B)
+val KipuRed = Color(0xFFFF5467) // Coral Red
+val KipuRedDim = Color(0x26FF5467)
+val KipuBlue = Color(0xFF3B82F6) // Bright Blue
+val KipuBlueDim = Color(0x263B82F6)
+val KipuPurple = Color(0xFFA855F7) // Vibrant Purple
+val KipuPurpleDim = Color(0x26A855F7)
 
 // Semantic aliases (legacy names used across features)
 val KipuSecondary = KipuAmber

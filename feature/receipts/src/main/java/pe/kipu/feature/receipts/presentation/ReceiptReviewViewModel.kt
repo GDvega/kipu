@@ -9,9 +9,9 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import pe.kipu.core.data.usecase.ProcessReceiptFromUriUseCase
+import pe.kipu.core.domain.flow.firstWithTimeout
+import pe.kipu.core.domain.usecase.ProcessReceiptFromUriUseCase
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.ConfirmMovementResult
 import pe.kipu.core.domain.model.DomainResult
@@ -64,6 +64,12 @@ class ReceiptReviewViewModel @Inject constructor(
     private var categories: List<pe.kipu.core.domain.model.Category> = emptyList()
 
     init {
+        viewModelScope.launch {
+            loadAndProcess()
+        }
+    }
+
+    fun retryProcess() {
         viewModelScope.launch {
             loadAndProcess()
         }
@@ -145,7 +151,7 @@ class ReceiptReviewViewModel @Inject constructor(
         previewBytes = image.bytes.copyOf()
         _uiState.value = ReceiptReviewUiState.Processing(previewBytes = previewBytes)
 
-        val categories = categoryRepository.observeCategories().first()
+        val categories = categoryRepository.observeCategories().firstWithTimeout(emptyList())
         this.categories = categories
         val parseResult = processReceiptFromUri(contentUri)
 

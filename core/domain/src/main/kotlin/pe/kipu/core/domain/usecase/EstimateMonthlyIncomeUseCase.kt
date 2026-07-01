@@ -7,6 +7,7 @@ import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.plan.IncomeProfile
 import pe.kipu.core.domain.plan.PayFrequency
+import pe.kipu.core.domain.plan.PlanWizardLineItem
 import pe.kipu.core.domain.util.MoneyInputParser
 
 /**
@@ -14,6 +15,7 @@ import pe.kipu.core.domain.util.MoneyInputParser
  *
  * Supuestos MVP:
  * - Ingresos extras en perfil fijo se suman al mensual (no se prorratean).
+ * - Quincenal: mensual = 1ra quincena + 2da quincena (sin multiplicar).
  * - Ingreso variable usa promedio de semana baja/normal/buena × 4 semanas.
  */
 class EstimateMonthlyIncomeUseCase @Inject constructor() {
@@ -21,18 +23,38 @@ class EstimateMonthlyIncomeUseCase @Inject constructor() {
     fun fromFixed(
         baseAmountText: String,
         frequency: PayFrequency,
-        extraIncomeText: String,
+        secondQuincenaText: String = "",
+        extraIncomeText: String = "",
+        additionalLines: List<PlanWizardLineItem> = emptyList(),
     ): DomainResult<Money> {
-        val base = parseOptional(baseAmountText) ?: return invalidAmount()
-        val extras = parseOptional(extraIncomeText) ?: return invalidAmount()
+        val extrasFromLegacy = parseOptional(extraIncomeText) ?: return invalidAmount()
+        val extrasFromLines = sumAdditionalLines(additionalLines) ?: return invalidAmount()
+        val totalExtras = extrasFromLegacy.amount.add(extrasFromLines)
 
         val monthlyBase = when (frequency) {
-            PayFrequency.MONTHLY -> base.amount
-            PayFrequency.BIWEEKLY -> base.amount.multiply(BIWEEKLY_TO_MONTHLY)
-            PayFrequency.WEEKLY -> base.amount.multiply(WEEKLY_TO_MONTHLY)
+            PayFrequency.MONTHLY -> {
+                val base = parseOptional(baseAmountText) ?: return invalidAmount()
+                base.amount
+            }
+            PayFrequency.BIWEEKLY -> {
+                val first = parseOptional(baseAmountText) ?: return invalidAmount()
+                val second = parseOptional(secondQuincenaText) ?: return invalidAmount()
+                if (first.isZero() && second.isZero()) return invalidAmount()
+                first.amount.add(second.amount)
+            }
+            PayFrequency.WEEKLY -> {
+                val base = parseOptional(baseAmountText) ?: return invalidAmount()
+                if (base.isZero()) return invalidAmount()
+                base.amount.multiply(WEEKLY_TO_MONTHLY)
+            }
         }
 
-        return Money.of(monthlyBase.add(extras.amount).setScale(2, RoundingMode.HALF_UP))
+        if (frequency != PayFrequency.BIWEEKLY) {
+            val base = parseOptional(baseAmountText) ?: return invalidAmount()
+            if (base.isZero() && totalExtras == BigDecimal.ZERO) return invalidAmount()
+        }
+
+        return Money.of(monthlyBase.add(totalExtras).setScale(2, RoundingMode.HALF_UP))
     }
 
     fun fromVariable(
@@ -66,15 +88,32 @@ class EstimateMonthlyIncomeUseCase @Inject constructor() {
         profile: IncomeProfile,
         fixedBaseText: String,
         frequency: PayFrequency,
-        extraIncomeText: String,
-        lowWeekText: String,
-        normalWeekText: String,
-        goodWeekText: String,
-        approximateText: String,
+        secondQuincenaText: String = "",
+        extraIncomeText: String = "",
+        additionalIncomeLines: List<PlanWizardLineItem> = emptyList(),
+        lowWeekText: String = "",
+        normalWeekText: String = "",
+        goodWeekText: String = "",
+        approximateText: String = "",
     ): DomainResult<Money> = when (profile) {
-        IncomeProfile.FIXED -> fromFixed(fixedBaseText, frequency, extraIncomeText)
+        IncomeProfile.FIXED -> fromFixed(
+            baseAmountText = fixedBaseText,
+            frequency = frequency,
+            secondQuincenaText = secondQuincenaText,
+            extraIncomeText = extraIncomeText,
+            additionalLines = additionalIncomeLines,
+        )
         IncomeProfile.VARIABLE -> fromVariable(lowWeekText, normalWeekText, goodWeekText)
         IncomeProfile.APPROXIMATE -> fromApproximate(approximateText)
+    }
+
+    private fun sumAdditionalLines(lines: List<PlanWizardLineItem>): BigDecimal? {
+        var total = BigDecimal.ZERO
+        for (line in lines) {
+            val parsed = parseOptional(line.amountText) ?: return null
+            total = total.add(parsed.amount)
+        }
+        return total
     }
 
     private fun parseOptional(text: String): Money? {
@@ -90,7 +129,6 @@ class EstimateMonthlyIncomeUseCase @Inject constructor() {
         DomainResult.Err(pe.kipu.core.domain.model.DomainError.InvalidAmount("Invalid income amount"))
 
     private companion object {
-        val BIWEEKLY_TO_MONTHLY: BigDecimal = BigDecimal("2")
         val WEEKLY_TO_MONTHLY: BigDecimal = BigDecimal("4")
         val AVERAGE_DIVISOR: BigDecimal = BigDecimal("3")
     }

@@ -17,6 +17,7 @@ class RoomUserDataWipeRepository @Inject constructor(
 ) : UserDataWipeRepository {
 
     override suspend fun wipeAllUserData(): Result<Unit> = runCatching {
+        userPreferencesRepository.clear().getOrThrow()
         database.withTransaction {
             database.movementDao().deleteAll()
             database.dismissedDuplicatePairDao().deleteAll()
@@ -27,7 +28,6 @@ class RoomUserDataWipeRepository @Inject constructor(
             database.gatheringExpenseDao().deleteAll()
             database.categoryDao().deleteAll()
         }
-        userPreferencesRepository.clear().getOrThrow()
         withContext(Dispatchers.IO) {
             KipuDatabaseSeeder.seedBaseline(database.openHelper.writableDatabase)
         }

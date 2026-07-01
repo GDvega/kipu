@@ -1,6 +1,7 @@
 package pe.kipu.feature.movements.presentation
 
 import pe.kipu.core.domain.model.Category
+import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementDuplicatePair
 import pe.kipu.feature.movements.ui.ManualMovementFormState
@@ -20,6 +21,8 @@ sealed interface MovementsUiState {
         val pendingResolution: MovementDuplicatePair? = null,
         val pendingNotificationConfirm: PendingNotificationConfirmState? = null,
         val categoryChangeTarget: Movement? = null,
+        val goalLinkTarget: Movement? = null,
+        val savingsGoals: List<Commitment> = emptyList(),
         val showAddOptionsDialog: Boolean = false,
         val manualMovementForm: ManualMovementFormState? = null,
     ) : MovementsUiState {
@@ -35,3 +38,7 @@ data class PendingNotificationConfirmState(
     val movementId: String,
     val duplicateMatches: List<Movement>,
 )
+
+sealed interface MovementsEvent {
+    data class ShowSnackbar(val message: String) : MovementsEvent
+}

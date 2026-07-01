@@ -65,10 +65,19 @@ internal object ReceiptFieldExtractor {
 
     fun hasTimeSignal(text: String): Boolean = TIME_PATTERN.containsMatchIn(text)
 
-    fun createDraftId(channel: pe.kipu.core.domain.model.PaymentChannel, operationReference: String?, amountCents: Long?): String {
+    fun createDraftId(
+        channel: pe.kipu.core.domain.model.PaymentChannel,
+        operationReference: String?,
+        amountCents: Long?,
+        fallbackNonce: String? = null,
+    ): String {
         operationReference?.let { return "draft-op-$it" }
-        return "draft-${channel.name.lowercase()}-${amountCents ?: 0L}"
+        val nonce = fallbackNonce?.takeIf { it.isNotBlank() } ?: "0"
+        return "draft-${channel.name.lowercase()}-${amountCents ?: 0L}-$nonce"
     }
+
+    fun stableTextNonce(text: String): String =
+        text.filter { !it.isWhitespace() }.hashCode().toUInt().toString(16)
 
     fun amountCents(amount: pe.kipu.core.domain.model.Money): Long =
         amount.amount.movePointRight(2).longValueExact()

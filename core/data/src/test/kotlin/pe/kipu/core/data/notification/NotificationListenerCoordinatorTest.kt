@@ -15,9 +15,11 @@ import pe.kipu.core.domain.parser.PlinIncomeNotificationParser
 import pe.kipu.core.domain.parser.YapeIncomeNotificationParser
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
-import pe.kipu.core.domain.time.TimeProvider
+import pe.kipu.core.domain.usecase.DetectDuplicateMovementUseCase
+import pe.kipu.core.domain.usecase.EvaluateAutoApprovalUseCase
 import pe.kipu.core.domain.usecase.ParseNotificationTextUseCase
 import pe.kipu.core.domain.usecase.RegisterNotificationIncomeUseCase
+import pe.kipu.core.domain.duplicate.MovementDuplicateMatcher
 
 class NotificationListenerCoordinatorTest {
 
@@ -93,15 +95,21 @@ class NotificationListenerCoordinatorTest {
         repository: RecordingMovementRepository,
         notificationsEnabled: Boolean,
         scope: kotlinx.coroutines.CoroutineScope,
-    ): NotificationListenerCoordinator = NotificationListenerCoordinator(
-        userPreferencesRepository = FixedUserPreferencesRepository(notificationsEnabled),
-        parseNotificationText = parseNotificationText,
-        registerNotificationIncome = RegisterNotificationIncomeUseCase(
-            movementRepository = repository,
-            timeProvider = FixedInstantTimeProvider(Instant.parse("2026-06-16T15:00:00Z")),
-        ),
-        applicationScope = scope,
-    )
+    ): NotificationListenerCoordinator {
+        val userPrefs = FixedUserPreferencesRepository(notificationsEnabled)
+        return NotificationListenerCoordinator(
+            userPreferencesRepository = userPrefs,
+            parseNotificationText = parseNotificationText,
+            registerNotificationIncome = RegisterNotificationIncomeUseCase(
+                movementRepository = repository,
+                timeProvider = FixedInstantTimeProvider(Instant.parse("2026-06-16T15:00:00Z")),
+                userPreferencesRepository = userPrefs,
+                detectDuplicateMovement = DetectDuplicateMovementUseCase(MovementDuplicateMatcher()),
+                evaluateAutoApproval = EvaluateAutoApprovalUseCase(),
+            ),
+            applicationScope = scope,
+        )
+    }
 
     private class FixedUserPreferencesRepository(
         private val notificationsEnabled: Boolean,
@@ -134,7 +142,7 @@ class NotificationListenerCoordinatorTest {
 
     private class FixedInstantTimeProvider(
         private val instant: Instant,
-    ) : TimeProvider {
+    ) : pe.kipu.core.domain.time.TimeProvider {
         override fun now(): Instant = instant
     }
 }

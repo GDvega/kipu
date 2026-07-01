@@ -8,6 +8,7 @@ data class Gathering(
     val name: String,
     val participantCount: Int,
     val participantNames: List<String> = emptyList(),
+    val isSettled: Boolean = false,
 ) {
     fun validate(): DomainResult<Unit> = when {
         id.isBlank() -> DomainResult.Err(DomainError.InvalidId("Gathering id must not be blank"))

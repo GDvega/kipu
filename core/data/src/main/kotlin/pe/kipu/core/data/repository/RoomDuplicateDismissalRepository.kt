@@ -4,6 +4,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.DismissedDuplicatePairDao
 import pe.kipu.core.data.local.entity.DismissedDuplicatePairEntity
 import pe.kipu.core.domain.repository.DuplicateDismissalRepository
@@ -14,7 +15,9 @@ class RoomDuplicateDismissalRepository @Inject constructor(
 ) : DuplicateDismissalRepository {
 
     override fun observeDismissedPairKeys(): Flow<Set<String>> =
-        dismissedDuplicatePairDao.observePairKeys().map { keys -> keys.toSet() }
+        dismissedDuplicatePairDao.observePairKeys()
+            .map { keys -> keys.toSet() }
+            .withImmediateDefault(emptySet())
 
     override suspend fun dismiss(pairKey: String): Result<Unit> =
         runCatching {

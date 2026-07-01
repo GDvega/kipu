@@ -18,6 +18,7 @@ fun CommitmentEntity.toDomain(): Commitment = Commitment(
     counterpartyName = counterpartyName,
     isSettled = isSettled,
     currencyCode = currencyCode,
+    savingsHorizonMonths = savingsHorizonMonths,
 )
 
 fun Commitment.toEntity(): CommitmentEntity = CommitmentEntity(
@@ -30,6 +31,7 @@ fun Commitment.toEntity(): CommitmentEntity = CommitmentEntity(
     counterpartyName = counterpartyName,
     isSettled = isSettled,
     currencyCode = currencyCode,
+    savingsHorizonMonths = savingsHorizonMonths,
 )
 
 private fun moneyToCents(money: Money): Long =

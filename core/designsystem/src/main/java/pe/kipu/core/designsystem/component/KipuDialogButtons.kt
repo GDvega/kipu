@@ -2,6 +2,9 @@ package pe.kipu.core.designsystem.component
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 
 /** Primary action inside [androidx.compose.material3.AlertDialog] footer slots. */
 @Composable
@@ -11,10 +14,14 @@ fun KipuDialogConfirmButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    val haptic = LocalHapticFeedback.current
     KipuPrimaryButton(
         text = text,
-        onClick = onClick,
-        modifier = modifier,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+            onClick()
+        },
+        modifier = modifier.testTag(KipuTestTags.DIALOG_CONFIRM),
         enabled = enabled,
         fillWidth = false,
     )
@@ -31,7 +38,7 @@ fun KipuDialogDismissButton(
     KipuSecondaryButton(
         text = text,
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.testTag(KipuTestTags.DIALOG_DISMISS),
         enabled = enabled,
         fillWidth = false,
     )

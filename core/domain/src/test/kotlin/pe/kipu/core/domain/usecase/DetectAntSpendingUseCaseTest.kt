@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.AlertSeverity
+import pe.kipu.core.domain.model.EnvelopeBudgetState
+import pe.kipu.core.domain.model.EnvelopeBudgetStatus
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementSource
@@ -119,6 +121,50 @@ class DetectAntSpendingUseCaseTest {
         assertTrue(alerts.isEmpty())
     }
 
+    @Test
+    fun `does not alert for expenses in a healthy envelope`() {
+        val movements = listOf(
+            expense("m1", "5.00", CategoryIds.FOOD, hoursAgo = 1),
+            expense("m2", "6.00", CategoryIds.FOOD, hoursAgo = 2),
+            expense("m3", "7.00", CategoryIds.FOOD, hoursAgo = 3),
+        )
+        val budgets = listOf(envelopeBudget(CategoryIds.FOOD, EnvelopeBudgetStatus.OK))
+
+        val alerts = useCase(movements, reference, isOverBudget = false, envelopeBudgets = budgets)
+
+        assertTrue("Healthy envelope should suppress ant spending alerts", alerts.isEmpty())
+    }
+
+    @Test
+    fun `still alerts for expenses in an exceeded envelope`() {
+        val movements = listOf(
+            expense("m1", "5.00", CategoryIds.FOOD, hoursAgo = 1),
+            expense("m2", "6.00", CategoryIds.FOOD, hoursAgo = 2),
+            expense("m3", "7.00", CategoryIds.FOOD, hoursAgo = 3),
+        )
+        val budgets = listOf(envelopeBudget(CategoryIds.FOOD, EnvelopeBudgetStatus.EXCEEDED))
+
+        val alerts = useCase(movements, reference, isOverBudget = false, envelopeBudgets = budgets)
+
+        assertEquals(1, alerts.size)
+        assertEquals(CategoryIds.FOOD, alerts.first().categoryId)
+    }
+
+    @Test
+    fun `still alerts for expenses with no matching envelope`() {
+        val movements = listOf(
+            expense("m1", "5.00", CategoryIds.FOOD, hoursAgo = 1),
+            expense("m2", "6.00", CategoryIds.FOOD, hoursAgo = 2),
+            expense("m3", "7.00", CategoryIds.FOOD, hoursAgo = 3),
+        )
+        val budgets = listOf(envelopeBudget(CategoryIds.TRANSPORT, EnvelopeBudgetStatus.OK))
+
+        val alerts = useCase(movements, reference, isOverBudget = false, envelopeBudgets = budgets)
+
+        assertEquals(1, alerts.size)
+        assertEquals(CategoryIds.FOOD, alerts.first().categoryId)
+    }
+
     private fun expense(
         id: String,
         amount: String,
@@ -152,4 +198,18 @@ class DetectAntSpendingUseCaseTest {
             createdAt = recordedAt,
         )
     }
+
+    private fun envelopeBudget(
+        categoryId: String,
+        status: EnvelopeBudgetStatus,
+    ): EnvelopeBudgetState = EnvelopeBudgetState(
+        envelopeId = "envelope-$categoryId",
+        name = "Test Envelope",
+        categoryId = categoryId,
+        weeklyLimit = Money.of(BigDecimal("150.00")).getOrError(),
+        spentAmount = Money.of(BigDecimal("50.00")).getOrError(),
+        remainingAmount = Money.of(BigDecimal("100.00")).getOrError(),
+        percentUsed = 33,
+        status = status,
+    )
 }

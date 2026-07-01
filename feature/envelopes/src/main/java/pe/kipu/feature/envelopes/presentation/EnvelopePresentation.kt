@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.designsystem.theme.KipuAmber
 import pe.kipu.core.designsystem.theme.KipuAmberDim
@@ -39,23 +40,27 @@ fun EnvelopeBudgetState.visualStyle(): EnvelopeVisualStyle = when (categoryId) {
 
 fun EnvelopeBudgetState.percentLabel(): String = "${percentUsed.coerceAtLeast(0)}%"
 
-fun EnvelopeBudgetState.percentToneColor(): Color = when (status) {
-    EnvelopeBudgetStatus.OK -> KipuPrimary
-    EnvelopeBudgetStatus.ADJUSTED -> KipuAmber
-    EnvelopeBudgetStatus.EXCEEDED -> KipuRed
+fun EnvelopeBudgetState.percentToneColor(): Color = when {
+    status == EnvelopeBudgetStatus.EXCEEDED || percentUsed >= 100 -> KipuRed
+    status == EnvelopeBudgetStatus.ADJUSTED || percentUsed >= 75 -> KipuAmber
+    else -> KipuPrimary
 }
 
-fun daysRemainingInWeek(): Int {
+fun daysRemainingInCycle(cycle: BudgetCycle): Int {
     val today = LocalDate.now()
-    val endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-    return (endOfWeek.toEpochDay() - today.toEpochDay()).toInt().coerceAtLeast(0)
+    val endOfCycle = when (cycle) {
+        BudgetCycle.WEEKLY -> today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
+        BudgetCycle.MONTHLY -> today.with(TemporalAdjusters.lastDayOfMonth())
+        BudgetCycle.DAILY -> today
+    }
+    return (endOfCycle.toEpochDay() - today.toEpochDay()).toInt().coerceAtLeast(0)
 }
 
-fun daysRemainingLabel(): String {
-    val days = daysRemainingInWeek()
+fun daysRemainingLabel(cycle: BudgetCycle): String {
+    val days = daysRemainingInCycle(cycle)
     return when (days) {
         0 -> "Hoy"
-        1 -> "1 día"
-        else -> "$days días"
+        1 -> "1 día restante"
+        else -> "$days días restantes"
     }
 }

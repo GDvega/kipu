@@ -1,0 +1,243 @@
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :core:domain:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :core:domain:compileKotlin UP-TO-DATE
+> Task :core:domain:compileJava NO-SOURCE
+> Task :core:domain:processResources NO-SOURCE
+> Task :core:domain:classes UP-TO-DATE
+> Task :core:domain:jar UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :core:data:preBuild UP-TO-DATE
+> Task :core:data:preDebugBuild UP-TO-DATE
+> Task :core:data:processDebugNavigationResources UP-TO-DATE
+> Task :core:designsystem:preBuild UP-TO-DATE
+> Task :core:designsystem:preDebugBuild UP-TO-DATE
+> Task :core:designsystem:processDebugNavigationResources UP-TO-DATE
+> Task :feature:commitments:preBuild UP-TO-DATE
+> Task :feature:commitments:preDebugBuild UP-TO-DATE
+> Task :feature:commitments:processDebugNavigationResources UP-TO-DATE
+> Task :feature:envelopes:preBuild UP-TO-DATE
+> Task :feature:envelopes:preDebugBuild UP-TO-DATE
+> Task :feature:envelopes:processDebugNavigationResources UP-TO-DATE
+> Task :feature:home:preBuild UP-TO-DATE
+> Task :feature:home:preDebugBuild UP-TO-DATE
+> Task :feature:home:processDebugNavigationResources UP-TO-DATE
+> Task :feature:juntas:preBuild UP-TO-DATE
+> Task :feature:juntas:preDebugBuild UP-TO-DATE
+> Task :feature:juntas:processDebugNavigationResources UP-TO-DATE
+> Task :feature:movements:preBuild UP-TO-DATE
+> Task :feature:movements:preDebugBuild UP-TO-DATE
+> Task :feature:movements:processDebugNavigationResources UP-TO-DATE
+> Task :feature:onboarding:preBuild UP-TO-DATE
+> Task :feature:onboarding:preDebugBuild UP-TO-DATE
+> Task :feature:onboarding:processDebugNavigationResources UP-TO-DATE
+> Task :feature:plan:preBuild UP-TO-DATE
+> Task :feature:plan:preDebugBuild UP-TO-DATE
+> Task :feature:plan:processDebugNavigationResources UP-TO-DATE
+> Task :feature:profile:preBuild UP-TO-DATE
+> Task :feature:profile:preDebugBuild UP-TO-DATE
+> Task :feature:profile:processDebugNavigationResources UP-TO-DATE
+> Task :feature:receipts:preBuild UP-TO-DATE
+> Task :feature:receipts:preDebugBuild UP-TO-DATE
+> Task :feature:receipts:processDebugNavigationResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :core:data:generateDebugResources UP-TO-DATE
+> Task :core:data:packageDebugResources UP-TO-DATE
+> Task :core:data:parseDebugLocalResources UP-TO-DATE
+> Task :core:data:generateDebugRFile UP-TO-DATE
+> Task :core:data:kspDebugKotlin UP-TO-DATE
+> Task :core:data:compileDebugKotlin UP-TO-DATE
+> Task :core:data:javaPreCompileDebug UP-TO-DATE
+> Task :core:data:compileDebugJavaWithJavac UP-TO-DATE
+> Task :core:data:transformDebugClassesWithAsm UP-TO-DATE
+> Task :core:data:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :core:designsystem:generateDebugResources UP-TO-DATE
+> Task :core:designsystem:packageDebugResources UP-TO-DATE
+> Task :core:designsystem:parseDebugLocalResources UP-TO-DATE
+> Task :core:designsystem:generateDebugRFile UP-TO-DATE
+> Task :core:designsystem:compileDebugKotlin UP-TO-DATE
+> Task :core:designsystem:javaPreCompileDebug UP-TO-DATE
+> Task :core:designsystem:compileDebugJavaWithJavac NO-SOURCE
+> Task :core:designsystem:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:commitments:generateDebugResources UP-TO-DATE
+> Task :feature:commitments:packageDebugResources UP-TO-DATE
+> Task :feature:commitments:parseDebugLocalResources UP-TO-DATE
+> Task :feature:commitments:generateDebugRFile UP-TO-DATE
+> Task :core:designsystem:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :feature:commitments:kspDebugKotlin UP-TO-DATE
+> Task :feature:commitments:compileDebugKotlin UP-TO-DATE
+> Task :feature:commitments:javaPreCompileDebug UP-TO-DATE
+> Task :feature:commitments:compileDebugJavaWithJavac UP-TO-DATE
+> Task :feature:commitments:transformDebugClassesWithAsm UP-TO-DATE
+> Task :feature:commitments:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :feature:envelopes:generateDebugResources UP-TO-DATE
+> Task :feature:envelopes:packageDebugResources UP-TO-DATE
+> Task :feature:envelopes:parseDebugLocalResources UP-TO-DATE
+> Task :feature:envelopes:generateDebugRFile UP-TO-DATE
+> Task :feature:envelopes:kspDebugKotlin UP-TO-DATE
+> Task :feature:envelopes:javaPreCompileDebug UP-TO-DATE
+> Task :feature:home:generateDebugResources UP-TO-DATE
+> Task :feature:home:packageDebugResources UP-TO-DATE
+> Task :feature:home:parseDebugLocalResources UP-TO-DATE
+> Task :feature:home:generateDebugRFile UP-TO-DATE
+> Task :feature:home:kspDebugKotlin UP-TO-DATE
+> Task :feature:home:javaPreCompileDebug UP-TO-DATE
+> Task :feature:juntas:generateDebugResources UP-TO-DATE
+> Task :feature:juntas:packageDebugResources UP-TO-DATE
+> Task :feature:juntas:parseDebugLocalResources UP-TO-DATE
+> Task :feature:juntas:generateDebugRFile UP-TO-DATE
+> Task :feature:juntas:kspDebugKotlin UP-TO-DATE
+> Task :feature:juntas:javaPreCompileDebug UP-TO-DATE
+> Task :feature:movements:generateDebugResources UP-TO-DATE
+> Task :feature:movements:packageDebugResources UP-TO-DATE
+> Task :feature:movements:parseDebugLocalResources UP-TO-DATE
+> Task :feature:movements:generateDebugRFile UP-TO-DATE
+> Task :feature:movements:kspDebugKotlin UP-TO-DATE
+
+> Task :feature:envelopes:compileDebugKotlin FAILED
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:175:58 Unresolved reference 'itemsIndexed'.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:177:37 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:177:40 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:177:53 Unresolved reference 'budget'.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:178:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:178:36 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:179:65 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:183:84 Unresolved reference 'budget'.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:184:79 Unresolved reference 'budget'.
+e: file:///home/gerson/proyectos/kipu/feature/envelopes/src/main/java/pe/kipu/feature/envelopes/EnvelopesScreen.kt:185:79 Unresolved reference 'budget'.
+
+> Task :feature:home:compileDebugKotlin FAILED
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:15:34 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:16:34 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:17:34 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:130:33 Unresolved reference 'DailyAvailableCard'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:138:37 Unresolved reference 'CashFlowSummaryCard'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:143:37 Unresolved reference 'WeeklySummaryCard'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:151:37 Unresolved reference 'UserCategoriesRow'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:206:37 Unresolved reference 'RecentMovementRow'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:219:37 Unresolved reference 'AntSpendingAlertCard'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:244:54 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:249:54 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:254:54 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:265:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:286:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:312:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:351:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:495:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:533:1 Modifier 'private' is not applicable to 'local function'.
+e: file:///home/gerson/proyectos/kipu/feature/home/src/main/java/pe/kipu/feature/home/HomeScreen.kt:568:2 Syntax error: Expecting '}'.
+
+> Task :feature:juntas:compileDebugKotlin FAILED
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:58 Unresolved reference 'itemsIndexed'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:96 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:99 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:108 Unresolved reference 'gathering'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:126 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:155:133 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:156:65 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:160:96 Unresolved reference 'gathering'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:161:94 Unresolved reference 'gathering'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:162:86 Unresolved reference 'gathering'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:193:22 Type 'MutableState<Boolean>' has no method 'setValue(Nothing?, KMutableProperty0<*>, Boolean)', so it cannot serve as a delegate for var (read-write property).
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:209:34 Unresolved reference 'androidx'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:229:65 Unresolved reference 'icons'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:258:75 Unresolved reference 'androidx'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:277:79 Unresolved reference 'androidx'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:285:47 Unresolved reference 'fromParticipant'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:289:57 Unresolved reference 'toParticipant'.
+e: file:///home/gerson/proyectos/kipu/feature/juntas/src/main/java/pe/kipu/feature/juntas/GatheringsScreen.kt:294:73 Unresolved reference 'amount'.
+
+> Task :feature:movements:compileDebugKotlin FAILED
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:231:62 Unresolved reference 'itemsIndexed'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:233:41 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:233:44 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:233:76 Unresolved reference 'id'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:234:33 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:234:40 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:235:69 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:239:107 Unresolved reference 'id'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:240:107 Unresolved reference 'id'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:261:62 Unresolved reference 'itemsIndexed'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:263:41 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:263:44 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:263:64 Unresolved reference 'movementA'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:263:85 Unresolved reference 'movementB'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:264:33 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:264:40 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:265:69 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:283:66 Unresolved reference 'itemsIndexed'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:285:45 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:285:48 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:285:69 Unresolved reference 'id'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:286:37 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:286:44 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:287:73 @Composable invocations can only happen from the context of a @Composable function
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:288:72 Unresolved reference 'commitmentId'.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:288:86 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:288:92 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///home/gerson/proyectos/kipu/feature/movements/src/main/java/pe/kipu/feature/movements/MovementsScreen.kt:293:93 Unresolved reference 'categoryId'.
+
+FAILURE: Build completed with 4 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:envelopes:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:home:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+3: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:juntas:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+4: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':feature:movements:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 3s
+73 actionable tasks: 4 executed, 69 up-to-date

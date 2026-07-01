@@ -3,12 +3,10 @@ package pe.kipu.core.domain.plan
 import java.math.BigDecimal
 
 /**
- * Reference amounts for Peru (RMV 2025–2026, D.S. 006-2024-TR) and Kipu seed defaults.
+ * Reference amounts for Peru and Kipu seed defaults.
  * Display-only anchors; user always confirms before save.
  */
 object PeruPlanDefaults {
-    val RMV_MONTHLY: BigDecimal = BigDecimal("1130")
-    val TYPICAL_INFORMAL_MONTHLY: BigDecimal = BigDecimal("1800")
     val TYPICAL_EMPLOYEE_MONTHLY: BigDecimal = BigDecimal("3000")
 
     val SEED_INCOME_MONTHLY: BigDecimal = TYPICAL_EMPLOYEE_MONTHLY
@@ -20,24 +18,18 @@ object PeruPlanDefaults {
     val SEED_PHONE_MONTHLY: BigDecimal = BigDecimal("50")
     val SEED_DEBTS_MONTHLY: BigDecimal = BigDecimal("550")
 
+    val SEED_BIWEEKLY_FIRST: BigDecimal = BigDecimal("750")
+    val SEED_BIWEEKLY_SECOND: BigDecimal = BigDecimal("800")
+    val SEED_WEEKLY_FIXED: BigDecimal = BigDecimal("400")
+    val SEED_MONTHLY_FIXED: BigDecimal = BigDecimal("1500")
+
+    val SEED_VARIABLE_LOW_WEEK: BigDecimal = BigDecimal("250")
+    val SEED_VARIABLE_NORMAL_WEEK: BigDecimal = BigDecimal("400")
+    val SEED_VARIABLE_GOOD_WEEK: BigDecimal = BigDecimal("650")
+
+    val SEED_GOAL_TARGET: BigDecimal = BigDecimal("1000")
+    val SEED_GOAL_CURRENT: BigDecimal = BigDecimal("150")
+
     /** Tipo de cambio referencial solo para validar metas en USD dentro del plan en soles. */
     val REFERENCE_USD_TO_PEN: BigDecimal = BigDecimal("3.75")
-}
-
-enum class IncomeTemplate {
-    RMV,
-    INFORMAL,
-    EMPLOYEE,
-}
-
-fun IncomeTemplate.monthlyAmount(): BigDecimal = when (this) {
-    IncomeTemplate.RMV -> PeruPlanDefaults.RMV_MONTHLY
-    IncomeTemplate.INFORMAL -> PeruPlanDefaults.TYPICAL_INFORMAL_MONTHLY
-    IncomeTemplate.EMPLOYEE -> PeruPlanDefaults.TYPICAL_EMPLOYEE_MONTHLY
-}
-
-fun IncomeTemplate.label(): String = when (this) {
-    IncomeTemplate.RMV -> "RMV S/ 1,130"
-    IncomeTemplate.INFORMAL -> "Independiente S/ 1,800"
-    IncomeTemplate.EMPLOYEE -> "Empleado S/ 3,000"
 }

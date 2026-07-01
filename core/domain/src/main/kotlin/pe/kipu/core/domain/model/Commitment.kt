@@ -16,6 +16,8 @@ data class Commitment(
     val counterpartyName: String? = null,
     val isSettled: Boolean = false,
     val currencyCode: String = GoalCurrency.PEN.code,
+    /** Months to reach [targetAmount]; used for monthly savings quota in plan validation. */
+    val savingsHorizonMonths: Int? = null,
 ) {
     fun validate(): DomainResult<Unit> = when {
         id.isBlank() -> DomainResult.Err(DomainError.InvalidId("Commitment id must not be blank"))

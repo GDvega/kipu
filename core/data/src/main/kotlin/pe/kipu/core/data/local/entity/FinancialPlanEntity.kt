@@ -8,6 +8,10 @@ data class FinancialPlanEntity(
     @PrimaryKey val id: String,
     val estimatedMonthlyIncomeCents: Long,
     val fixedExpensesCents: Long,
+    val initialBalanceCents: Long = 0L,
     /** Comma-separated envelope ids. */
     val envelopeIds: String,
+    val incomeProfile: String = "FIXED",
+    val payFrequency: String = "MONTHLY",
+    val budgetCycle: String = "WEEKLY",
 )

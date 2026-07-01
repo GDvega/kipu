@@ -15,9 +15,12 @@ import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.getOrError
+import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
+import pe.kipu.core.domain.repository.MovementRepository
 
 class ObserveCommitmentsInsightsUseCaseTest {
 
@@ -53,10 +56,13 @@ class ObserveCommitmentsInsightsUseCaseTest {
         val useCase = ObserveCommitmentsInsightsUseCase(
             observeCommitmentSummaries = ObserveCommitmentSummariesUseCase(
                 commitmentRepository = FakeCommitmentRepository(commitments),
+                movementRepository = FakeMovementRepository(),
                 calculateSavingsGoalProgress = CalculateSavingsGoalProgressUseCase(),
+                calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
             ),
             financialPlanRepository = FakeFinancialPlanRepository(listOf(plan)),
             envelopeRepository = FakeEnvelopeRepository(envelopes),
+            movementRepository = FakeMovementRepository(),
             validateFinancialPlan = ValidateFinancialPlanUseCase(),
         )
 
@@ -106,6 +112,18 @@ class ObserveCommitmentsInsightsUseCaseTest {
         override suspend fun getById(id: String): Envelope? = envelopes.find { it.id == id }
 
         override suspend fun save(envelope: Envelope): Result<Unit> = Result.success(Unit)
+
+        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class FakeMovementRepository : MovementRepository {
+        override fun observeMovements(): Flow<List<Movement>> = flowOf(emptyList())
+
+        override suspend fun getById(id: String): Movement? = null
+
+        override suspend fun findByCounterpartyName(counterpartyName: String): List<Movement> = emptyList()
+
+        override suspend fun save(movement: Movement): Result<Unit> = Result.success(Unit)
 
         override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
     }

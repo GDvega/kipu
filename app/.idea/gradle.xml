@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="testRunner" value="CHOOSE_PER_TEST" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/.." />
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/../core" />
+            <option value="$PROJECT_DIR$/../core/data" />
+            <option value="$PROJECT_DIR$/../core/designsystem" />
+            <option value="$PROJECT_DIR$/../core/domain" />
+            <option value="$PROJECT_DIR$/../feature" />
+            <option value="$PROJECT_DIR$/../feature/commitments" />
+            <option value="$PROJECT_DIR$/../feature/envelopes" />
+            <option value="$PROJECT_DIR$/../feature/home" />
+            <option value="$PROJECT_DIR$/../feature/juntas" />
+            <option value="$PROJECT_DIR$/../feature/movements" />
+            <option value="$PROJECT_DIR$/../feature/onboarding" />
+            <option value="$PROJECT_DIR$/../feature/plan" />
+            <option value="$PROJECT_DIR$/../feature/profile" />
+            <option value="$PROJECT_DIR$/../feature/receipts" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

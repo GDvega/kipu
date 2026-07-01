@@ -7,12 +7,13 @@ Leer junto con `AGENTS.md`, `PROJECT_STATE.md` y los checklists en `docs/ai/`.
 
 ## 1. Cómo usar este workflow
 
-1. **Antes de pedir código:** lee `docs/ai/PROJECT_STATE.md` para conocer la fase actual.
+1. **Antes de pedir código:** lee `docs/ai/PROJECT_STATE.md` y `docs/ai/MAPA_VISUAL_KIPU.artifact.md` para conocer la fase actual y la arquitectura.
 2. **Copia la plantilla de prompt** (sección 3) y rellena las 10 secciones.
 3. **Indica skill obligatoria:** ECC Engineering System.
-4. **Activa skills adicionales** según el mapa (sección 2).
-5. **Al recibir el resultado:** usa la plantilla de revisión (sección 4) o los comandos del gestor (sección 5).
-6. **Al cerrar una fase:** actualiza `PROJECT_STATE.md`.
+4. **Optimiza tokens:** Asegúrate de que la IA conozca la existencia del archivo `.aiexclude` en la raíz para ignorar ruido técnico.
+5. **Activa skills adicionales** según el mapa (sección 2).
+6. **Al recibir el resultado:** usa la plantilla de revisión (sección 4) o los comandos del gestor (sección 5).
+7. **Al cerrar una fase:** actualiza `PROJECT_STATE.md`.
 
 **Reglas de oro:**
 
@@ -34,7 +35,9 @@ Leer junto con `AGENTS.md`, `PROJECT_STATE.md` y los checklists en `docs/ai/`.
 | TDD workflow | `tdd-workflow.md` | Cualquier lógica de comportamiento (UseCases, parsers) |
 | Security review | `security-review.md` | Datos financieros, permisos, intents, backup, export/wipe |
 
-**Skill externa (siempre):** ECC Engineering System — ciclo, riesgo, verificación, contrato de salida.
+**Skill externa (siempre):** `super-android-kotlin-firebase` — orquestador maestro para Android/Kotlin/Compose/Firebase.
+
+**Skill metodológica:** ECC Engineering System (`ecc-engineering-system`) — ciclo, riesgo, verificación, contrato de salida.
 
 **Resumen ECC en Kipu:** `docs/ai/ECC_INTEGRATION.md`.
 
@@ -66,6 +69,7 @@ Package: `pe.kipu.app`. minSdk 26, compileSdk 37, targetSdk 36.
 
 Evidencia disponible:
 - [archivos, módulos o comportamiento ya existente que la IA debe leer]
+- Referencia visual: `docs/ai/MAPA_VISUAL_KIPU.artifact.md` (Arquitectura, Navegación, DB)
 
 Riesgo dominante: [BAJO / MEDIO / ALTO] — [justificación en una línea]
 

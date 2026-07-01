@@ -17,22 +17,13 @@ object DefaultFinancialPlanSeed {
         id = FinancialPlanIds.PRIMARY,
         estimatedMonthlyIncomeCents = 300_000L,
         fixedExpensesCents = 180_000L,
+        initialBalanceCents = 0L,
         envelopeIds = envelopeIds,
+        incomeProfile = "FIXED",
+        payFrequency = "MONTHLY",
     )
 
     fun insertInto(db: SupportSQLiteDatabase) {
-        db.execSQL(
-            """
-            INSERT OR IGNORE INTO financial_plans (
-                id, estimatedMonthlyIncomeCents, fixedExpensesCents, envelopeIds
-            ) VALUES (?, ?, ?, ?)
-            """.trimIndent(),
-            arrayOf<Any>(
-                plan.id,
-                plan.estimatedMonthlyIncomeCents,
-                plan.fixedExpensesCents,
-                plan.envelopeIds,
-            ),
-        )
+        // No-op: a real financial plan must only exist after explicit user confirmation in the wizard.
     }
 }

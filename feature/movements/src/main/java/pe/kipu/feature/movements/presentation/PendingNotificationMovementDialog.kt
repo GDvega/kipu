@@ -69,12 +69,12 @@ fun PendingNotificationIncomeCard(
 
 @Composable
 fun PendingNotificationDuplicateDialog(
-    state: PendingNotificationConfirmState,
+    pendingMovement: Movement,
+    existingMatch: Movement,
     onResolve: (DuplicateResolution) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val amountText = state.duplicateMatches.firstOrNull()?.amount?.amount?.let { formatPenAmountForDisplay(it) }
-        ?: ""
+    val summary = buildNotificationDuplicateSummary(pendingMovement, existingMatch)
 
     AlertDialog(
         onDismissRequest = { onResolve(DuplicateResolution.CANCEL) },
@@ -83,22 +83,55 @@ fun PendingNotificationDuplicateDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Ya tienes un ingreso similar confirmado ($amountText). " +
-                        "¿Quieres guardarlo igual?",
+                    text = "Ya tienes un ingreso similar confirmado. " +
+                        "El ingreso por notificación parece repetir el mismo pago.",
+                )
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "¿Qué quieres hacer?",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
             KipuDialogConfirmButton(
-                text = "Guardar igual",
-                onClick = { onResolve(DuplicateResolution.SAVE_AS_NEW) },
+                text = "Fusionar",
+                onClick = { onResolve(DuplicateResolution.MERGE) },
             )
         },
         dismissButton = {
-            KipuDialogDismissButton(
-                text = "Cancelar",
-                onClick = { onResolve(DuplicateResolution.CANCEL) },
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                KipuDialogDismissButton(
+                    text = "No es duplicado",
+                    onClick = { onResolve(DuplicateResolution.SAVE_AS_NEW) },
+                )
+                KipuDialogDismissButton(
+                    text = "Cancelar",
+                    onClick = { onResolve(DuplicateResolution.CANCEL) },
+                )
+            }
         },
     )
+}
+
+private fun buildNotificationDuplicateSummary(
+    pendingMovement: Movement,
+    existingMatch: Movement,
+): String {
+    val pendingTitle = movementDisplayTitle(pendingMovement.counterpartyName, pendingMovement.description)
+    val existingTitle = movementDisplayTitle(existingMatch.counterpartyName, existingMatch.description)
+    val pendingAmount = formatPenAmountForDisplay(pendingMovement.amount.amount)
+    val existingAmount = formatPenAmountForDisplay(existingMatch.amount.amount)
+    val pendingDate = formatMovementDate(pendingMovement.recordedAt)
+    val existingDate = formatMovementDate(existingMatch.recordedAt)
+
+    return "Notificación: $pendingTitle · $pendingAmount · $pendingDate\n" +
+        "Confirmado: $existingTitle · $existingAmount · $existingDate"
 }

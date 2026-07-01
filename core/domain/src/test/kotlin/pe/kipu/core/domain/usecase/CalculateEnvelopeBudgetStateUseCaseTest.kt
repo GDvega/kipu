@@ -17,14 +17,14 @@ import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.getOrError
-import pe.kipu.core.domain.time.WeekRange
-import pe.kipu.core.domain.time.WeekRangeCalculator
+import pe.kipu.core.domain.time.CycleRange
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 class CalculateEnvelopeBudgetStateUseCaseTest {
 
-    private val useCase = CalculateEnvelopeBudgetStateUseCase(CalculateCategoryWeeklySpentUseCase())
-    private val peruZone: ZoneId = WeekRangeCalculator.PERU_ZONE
-    private val weekRange = WeekRange(
+    private val useCase = CalculateEnvelopeBudgetStateUseCase(CalculateCategoryPeriodSpentUseCase())
+    private val peruZone: ZoneId = CycleRangeCalculator.PERU_ZONE
+    private val cycleRange = CycleRange(
         start = ZonedDateTime.of(2026, 6, 15, 0, 0, 0, 0, peruZone).toInstant(),
         end = ZonedDateTime.of(2026, 6, 22, 0, 0, 0, 0, peruZone).toInstant(),
     )
@@ -38,7 +38,7 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
 
     @Test
     fun `handles envelope with zero spending`() {
-        val state = useCase(foodEnvelope, emptyList(), weekRange)
+        val state = useCase(foodEnvelope, emptyList(), cycleRange)
 
         assertEquals(Money.ZERO, state.spentAmount)
         assertEquals(0, state.percentUsed)
@@ -52,7 +52,7 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
             expense(CategoryIds.FOOD, "120.00", instant(2026, 6, 16, 10, 0)),
         )
 
-        val state = useCase(foodEnvelope, movements, weekRange)
+        val state = useCase(foodEnvelope, movements, cycleRange)
 
         assertEquals(80, state.percentUsed)
         assertEquals(EnvelopeBudgetStatus.ADJUSTED, state.status)
@@ -64,7 +64,7 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
             expense(CategoryIds.FOOD, "121.00", instant(2026, 6, 16, 10, 0)),
         )
 
-        val state = useCase(foodEnvelope, movements, weekRange)
+        val state = useCase(foodEnvelope, movements, cycleRange)
 
         assertEquals(EnvelopeBudgetStatus.ADJUSTED, state.status)
     }
@@ -75,7 +75,7 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
             expense(CategoryIds.FOOD, "160.00", instant(2026, 6, 16, 10, 0)),
         )
 
-        val state = useCase(foodEnvelope, movements, weekRange)
+        val state = useCase(foodEnvelope, movements, cycleRange)
 
         assertEquals(EnvelopeBudgetStatus.EXCEEDED, state.status)
         assertEquals(Money.ZERO, state.remainingAmount)
@@ -86,6 +86,25 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
     fun `rejects zero envelope limit`() {
         val invalid = foodEnvelope.copy(weeklyLimit = Money.ZERO)
         assertTrue(invalid.validate() is pe.kipu.core.domain.model.DomainResult.Err)
+    }
+
+    @Test
+    fun `excludes gathering linked movements from budget spent calculation`() {
+        val m1 = expense(CategoryIds.FOOD, "120.00", instant(2026, 6, 16, 10, 0))
+        val m2 = expense(CategoryIds.FOOD, "40.00", instant(2026, 6, 16, 11, 0))
+        
+        // Without exclusion, spent = 160 -> EXCEEDED
+        // With m1 excluded (linked to gathering), spent = 40 -> OK
+        val state = useCase(
+            envelope = foodEnvelope,
+            movements = listOf(m1, m2),
+            cycleRange = cycleRange,
+            gatheringLinkedMovementIds = setOf(m1.id),
+        )
+
+        assertEquals(EnvelopeBudgetStatus.OK, state.status)
+        assertEquals(BigDecimal("40.00"), state.spentAmount.amount)
+        assertEquals(27, state.percentUsed)
     }
 
     private fun expense(categoryId: String, amount: String, recordedAt: Instant) = Movement(

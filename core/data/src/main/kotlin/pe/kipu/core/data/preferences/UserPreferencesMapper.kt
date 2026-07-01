@@ -17,6 +17,7 @@ fun Preferences.toUserPreferences(): UserPreferences = UserPreferences(
     antSpendingTrackedCategories = parseCategorySet(this[UserPreferencesKeys.ANT_SPENDING_TRACKED_CATEGORIES]),
     widgetDailyAvailableText = this[UserPreferencesKeys.WIDGET_DAILY_AVAILABLE_TEXT],
     widgetIsOverBudget = this[UserPreferencesKeys.WIDGET_IS_OVER_BUDGET] ?: false,
+    autoApproveHighConfidenceNotifications = this[UserPreferencesKeys.AUTO_APPROVE_NOTIFICATIONS] ?: false,
 )
 
 fun UserPreferences.toPreferences(): Preferences = mutablePreferencesOf(
@@ -39,6 +40,7 @@ fun UserPreferences.toPreferences(): Preferences = mutablePreferencesOf(
         mutable.remove(UserPreferencesKeys.WIDGET_DAILY_AVAILABLE_TEXT)
     }
     mutable[UserPreferencesKeys.WIDGET_IS_OVER_BUDGET] = widgetIsOverBudget
+    mutable[UserPreferencesKeys.AUTO_APPROVE_NOTIFICATIONS] = autoApproveHighConfidenceNotifications
 }
 
 internal fun MutablePreferences.applyUserPreferences(preferences: UserPreferences) {
@@ -61,6 +63,7 @@ internal fun MutablePreferences.applyUserPreferences(preferences: UserPreference
         remove(UserPreferencesKeys.WIDGET_DAILY_AVAILABLE_TEXT)
     }
     this[UserPreferencesKeys.WIDGET_IS_OVER_BUDGET] = preferences.widgetIsOverBudget
+    this[UserPreferencesKeys.AUTO_APPROVE_NOTIFICATIONS] = preferences.autoApproveHighConfidenceNotifications
 }
 
 fun parseThemeMode(raw: String?): ThemeMode {

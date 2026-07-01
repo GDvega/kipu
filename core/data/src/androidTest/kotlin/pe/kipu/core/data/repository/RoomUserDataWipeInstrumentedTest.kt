@@ -8,6 +8,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.time.Instant
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -55,7 +58,10 @@ class RoomUserDataWipeInstrumentedTest {
         val dataStore = PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile(prefsName) },
         )
-        preferencesRepository = DataStoreUserPreferencesRepository(dataStore)
+        preferencesRepository = DataStoreUserPreferencesRepository(
+            dataStore = dataStore,
+            applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        )
         wipeRepository = RoomUserDataWipeRepository(database, preferencesRepository)
     }
 
@@ -88,7 +94,7 @@ class RoomUserDataWipeInstrumentedTest {
 
         assertEquals(0, database.movementDao().observeAll().first().size)
         assertTrue(database.categoryDao().observeAll().first().isNotEmpty())
-        assertTrue(database.envelopeDao().observeAll().first().isNotEmpty())
+        assertTrue(database.envelopeDao().observeAll().first().isEmpty())
         assertEquals(false, preferencesRepository.observePreferences().first().onboardingCompleted)
     }
 }

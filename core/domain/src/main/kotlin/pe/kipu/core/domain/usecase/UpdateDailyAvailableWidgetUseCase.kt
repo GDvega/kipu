@@ -17,7 +17,7 @@ class UpdateDailyAvailableWidgetUseCase @Inject constructor(
 
     suspend operator fun invoke(insights: HomeInsights): Result<Unit> {
         val displayText = resolveDisplayText(insights)
-        val isOverBudget = insights.dailyAvailable.isOverBudget
+        val isOverBudget = insights.cycleAvailable.isOverBudget
 
         return userPreferencesRepository.updatePreferences { prefs ->
             prefs.copy(
@@ -33,10 +33,10 @@ class UpdateDailyAvailableWidgetUseCase @Inject constructor(
 
     private fun resolveDisplayText(insights: HomeInsights): String = when {
         insights.envelopeCount == 0 -> WIDGET_SETUP_ENVELOPES
-        insights.dailyAvailable.isOverBudget -> WIDGET_OVER_BUDGET
-        insights.dailyAvailable.daysRemainingInWeek <= 0 -> WIDGET_NO_DAYS_LEFT
-        insights.dailyAvailable.dailyAvailable != null ->
-            formatPen(insights.dailyAvailable.dailyAvailable)
+        insights.cycleAvailable.isOverBudget -> WIDGET_OVER_BUDGET
+        insights.cycleAvailable.daysRemainingInCycle <= 0 -> WIDGET_NO_DAYS_LEFT
+        insights.cycleAvailable.cycleAvailable != null ->
+            formatPen(insights.cycleAvailable.cycleAvailable)
         else -> WIDGET_UNAVAILABLE
     }
 

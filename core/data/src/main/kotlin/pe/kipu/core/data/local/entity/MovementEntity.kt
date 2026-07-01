@@ -14,8 +14,14 @@ import androidx.room.PrimaryKey
             childColumns = ["categoryId"],
             onDelete = ForeignKey.RESTRICT,
         ),
+        ForeignKey(
+            entity = CommitmentEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["commitmentId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
-    indices = [Index("categoryId")],
+    indices = [Index("categoryId"), Index("commitmentId")],
 )
 data class MovementEntity(
     @PrimaryKey val id: String,
@@ -29,6 +35,7 @@ data class MovementEntity(
     val description: String?,
     val counterpartyName: String?,
     val operationNumber: String?,
+    val commitmentId: String? = null,
     val recordedAtMillis: Long,
     val createdAtMillis: Long,
 )

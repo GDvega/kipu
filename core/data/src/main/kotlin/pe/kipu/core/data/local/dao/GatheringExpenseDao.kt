@@ -25,6 +25,15 @@ interface GatheringExpenseDao {
     @Query("SELECT movementId FROM gathering_expenses WHERE movementId IS NOT NULL")
     fun observeLinkedMovementIds(): Flow<List<String>>
 
+    @Query(
+        """
+        SELECT ge.movementId FROM gathering_expenses ge
+        INNER JOIN gatherings g ON ge.gatheringId = g.id
+        WHERE ge.movementId IS NOT NULL AND g.isSettled = 0
+        """,
+    )
+    fun observeActiveGatheringLinkedMovementIds(): Flow<List<String>>
+
     @Query("SELECT COUNT(*) > 0 FROM gathering_expenses WHERE movementId = :movementId LIMIT 1")
     suspend fun isMovementLinked(movementId: String): Boolean
 

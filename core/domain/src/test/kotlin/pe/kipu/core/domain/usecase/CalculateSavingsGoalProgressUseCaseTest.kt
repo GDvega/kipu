@@ -16,6 +16,23 @@ class CalculateSavingsGoalProgressUseCaseTest {
     private val useCase = CalculateSavingsGoalProgressUseCase()
 
     @Test
+    fun `includes linked income in progress calculation`() {
+        val commitment = savingsGoal(
+            target = "500.00",
+            current = "100.00",
+        )
+
+        val result = useCase(
+            commitment = commitment,
+            linkedIncome = Money.of(BigDecimal("25.00")).getOrError(),
+        )
+
+        assertTrue(result is DomainResult.Ok)
+        val progress = (result as DomainResult.Ok).value
+        assertEquals(25, progress.progressPercent)
+    }
+
+    @Test
     fun `calculates 24 percent progress for known saved and target amounts`() {
         val commitment = savingsGoal(
             target = "500.00",

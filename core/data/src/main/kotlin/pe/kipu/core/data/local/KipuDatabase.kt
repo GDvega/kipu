@@ -30,7 +30,7 @@ import pe.kipu.core.data.local.entity.MovementEntity
         GatheringEntity::class,
         GatheringExpenseEntity::class,
     ],
-    version = 9,
+    version = 15,
     exportSchema = false,
 )
 abstract class KipuDatabase : RoomDatabase() {

@@ -13,7 +13,7 @@ import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.time.TimeProvider
-import pe.kipu.core.domain.time.WeekRangeCalculator
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 class GetEnvelopeRecentMovementsUseCaseTest {
 
@@ -43,7 +43,7 @@ class GetEnvelopeRecentMovementsUseCaseTest {
             recordedAt = Instant.parse("2026-06-16T12:00:00Z"),
         )
         val useCase = GetEnvelopeRecentMovementsUseCase(
-            weekRangeCalculator = WeekRangeCalculator(FixedTimeProvider(reference)),
+            cycleRangeCalculator = CycleRangeCalculator(FixedTimeProvider(reference)),
             timeProvider = FixedTimeProvider(reference),
         )
 

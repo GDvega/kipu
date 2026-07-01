@@ -7,17 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,7 +28,6 @@ import pe.kipu.app.navigation.KipuPlanRoutes
 import pe.kipu.app.presentation.MainViewModel
 import pe.kipu.core.designsystem.component.KipuScreenBackground
 import pe.kipu.core.designsystem.component.KipuSystemBarStyle
-import pe.kipu.core.designsystem.theme.KipuPrimary
 import pe.kipu.core.designsystem.theme.KipuTheme
 import pe.kipu.core.domain.model.resolvesToDarkTheme
 import pe.kipu.feature.onboarding.OnboardingScreen
@@ -68,73 +63,62 @@ class MainActivity : ComponentActivity() {
                 }
 
                 KipuScreenBackground {
-                    when (onboardingCompleted) {
-                        null -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(color = KipuPrimary)
+                    if (!onboardingCompleted) {
+                        OnboardingScreen()
+                    } else {
+                        val navController = rememberNavController()
+                        var openManualOnMovements by remember { mutableStateOf(false) }
+                        var planWizardHandled by remember { mutableStateOf(false) }
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val currentRoute = navBackStackEntry?.destination?.route
+                        val showBottomBar = KipuDestination.bottomBarDestinations.any { destination ->
+                            destination.route == currentRoute
+                        }
+
+                        LaunchedEffect(onboardingCompleted, pendingPlanWizard, planWizardHandled) {
+                            if (onboardingCompleted && pendingPlanWizard && !planWizardHandled) {
+                                planWizardHandled = true
+                                navController.navigate(KipuPlanRoutes.wizard())
+                                mainViewModel.clearPendingPlanWizard()
                             }
                         }
 
-                        false -> OnboardingScreen()
-
-                        true -> {
-                            val navController = rememberNavController()
-                            var openManualOnMovements by remember { mutableStateOf(false) }
-                            var planWizardHandled by remember { mutableStateOf(false) }
-                            val navBackStackEntry by navController.currentBackStackEntryAsState()
-                            val currentRoute = navBackStackEntry?.destination?.route
-                            val showBottomBar = KipuDestination.bottomBarDestinations.any { destination ->
-                                destination.route == currentRoute
+                        LaunchedEffect(Unit) {
+                            if (mainViewModel.consumePendingOpenManualMovement()) {
+                                openManualOnMovements = true
+                                navController.navigate(KipuDestination.Movements.route)
                             }
+                            mainViewModel.consumePendingReceiptUri()?.let { uri ->
+                                navController.navigate(ReceiptRoutes.review(uri))
+                            }
+                        }
 
-                            LaunchedEffect(onboardingCompleted, pendingPlanWizard, planWizardHandled) {
-                                if (onboardingCompleted == true && pendingPlanWizard && !planWizardHandled) {
-                                    planWizardHandled = true
-                                    navController.navigate(KipuPlanRoutes.wizard())
-                                    mainViewModel.clearPendingPlanWizard()
+                        LaunchedEffect(pendingReceiptUri) {
+                            pendingReceiptUri?.let { uri ->
+                                mainViewModel.consumePendingReceiptUri()
+                                navController.navigate(ReceiptRoutes.review(uri))
+                            }
+                        }
+
+                        Scaffold(
+                            containerColor = Color.Transparent,
+                            bottomBar = {
+                                if (showBottomBar) {
+                                    KipuBottomBar(navController = navController)
                                 }
-                            }
-
-                            LaunchedEffect(Unit) {
-                                if (mainViewModel.consumePendingOpenManualMovement()) {
+                            },
+                        ) { innerPadding ->
+                            KipuNavGraph(
+                                navController = navController,
+                                openManualMovementOnMovements = openManualOnMovements,
+                                onManualMovementLaunchConsumed = { openManualOnMovements = false },
+                                onRequestManualMovement = {
                                     openManualOnMovements = true
                                     navController.navigate(KipuDestination.Movements.route)
-                                }
-                                mainViewModel.consumePendingReceiptUri()?.let { uri ->
-                                    navController.navigate(ReceiptRoutes.review(uri))
-                                }
-                            }
-
-                            LaunchedEffect(pendingReceiptUri) {
-                                pendingReceiptUri?.let { uri ->
-                                    mainViewModel.consumePendingReceiptUri()
-                                    navController.navigate(ReceiptRoutes.review(uri))
-                                }
-                            }
-
-                            Scaffold(
-                                modifier = Modifier.fillMaxSize(),
-                                containerColor = Color.Transparent,
-                                bottomBar = {
-                                    if (showBottomBar) {
-                                        KipuBottomBar(navController = navController)
-                                    }
                                 },
-                            ) { innerPadding ->
-                                KipuNavGraph(
-                                    navController = navController,
-                                    openManualMovementOnMovements = openManualOnMovements,
-                                    onManualMovementLaunchConsumed = { openManualOnMovements = false },
-                                    onRequestManualMovement = {
-                                        openManualOnMovements = true
-                                        navController.navigate(KipuDestination.Movements.route)
-                                    },
-                                    modifier = Modifier.padding(innerPadding),
-                                )
-                            }
+                                onCancelNewPlan = { mainViewModel.resetOnboarding() },
+                                modifier = Modifier.padding(innerPadding),
+                            )
                         }
                     }
                 }

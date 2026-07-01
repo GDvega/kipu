@@ -20,6 +20,7 @@ import pe.kipu.core.domain.model.Category
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.feature.movements.presentation.ManualMovementChannelOption
+import pe.kipu.feature.movements.presentation.ManualMovementAmountValidator
 
 data class ManualMovementFormState(
     val movementType: MovementType = MovementType.EXPENSE,
@@ -29,8 +30,12 @@ data class ManualMovementFormState(
     val description: String = "",
     val counterpartyName: String = "",
     val isSaving: Boolean = false,
+    val amountErrorMessage: String? = ManualMovementAmountValidator.EMPTY_AMOUNT_MESSAGE,
     val errorMessage: String? = null,
-)
+) {
+    val canSave: Boolean
+        get() = !isSaving && categoryId != null && amountErrorMessage == null
+}
 
 @Composable
 fun ManualMovementDialog(
@@ -89,6 +94,13 @@ fun ManualMovementDialog(
                     onValueChange = onAmountChanged,
                     label = "Monto",
                 )
+                formState.amountErrorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
 
                 if (categories.isNotEmpty()) {
                     Text(
@@ -134,7 +146,7 @@ fun ManualMovementDialog(
             KipuDialogConfirmButton(
                 text = if (formState.isSaving) "Guardando..." else "Guardar",
                 onClick = onConfirm,
-                enabled = !formState.isSaving,
+                enabled = formState.canSave,
             )
         },
         dismissButton = {

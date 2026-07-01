@@ -19,6 +19,7 @@ sealed interface ProfileUiState {
         val appVersionLabel: String = "Kipu 1.0",
         val themeMode: ThemeMode = ThemeMode.SYSTEM,
         val notificationsEnabled: Boolean = false,
+        val autoApproveHighConfidenceNotifications: Boolean = false,
         val notificationAccessGranted: Boolean = false,
         val showNotificationAccessDialog: Boolean = false,
         val onboardingCompleted: Boolean = false,

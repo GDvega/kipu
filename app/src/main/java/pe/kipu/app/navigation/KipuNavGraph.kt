@@ -1,5 +1,9 @@
 package pe.kipu.app.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -14,6 +18,8 @@ import pe.kipu.feature.home.HomeScreen
 import pe.kipu.feature.movements.MovementsScreen
 import pe.kipu.feature.plan.PlanWizardScreen
 import pe.kipu.feature.profile.ProfileScreen
+import pe.kipu.feature.profile.PrivacyPolicyScreen
+import pe.kipu.feature.profile.navigation.ProfileRoutes
 import pe.kipu.feature.juntas.GatheringsScreen
 import pe.kipu.feature.juntas.navigation.GatheringRoutes
 import pe.kipu.feature.receipts.ReceiptReviewScreen
@@ -26,12 +32,17 @@ fun KipuNavGraph(
     openManualMovementOnMovements: Boolean = false,
     onManualMovementLaunchConsumed: () -> Unit = {},
     onRequestManualMovement: () -> Unit = {},
+    onCancelNewPlan: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     NavHost(
         navController = navController,
         startDestination = KipuDestination.Home.route,
         modifier = modifier,
+        enterTransition = { fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f) },
+        exitTransition = { fadeOut(animationSpec = tween(300)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+        popExitTransition = { fadeOut(animationSpec = tween(300)) },
     ) {
         composable(KipuDestination.Home.route) {
             HomeScreen(
@@ -39,6 +50,18 @@ fun KipuNavGraph(
                     navController.navigate(ReceiptRoutes.HUB)
                 },
                 onRegisterCash = onRequestManualMovement,
+                onNavigateToMovements = {
+                    navController.navigate(KipuDestination.Movements.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToCategoryMovements = { categoryId ->
+                    navController.navigate(KipuPlanRoutes.movementsByCategory(categoryId))
+                },
             )
         }
         composable(KipuDestination.Movements.route) {
@@ -47,10 +70,8 @@ fun KipuNavGraph(
                     navController.navigate(ReceiptRoutes.HUB)
                 },
                 openManualOnLaunch = openManualMovementOnMovements,
+                onOpenManualLaunchConsumed = onManualMovementLaunchConsumed,
             )
-            if (openManualMovementOnMovements) {
-                onManualMovementLaunchConsumed()
-            }
         }
         composable(
             route = KipuPlanRoutes.MOVEMENTS_BY_CATEGORY,
@@ -59,7 +80,12 @@ fun KipuNavGraph(
             ),
         ) { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getString(KipuPlanRoutes.CATEGORY_ID_ARG)
-            MovementsScreen(initialCategoryId = categoryId)
+            MovementsScreen(
+                initialCategoryId = categoryId,
+                onRegisterReceipt = {
+                    navController.navigate(ReceiptRoutes.HUB)
+                },
+            )
         }
         composable(KipuDestination.Envelopes.route) {
             EnvelopesScreen(
@@ -68,15 +94,6 @@ fun KipuNavGraph(
                 },
                 onNavigateToPlan = { startStep ->
                     navController.navigate(KipuPlanRoutes.wizard(startStep))
-                },
-                onNavigateToCommitments = {
-                    navController.navigate(KipuDestination.Commitments.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
                 },
             )
         }
@@ -88,6 +105,14 @@ fun KipuNavGraph(
                 onNavigateToGatherings = {
                     navController.navigate(GatheringRoutes.LIST)
                 },
+                onNavigateToPrivacyPolicy = {
+                    navController.navigate(ProfileRoutes.PRIVACY)
+                },
+            )
+        }
+        composable(ProfileRoutes.PRIVACY) {
+            PrivacyPolicyScreen(
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
@@ -98,16 +123,21 @@ fun KipuNavGraph(
         ) {
             PlanWizardScreen(
                 onFinished = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+                onCancelNewPlan = onCancelNewPlan,
             )
         }
         composable(GatheringRoutes.LIST) {
-            GatheringsScreen()
+            GatheringsScreen(
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(ReceiptRoutes.HUB) {
             ReceiptsScreen(
                 onReviewReceipt = { contentUri ->
                     navController.navigate(ReceiptRoutes.review(contentUri))
                 },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
@@ -118,6 +148,7 @@ fun KipuNavGraph(
         ) { backStackEntry ->
             ReceiptReviewScreen(
                 onFinished = { navController.popBackStack() },
+                onBack = { navController.popBackStack() },
             )
         }
     }

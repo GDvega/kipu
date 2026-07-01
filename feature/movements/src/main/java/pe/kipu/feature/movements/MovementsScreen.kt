@@ -10,11 +10,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -25,7 +30,8 @@ import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
 import pe.kipu.core.designsystem.component.KipuFilterChipRow
 import pe.kipu.core.designsystem.component.KipuLayout
-import pe.kipu.core.designsystem.component.KipuLoadingIndicator
+import pe.kipu.core.designsystem.component.KipuRegisterFab
+import pe.kipu.core.designsystem.component.KipuScreenLoadingState
 import pe.kipu.core.designsystem.component.KipuScreenHeader
 import pe.kipu.core.designsystem.component.KipuSectionHeader
 import pe.kipu.core.designsystem.component.KipuSecondaryButton
@@ -38,9 +44,11 @@ import pe.kipu.feature.movements.presentation.MovementsUiState
 import pe.kipu.feature.movements.presentation.MovementsViewModel
 import pe.kipu.feature.movements.presentation.PendingNotificationDuplicateDialog
 import pe.kipu.feature.movements.presentation.PendingNotificationIncomeCard
+import pe.kipu.feature.movements.presentation.groupMovementsByDay
 import pe.kipu.feature.movements.presentation.movementDisplayTitle
 import pe.kipu.feature.movements.ui.AddMovementOptionsDialog
 import pe.kipu.feature.movements.ui.CategoryChangeDialog
+import pe.kipu.feature.movements.ui.GoalLinkDialog
 import pe.kipu.feature.movements.ui.ManualMovementDialog
 import pe.kipu.feature.movements.ui.MovementHtmlCard
 
@@ -49,33 +57,51 @@ fun MovementsScreen(
     initialCategoryId: String? = null,
     onRegisterReceipt: () -> Unit = {},
     openManualOnLaunch: Boolean = false,
+    onOpenManualLaunchConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: MovementsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is pe.kipu.feature.movements.presentation.MovementsEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(message = event.message)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(initialCategoryId) {
         viewModel.applyCategoryFilter(initialCategoryId)
     }
 
-    LaunchedEffect(openManualOnLaunch) {
-        if (openManualOnLaunch) {
+    LaunchedEffect(openManualOnLaunch, uiState) {
+        if (openManualOnLaunch && uiState is MovementsUiState.Content) {
             viewModel.onRegisterManualClicked(pe.kipu.core.domain.model.PaymentChannel.CASH)
+            onOpenManualLaunchConsumed()
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        when (val state = uiState) {
-            MovementsUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    KipuLoadingIndicator()
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            KipuRegisterFab(onClick = viewModel::onAddMovementClick)
+        },
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding)) {
+            when (val state = uiState) {
+                MovementsUiState.Loading -> {
+                    KipuScreenLoadingState(
+                        title = "Movimientos",
+                        subtitle = "Yape, Plin, efectivo y más",
+                    )
                 }
-            }
 
-            is MovementsUiState.Content -> {
+                is MovementsUiState.Content -> {
                 state.pendingResolution?.let { pair ->
                     DuplicateResolutionDialog(
                         pair = pair,
@@ -84,10 +110,22 @@ fun MovementsScreen(
                 }
 
                 state.pendingNotificationConfirm?.let { confirmState ->
-                    PendingNotificationDuplicateDialog(
-                        state = confirmState,
-                        onResolve = viewModel::onResolvePendingNotificationDuplicate,
-                    )
+                    val pendingMovement = state.pendingNotificationIncomes.find {
+                        it.id == confirmState.movementId
+                    }
+                    val existingMatch = confirmState.duplicateMatches.firstOrNull()
+                    LaunchedEffect(confirmState, pendingMovement?.id, existingMatch?.id) {
+                        if (pendingMovement == null || existingMatch == null) {
+                            viewModel.clearStalePendingNotificationConfirm()
+                        }
+                    }
+                    if (pendingMovement != null && existingMatch != null) {
+                        PendingNotificationDuplicateDialog(
+                            pendingMovement = pendingMovement,
+                            existingMatch = existingMatch,
+                            onResolve = viewModel::onResolvePendingNotificationDuplicate,
+                        )
+                    }
                 }
 
                 state.categoryChangeTarget?.let { movement ->
@@ -97,6 +135,18 @@ fun MovementsScreen(
                         currentCategoryName = state.categoryNamesById[movement.categoryId],
                         onCategorySelected = viewModel::onCategorySelected,
                         onDismiss = viewModel::onDismissCategoryChange,
+                    )
+                }
+
+                state.goalLinkTarget?.let { movement ->
+                    GoalLinkDialog(
+                        movement = movement,
+                        savingsGoals = state.savingsGoals,
+                        currentGoalTitle = movement.commitmentId?.let { id ->
+                            state.savingsGoals.find { it.id == id }?.title
+                        },
+                        onGoalSelected = viewModel::onGoalSelected,
+                        onDismiss = viewModel::onDismissGoalLink,
                     )
                 }
 
@@ -169,16 +219,8 @@ fun MovementsScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(KipuLayout.listItemSpacing),
-                        contentPadding = KipuLayout.screenContentPadding(),
+                        contentPadding = KipuLayout.listContentPadding(fabClearance = true),
                     ) {
-                        item(key = "add-movement") {
-                            KipuSecondaryButton(
-                                text = "Registrar movimiento",
-                                onClick = viewModel::onAddMovementClick,
-                                modifier = Modifier.fillMaxWidth(),
-                                fillWidth = true,
-                            )
-                        }
                         if (state.pendingNotificationIncomes.isNotEmpty()) {
                             item(key = "pending-notifications-header") {
                                 KipuSectionHeader(
@@ -187,16 +229,18 @@ fun MovementsScreen(
                                     modifier = Modifier.padding(bottom = 4.dp),
                                 )
                             }
-                            items(
+                            itemsIndexed(
                                 items = state.pendingNotificationIncomes,
-                                key = { movement -> "pending-${movement.id}" },
-                            ) { movement ->
-                                KipuCard {
-                                    PendingNotificationIncomeCard(
-                                        movement = movement,
-                                        onConfirm = { viewModel.onConfirmPendingNotification(movement.id) },
-                                        onDismiss = { viewModel.onDismissPendingNotification(movement.id) },
-                                    )
+                                key = { _, movement -> "pending-${movement.id}" },
+                            ) { index, movement ->
+                                pe.kipu.core.designsystem.component.KipuAnimatedListItem(index = index) {
+                                    KipuCard {
+                                        PendingNotificationIncomeCard(
+                                            movement = movement,
+                                            onConfirm = { viewModel.onConfirmPendingNotification(movement.id) },
+                                            onDismiss = { viewModel.onDismissPendingNotification(movement.id) },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -215,26 +259,45 @@ fun MovementsScreen(
                                     ),
                                 )
                             }
-                            items(
+                            itemsIndexed(
                                 items = state.duplicatePairs,
-                                key = { pair -> "dup-${pair.movementA.id}-${pair.movementB.id}" },
-                            ) { pair ->
-                                DuplicatePairListItem(
-                                    pair = pair,
-                                    onClick = { viewModel.onDuplicatePairClick(pair) },
-                                )
+                                key = { _, pair -> "dup-${pair.movementA.id}-${pair.movementB.id}" },
+                            ) { index, pair ->
+                                pe.kipu.core.designsystem.component.KipuAnimatedListItem(index = index) {
+                                    DuplicatePairListItem(
+                                        pair = pair,
+                                        onClick = { viewModel.onDuplicatePairClick(pair) },
+                                    )
+                                }
                             }
                         }
                         if (state.filteredMovements.isNotEmpty()) {
-                            items(
-                                items = state.filteredMovements,
-                                key = { movement -> movement.id },
-                            ) { movement ->
-                                MovementHtmlCard(
-                                    movement = movement,
-                                    categoryName = state.categoryNamesById[movement.categoryId],
-                                    onChangeCategory = { viewModel.onChangeCategoryClick(movement) },
-                                )
+                            val dayGroups = groupMovementsByDay(state.filteredMovements)
+                            dayGroups.forEach { group ->
+                                item(key = "day-${group.dayKey}") {
+                                    KipuSectionHeader(
+                                        title = group.headerLabel,
+                                        horizontalPadding = 0.dp,
+                                        modifier = Modifier.padding(bottom = 4.dp),
+                                    )
+                                }
+                                itemsIndexed(
+                                    items = group.movements,
+                                    key = { _, movement -> movement.id },
+                                ) { index, movement ->
+                                    pe.kipu.core.designsystem.component.KipuAnimatedListItem(index = index) {
+                                        val linkedGoalTitle = movement.commitmentId?.let { goalId ->
+                                            state.savingsGoals.find { it.id == goalId }?.title
+                                        }
+                                        MovementHtmlCard(
+                                            movement = movement,
+                                            categoryName = state.categoryNamesById[movement.categoryId],
+                                            linkedGoalTitle = linkedGoalTitle,
+                                            onChangeCategory = { viewModel.onChangeCategoryClick(movement) },
+                                            onLinkGoal = { viewModel.onLinkGoalClick(movement) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -246,9 +309,10 @@ fun MovementsScreen(
                     title = "No pudimos cargar los movimientos",
                     message = state.message,
                     retryLabel = "Reintentar",
-                    onRetry = {},
+                    onRetry = viewModel::retryLoad,
                 )
             }
+        }
         }
     }
 }

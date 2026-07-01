@@ -1,9 +1,32 @@
-# PROJECT_STATE.md — Snapshot post-Fase 22 (CRUD producto)
+# PROJECT_STATE.md — Snapshot post-Fase 27 (internal testing Play Store)
 
 Última actualización: **20 junio 2026**.  
 Este documento es la **fuente de verdad** del estado del repositorio entre fases. Actualizar al cerrar cada fase o bloque de entrega significativo.
 
 > **Para IAs:** leer primero [Trampas conocidas para futuras sesiones](#trampas-conocidas-para-futuras-sesiones-ia), [Navegación extendida](#navegación-extendida-post-fase-14) y [Dependencias entre módulos](#dependencias-actuales). Evitar reintroducir pasos de onboarding eliminados, rutas duplicadas o dependencias circulares feature↔feature.
+
+---
+
+## Mapa de fases (canónico)
+
+Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa **17–27** sin saltos.
+
+| Fase canónica | Nombre | Alias legacy |
+|---------------|--------|--------------|
+| 0–16 | MVP (shell → juntas + pulido) | — |
+| **17** | Cierre riesgos F16 | 16b |
+| **18** | Cierre riesgos restantes (juntas, wipe, acoplamiento) | 16c |
+| **19** | Riesgos críticos (backup, wipe cache, plan inválido, wizard persistente) | 21 |
+| **20** | Riesgos residuales (tests, ids seed, onboarding UseCase) | 21b |
+| **21** | Armonización UX/UI | 21c |
+| **22** | CRUD sobres + compromisos | 22 |
+| **23** | Metas ↔ movimientos | 23 |
+| **24** | Wizard edita plan (F14-02) | 24 |
+| **25** | MERGE duplicados notificación (F12-06) | 25 |
+| **26** | QA Play Store + cierre ECC F14 | 26 |
+| **27** | Internal testing (release pipeline) | 27 |
+
+**Próximo incremento:** subir AAB firmado a Play Console (pasos humanos en `docs/release/INTERNAL_TESTING.md`).
 
 ---
 
@@ -13,17 +36,38 @@ Este documento es la **fuente de verdad** del estado del repositorio entre fases
 |------|--------|
 | Fases 0–12 | ✅ Cerradas formalmente (ECC LISTO) |
 | Fase 13 — Export / wipe | ✅ **MVP funcional** (Perfil → Tus datos) |
-| Fase 14 — Onboarding + plan | ✅ **Funcional MVP** (ECC formal pendiente) |
+| Fase 14 — Onboarding + plan | ✅ **ECC LISTO** (cierre formal Fase 26) |
 | Pulido UI Movimientos/Sobres | ✅ Paridad visual HTML; acciones cableadas |
 | Optimización APK (14c) | ✅ `arm64-v8a` + R8/shrink release (~14 MB vs ~27 MB debug) |
 | Fase 15 — Comprobantes UI | ✅ **MVP funcional** (share intent + revisión manual) |
 | Fase 16 — Juntas + pulido | ✅ **MVP funcional** (CRUD juntas local + lint/release) |
-| Fase 16b — Cierre riesgos | ✅ **Completada** (migraciones Room, editar/reparto juntas, KSP, backup) |
-| Fase 21 — Riesgos críticos | ✅ **Completada** (backup, wipe cache, plan inválido, wizard persistente) |
-| Fase 21b — Riesgos residuales | ✅ **Completada** (tests domain/data, ids seed, onboarding UseCase) |
-| Fase 21c — Armonización UX/UI | ✅ **Completada** (tokens layout, diálogos DS, tabs + plan/juntas/comprobantes + onboarding) |
-| Fase 22 — CRUD producto | ✅ **Completada** (crear/eliminar sobres; CRUD compromisos) |
-| Verificación reciente | `./gradlew :core:domain:test :app:assembleDebug` **PASS** (jun 2026); E2E dispositivo **15/15 PASS** (Moto G24, 19 jun 2026) |
+| Fases 17–27 — Post-MVP | ✅ Repo listo — Play Console pendiente |
+| Fase 17 — Cierre riesgos F16 | ✅ Migraciones Room, editar/reparto juntas, KSP, backup |
+| Fase 18 — Cierre riesgos restantes | ✅ Wipe instrumentado, liquidación juntas, Room v7 |
+| Fase 19 — Riesgos críticos | ✅ Backup, wipe cache comprobantes, plan inválido, wizard persistente |
+| Fase 20 — Riesgos residuales | ✅ Tests domain/data, ids seed unificados, `CompleteOnboardingUseCase` |
+| Fase 21 — Armonización UX/UI | ✅ Tokens layout, diálogos DS, tabs + secundarias alineadas |
+| Fase 22 — CRUD producto | ✅ Crear/eliminar sobres; CRUD compromisos |
+| Fase 23 — Metas ↔ movimientos | ✅ `commitmentId` en movimientos; progreso desde ingresos vinculados |
+| Fase 24 — Wizard edita plan | ✅ Precarga plan; accesos directos sobres/meta (F14-02) |
+| Fase 25 — MERGE duplicados notificación | ✅ Paridad con diálogo movimientos/comprobantes (F12-06) |
+| Fase 26 — QA Play Store | ✅ Política privacidad in-app + docs release; ECC F14 cerrado |
+| Fase 27 — Internal testing pipeline | ✅ Keystore template, `bundleRelease`, E2E privacidad, GitHub Pages HTML |
+| Verificación reciente | Remediación auditoría jun 2026: Room **v12**, hallazgos AUD-001–020; `./gradlew testDebugUnitTest assembleDebug lintDebug` (ver `AUDIT_REPORT_2026-06-21.md`) |
+
+### Remediación auditoría (21 jun 2026)
+
+| Cambio | Detalle |
+|--------|---------|
+| Room v12 | Columnas `incomeProfile`, `payFrequency` en `financial_plans`; `MIGRATION_11_12` repara `envelopeIds` vacíos (AUD-001, AUD-007) |
+| Plan wizard | `PlanWizardUiState.Error` + retry (AUD-002) |
+| Dominio | Validación plan con ingresos vinculados; IDs borrador OCR con nonce (AUD-004, AUD-008) |
+| Data | Wipe prefs antes de Room; OCR subsample; `allowBackup=false` (AUD-009, AUD-010, AUD-016) |
+| Arquitectura | `ProcessReceipt*UseCase` en domain; `:feature:receipts` sin `:core:data` (AUD-005) |
+| UX | Retry en 5 VMs; OCR retry; onboarding Error; parse límite sobres (AUD-006, AUD-013–015) |
+| Tests | Migraciones v7→8, v11→12; `PendingPlanWizardInstrumentedTest` (AUD-011, AUD-012) |
+
+**Room actual:** `KipuDatabase` version **12** — migraciones `MIGRATION_1_2` … `MIGRATION_11_12`.
 
 ---
 
@@ -48,9 +92,17 @@ Este documento es la **fuente de verdad** del estado del repositorio entre fases
 | **14** | Onboarding + plan + pulido UI | ✅ **MVP funcional** | Wizard; movimientos/sobres HTML; APK arm64 |
 | **15** | Comprobantes UI | ✅ **MVP funcional** | Share intent + OCR revisión; `:feature:receipts` |
 | **16** | Juntas + pulido | ✅ **MVP funcional** | Room v5→v6; CRUD juntas; lint + release PASS |
-| **16b** | Cierre riesgos F16 | ✅ **Completada** | Migraciones Room; editar/reparto juntas; KSP + backup |
-| **21c** | Armonización UX/UI | ✅ **Completada** | Design system tokens; pantallas tabs + secundarias alineadas |
+| **17** | Cierre riesgos F16 | ✅ **Completada** | Migraciones Room v1→v6; editar/reparto juntas; KSP + backup |
+| **18** | Cierre riesgos restantes | ✅ **Completada** | Wipe instrumentado; liquidación juntas; Room v7 |
+| **19** | Riesgos críticos | ✅ **Completada** | Backup rules; wipe cache; plan inválido; `pendingPlanWizard` |
+| **20** | Riesgos residuales | ✅ **Completada** | Tests domain/data; ids seed; onboarding UseCase |
+| **21** | Armonización UX/UI | ✅ **Completada** | Design system tokens; pantallas tabs + secundarias alineadas |
 | **22** | CRUD sobres + compromisos | ✅ **Completada** | UseCases domain + diálogos UI; `:core:domain:test` + `assembleDebug` PASS |
+| **23** | Metas ↔ movimientos | ✅ **Completada** | `commitmentId` Room v10; vincular ingresos; progreso meta reactivo |
+| **24** | Wizard edita plan (F14-02) | ✅ **Completada** | `PlanWizardStateLoader`; chips Sobres/Meta; precarga plan |
+| **25** | MERGE duplicados notificación (F12-06) | ✅ **Completada** | `ConfirmPendingNotificationMovementUseCase` MERGE; diálogo paridad UI |
+| **26** | QA Play Store + ECC F14 | ✅ **Completada** | `docs/release/*`; `PrivacyPolicyScreen`; lint + release PASS |
+| **27** | Internal testing pipeline | ✅ **Completada** (repo) | Signing template; `bundleRelease`; E2E nav privacidad; `docs/privacy/` |
 
 ### Entregables Fase 1
 
@@ -336,7 +388,7 @@ Ver sección completa más abajo (post-Fase 14c) para detalle de archivos, wipe 
   2. `expenses` — gastos fijos mensuales.
   3. `summary` — validación plan + disponible diario + lista sobres semanales del seed.
 - **Persistencia:** `SaveFinancialPlanUseCase` actualiza fila Room `financial_plans` (id canónico `financial-plan-primary`).
-- **Sobres en wizard:** solo lectura desde `ObserveEnvelopeBudgetsUseCase`; **no** hay edición de límites semanales en el wizard (eso vive en Sobres → Ajustar).
+- **Sobres en wizard:** edición de límites en paso Sobres; re-edición vía chips en tab Sobres (Fase 24).
 
 ### Archivos clave
 
@@ -344,12 +396,12 @@ Ver sección completa más abajo (post-Fase 14c) para detalle de archivos, wipe 
 |---------|-----|
 | `feature/onboarding/ui/PlanIntroStep.kt` | UI intro; **sin** texto "datos demo" |
 | `feature/onboarding/OnboardingScreen.kt` | Recibe `onStartPlan: () -> Unit` desde `MainActivity` |
-| `feature/onboarding/presentation/OnboardingViewModel.kt` | Escribe `onboardingCompleted=true` vía `UserPreferencesRepository` |
-| `feature/plan/PlanWizardScreen.kt` | UI wizard |
-| `feature/plan/presentation/PlanWizardViewModel.kt` | Estado, navegación entre pasos, guardado |
-| `feature/plan/presentation/PlanWizardStep.kt` | Enum + mapeo rutas `income`/`expenses`/`summary` |
-| `app/.../MainActivity.kt` | Orquesta onboarding vs app; `LaunchedEffect` abre wizard si flag activo |
-| `app/.../MainViewModel.kt` | `markPendingOpenPlanWizard()` / `consumePendingOpenPlanWizard()` (**solo memoria**) |
+| `feature/onboarding/presentation/OnboardingViewModel.kt` | `CompleteOnboardingUseCase`; persiste `onboardingCompleted` + `pendingPlanWizard` |
+| `feature/plan/PlanWizardScreen.kt` | UI wizard (6 pasos) |
+| `feature/plan/presentation/PlanWizardViewModel.kt` | Estado, navegación entre pasos, guardado, precarga (`PlanWizardStateLoader`) |
+| `feature/plan/presentation/PlanWizardStep.kt` | Enum + mapeo rutas `income`/`expenses`/…/`goal`/`summary` |
+| `app/.../MainActivity.kt` | Orquesta onboarding vs app; `LaunchedEffect` abre wizard si `pendingPlanWizard` |
+| `app/.../MainViewModel.kt` | Observa `pendingPlanWizard` desde DataStore; `clearPendingPlanWizard()` |
 | `app/.../KipuPlanRoutes.kt` | Rutas tipadas plan + movimientos por categoría |
 | `core/domain/plan/FinancialPlanIds.kt` | `PRIMARY = "financial-plan-primary"` (dominio) |
 | `core/domain/usecase/SaveFinancialPlanUseCase.kt` | Guarda plan + corre `ValidateFinancialPlanUseCase` |
@@ -359,7 +411,7 @@ Ver sección completa más abajo (post-Fase 14c) para detalle de archivos, wipe 
 
 | Concepto | Id / valor | Dónde |
 |----------|------------|-------|
-| Plan primario | `financial-plan-primary` | `FinancialPlanIds.PRIMARY` (domain) **y** `DefaultFinancialPlanIds.PRIMARY` (data seed) — **duplicado pendiente F11-04** |
+| Plan primario | `financial-plan-primary` | `FinancialPlanIds.PRIMARY` (domain); seed usa mismo id (Fase 20 unificó `Default*Ids`) |
 | Ingreso seed | S/ 3 000.00 | `DefaultFinancialPlanSeed` (`300_000` centavos) |
 | Gastos fijos seed | S/ 1 800.00 | `DefaultFinancialPlanSeed` (`180_000` centavos) |
 | Sobres seed | Comida S/150, Transporte S/80, Servicios S/60 **semanal** | `DefaultEnvelopeSeed` |
@@ -368,21 +420,21 @@ Ver sección completa más abajo (post-Fase 14c) para detalle de archivos, wipe 
 
 ```
 MainActivity: onboardingCompleted == false
-  → OnboardingScreen(onStartPlan = mainViewModel::markPendingOpenPlanWizard)
+  → OnboardingScreen()
   → Usuario "Comenzar con mi plan"
-      → onStartPlan()                    // flag memoria = true
-      → viewModel.onFinishOnboarding()   // DataStore onboardingCompleted = true
+      → OnboardingViewModel.onFinishOnboarding(pendingPlanWizard = true)
+      → CompleteOnboardingUseCase → DataStore: onboardingCompleted=true, pendingPlanWizard=true
 MainActivity: onboardingCompleted == true
   → rememberNavController()
-  → LaunchedEffect(Unit) { if consumePendingOpenPlanWizard() → navigate(plan/income) }
+  → LaunchedEffect(pendingPlanWizard) { navigate(plan/income); clearPendingPlanWizard() }
   → KipuNavGraph (bottom bar oculto en rutas secundarias)
 ```
 
-**Limitación documentada:** si el proceso Android muere entre `onFinishOnboarding` y `LaunchedEffect`, el wizard **no** se reabre (flag no persiste en DataStore). Mejora futura: `pendingPlanWizard` en `UserPreferences`.
+**Persistencia wizard post-onboarding:** `UserPreferences.pendingPlanWizard` en DataStore (Fase 19). `MainActivity` consume el flag y navega a `plan/income`; se limpia tras abrir el wizard (`PendingPlanWizardInstrumentedTest`).
 
-### UseCase domain no cableado en onboarding
+### Onboarding y `CompleteOnboardingUseCase`
 
-- Existe `CompleteOnboardingUseCase` en domain pero **`OnboardingViewModel` usa `UserPreferencesRepository` directo** (evita problemas KSP/Hilt en feature onboarding). No reintroducir el UseCase en el ViewModel sin verificar `:feature:onboarding:kspDebugKotlin`.
+- `CompleteOnboardingUseCase` cableado en `OnboardingViewModel` (Fase 20). El ViewModel delega persistencia de prefs vía el UseCase.
 
 ### Tests Fase 14 (domain)
 
@@ -443,18 +495,15 @@ MainActivity: onboardingCompleted == true
 
 **No revertir** `abiFilters` sin acordar impacto en QA emulador.
 
-### Cierre Fase 14 (funcional — ECC formal pendiente)
+### Cierre Fase 14 (ECC LISTO — formalizado Fase 26)
 
 | Campo | Valor |
 |-------|-------|
-| **Veredicto ECC** | **Funcional MVP** (revisión gestor pendiente) |
-| **Evidencia** | `./gradlew :core:domain:test assembleDebug` PASS (39 tests domain JVM, jun 2026) |
-| **Tests nuevos F14** | +1 `SaveFinancialPlanUseCaseTest` |
-| **Tests nuevos F14b** | +2 `UpdateMovementCategoryUseCaseTest`, `GetEnvelopeRecentMovementsUseCaseTest` |
-| **Room** | v4 **sin cambios** (plan/sobres usan tablas existentes) |
+| **Veredicto ECC** | **LISTO** (revisión retrospectiva jun 2026; hallazgo F14-06 cerrado) |
+| **Evidencia original** | `./gradlew :core:domain:test assembleDebug` PASS; wizard 6 pasos; Room v4 sin cambios |
+| **Evidencia Fase 26** | `./gradlew :app:lintDebug assembleRelease` PASS; política privacidad accesible desde Perfil |
+| **Tests F14** | +1 `SaveFinancialPlanUseCaseTest`; F14b +2 UseCase tests |
 | **Módulos nuevos** | `:feature:plan` |
-| **Prototipo HTML referencia** | `kipu_v6_corregido.html` (Descargas usuario — no en repo) |
-| **Próxima fase canónica** | **Fase 15 — Comprobantes UI** |
 
 ---
 
@@ -527,12 +576,35 @@ MainActivity: onboardingCompleted == true
 | **Evidencia** | `./gradlew :core:domain:test :core:data:testDebugUnitTest assembleDebug :app:lintDebug assembleRelease` PASS |
 | **Tests nuevos** | +6 domain (`GatheringTest`, `GatheringParticipantParserTest`, `SaveGatheringUseCaseTest`); +2 data (`GatheringMapperTest`); export tests actualizados v2 |
 | **Módulos nuevos** | `:feature:juntas` |
-| **Próxima fase canónica** | **Post-MVP** — QA E2E, Play Store, reparto gastos juntas, Firebase opcional |
-| **Hallazgos abiertos** | — (F16-01…F16-03 cerrados en F16b) |
+| **Próxima fase canónica** | Internal testing Play Console |
+| **Hallazgos abiertos** | — (F16-01…F16-03 cerrados en Fase 17) |
 
 ---
 
-## Entregables Fase 16c — Cierre riesgos restantes
+## Entregables Fase 17 — Cierre riesgos F16 (ex 16b)
+
+| ID | Resolución |
+|----|------------|
+| **F16-01** | **Migraciones Room reales** v1→v6 (`KipuDatabaseMigrations`); eliminado `fallbackToDestructiveMigration` |
+| **F16-02** | **Editar junta** — `UpdateGatheringUseCase` + diálogo editar en `GatheringsScreen` |
+| **F16-03** | **Reparto igualitario** — `gathering_expenses` (Room v6), `RecordGatheringExpenseUseCase`, `CalculateGatheringEqualSplitUseCase`, totales en UI |
+| **F16-04** | **KSP race** — `dependsOn(:core:domain:jar)` en módulos KSP (root + `:feature:juntas`) |
+| **F8-01** | Cerrado vía F16-01 |
+| **F13-02** | DataStore `kipu_preferences.preferences_pb` excluido de backup y device transfer |
+
+### Archivos clave Fase 17
+
+| Capa | Archivos |
+|------|----------|
+| Data | `KipuDatabaseMigrations.kt`, `GatheringExpenseEntity/Dao`, `RoomGatheringExpenseRepository`, DB v6 |
+| Domain | `GatheringExpense`, `GatheringSummary`, `UpdateGatheringUseCase`, `RecordGatheringExpenseUseCase`, `CalculateGatheringEqualSplitUseCase`, `ObserveGatheringSummariesUseCase` |
+| Feature | `GatheringsScreen` (editar + registrar gasto + split), `GatheringsViewModel` |
+| Tests | `CalculateGatheringEqualSplitUseCaseTest`, `UpdateGatheringUseCaseTest`, `GatheringExpenseMapperTest`, `KipuDatabaseMigrationInstrumentedTest` |
+| Infra | `build.gradle.kts` (KSP dep), `backup_rules.xml`, `data_extraction_rules.xml` |
+
+---
+
+## Entregables Fase 18 — Cierre riesgos restantes (ex 16c)
 
 | ID | Resolución |
 |----|------------|
@@ -543,7 +615,7 @@ MainActivity: onboardingCompleted == true
 | **F16-06** | Liquidación por participante — `CalculateGatheringSettlementUseCase`, `ParticipantSettlement` en UI |
 | **F16-07** | Room v7 — `paidByParticipant`, `movementId` (FK único) en `gathering_expenses`; `MIGRATION_6_7` |
 
-### Archivos clave F16c
+### Archivos clave Fase 18
 
 | Capa | Archivos |
 |------|----------|
@@ -552,7 +624,7 @@ MainActivity: onboardingCompleted == true
 | Feature | `GatheringsScreen` (liquidación, vincular movimiento, picker pagador), `GatheringsViewModel` |
 | Tests | `CalculateGatheringSettlementUseCaseTest`, `GatheringExpenseMapperTest`, `RoomUserDataWipeInstrumentedTest`, `KipuDatabaseMigrationInstrumentedTest` v6→v7 |
 
-### Cierre Fase 16c
+### Cierre Fase 18
 
 | Campo | Valor |
 |-------|-------|
@@ -562,7 +634,47 @@ MainActivity: onboardingCompleted == true
 
 ---
 
-## Entregables Fase 21c — Armonización UX/UI
+## Entregables Fase 19 — Riesgos críticos (ex Fase 21)
+
+| ID | Resolución |
+|----|------------|
+| **F0-02** | `backup_rules.xml` + `data_extraction_rules.xml` excluyen DB Room, DataStore, cache exports y comprobantes |
+| **F21-01** | Wipe borra imágenes de comprobantes — `UserDataExportFileRepository.clearLocalFileCaches()` en `WipeAllUserDataUseCase` |
+| **F11-02** | `SaveFinancialPlanUseCase` rechaza plan `Invalid` (`InvalidFinancialPlanException`) |
+| **F14-01** | Flag `pendingPlanWizard` persistido en DataStore; `PendingPlanWizardInstrumentedTest` |
+| **F13-04** | `FileProvider` no exportado; rutas acotadas en `file_paths.xml` |
+| **F12-05** | Export JSON snapshot v4+ incluye juntas/gastos; tests serializer actualizados |
+
+### Cierre Fase 19
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **Funcional MVP** |
+| **Hallazgos cerrados** | F0-02, F21-01, F11-02, F14-01, F13-04, F12-05 (parcial — E2E hardware opcional) |
+
+---
+
+## Entregables Fase 20 — Riesgos residuales (ex Fase 21b)
+
+| ID | Resolución |
+|----|------------|
+| **F11-03** | `ObserveCommitmentSummariesUseCaseTest` |
+| **F11-04** | Seed/migraciones usan `CommitmentIds` / `FinancialPlanIds` (sin duplicar `Default*Ids`) |
+| **F11-05** | `KipuDatabaseMigrationInstrumentedTest` v4→v9 |
+| **F12-07** | `NotificationListenerCoordinatorTest` (pref ON/OFF) |
+| **F14-03** | `CompleteOnboardingUseCase` cableado en `OnboardingViewModel` |
+| **F14-05** | `PlanWizardE2ETest` (wizard + cambio categoría) |
+
+### Cierre Fase 20
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **Funcional MVP** |
+| **Hallazgos cerrados** | F11-03, F11-04, F11-05, F12-07, F14-03, F14-05 |
+
+---
+
+## Entregables Fase 21 — Armonización UX/UI (ex 21c)
 
 ### Design system (`core/designsystem`)
 
@@ -581,7 +693,7 @@ MainActivity: onboardingCompleted == true
 - Diálogos: movimientos, duplicados, perfil
 - Onboarding: `PlanIntroStep` con `KipuScreenHeader`, `KipuLayout`, cards al design system
 
-### Cierre Fase 21c
+### Cierre Fase 21
 
 | Campo | Valor |
 |-------|-------|
@@ -628,30 +740,185 @@ MainActivity: onboardingCompleted == true
 | **Evidencia** | `./gradlew :core:domain:test :app:assembleDebug` PASS |
 | **Tests nuevos** | +2 domain (`CreateEnvelopeUseCaseTest`, `SaveCommitmentUseCaseTest`) |
 | **Hallazgos cerrados** | **F8-03**, **F11-06** |
-| **Próxima fase sugerida** | F11-07 (progreso metas desde movimientos) o F14-02 (wizard edita sobres/metas) |
+| **Próxima fase sugerida** | Internal testing Play Console |
 
 ---
 
-## Entregables Fase 16b — Cierre riesgos F16
+## Entregables Fase 23 — Metas ↔ movimientos (F11-07)
+
+### Domain
+
+| Pieza | Rol |
+|-------|-----|
+| `Movement.commitmentId` | Vínculo opcional ingreso → meta de ahorro |
+| `CommitmentLinkedIncomeCalculator` | Suma ingresos CONFIRMED vinculados a una meta |
+| `LinkMovementToCommitmentUseCase` | Vincular/desvincular ingreso confirmado a meta SAVINGS_GOAL |
+| `ObserveSavingsGoalCommitmentsUseCase` | Lista metas para picker en Movimientos |
+| `CalculateSavingsGoalProgressUseCase` | Progreso = `currentAmount` manual + ingresos vinculados |
+| `ObserveCommitmentSummariesUseCase` | Combina compromisos + movimientos para progreso reactivo |
+
+### Data
+
+- **Room v10** — columna `movements.commitmentId` (FK → `commitments`, `ON DELETE SET NULL`)
+- Migración `MIGRATION_9_10`
+- Export JSON incluye `commitmentId`
+
+### UI (`feature/movements`)
+
+- `GoalLinkDialog` — elegir meta o quitar vínculo
+- `MovementHtmlCard` — "Vincular a meta" / "Cambiar meta" solo en **ingresos**
+- Progreso en Compromisos se actualiza al vincular ingresos
+
+### Reglas de negocio
+
+- Solo movimientos **INCOME + CONFIRMED** pueden vincularse
+- Solo metas **SAVINGS_GOAL** reciben vínculos
+- Progreso = baseline manual (`currentAmount`) + suma ingresos vinculados
+
+### Cierre Fase 23
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **Funcional MVP** |
+| **Evidencia** | `./gradlew :core:domain:test :core:data:testDebugUnitTest :app:assembleDebug` PASS |
+| **Tests nuevos** | +3 domain (`LinkMovementToCommitmentUseCaseTest`, `CommitmentLinkedIncomeCalculatorTest`, ampliación summaries/progress); +1 data mapper; +1 androidTest migración v9→v10 |
+| **Hallazgos cerrados** | **F11-07** |
+| **Room** | v10 |
+
+---
+
+## Entregables Fase 24 — Cierre F14-02 (wizard edita sobres/metas)
+
+### Contexto
+
+El wizard ya incluía **6 pasos** (ingresos, gastos fijos, sobres, gastos hormiga, meta, resumen) con persistencia de límites y meta. F14-02 cerró la **re-edición** y **accesos directos**.
+
+### Cambios
+
+| Pieza | Rol |
+|-------|-----|
+| `PlanWizardStateLoader` | Precarga ingresos, gastos fijos y meta desde Room al reabrir wizard |
+| `PlanWizardViewModel` | Usa loader + `SaveCommitmentUseCase`; flag `isEditingExistingPlan` |
+| `EnvelopesScreen` | Chips **Ingresos / Gastos / Sobres / Meta** → rutas wizard |
+| `KipuPlanRoutes` | Constantes `STEP_ANT`, `STEP_GOAL` |
+| `PlanWizardScreen` | Botón **Guardar mi plan** vs **Crear mi plan** al re-editar |
+
+### Cierre Fase 24
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **Funcional MVP** |
+| **Evidencia** | `./gradlew :core:domain:test :app:assembleDebug` PASS |
+| **Tests nuevos** | +5 domain (`PlanWizardStateLoaderTest`) |
+| **Hallazgos cerrados** | **F14-02** |
+| **Próxima fase sugerida** | Internal testing Play Console |
+
+---
+
+## Entregables Fase 25 — MERGE duplicados notificación (F12-06)
+
+### Contexto
+
+Al confirmar un ingreso detectado por notificación, si ya existe un movimiento confirmado similar, la app mostraba solo **Guardar igual** / **Cancelar**. Movimientos y comprobantes ya tenían **Fusionar / No es duplicado / Cancelar**.
+
+### Domain
+
+| Pieza | Comportamiento |
+|-------|----------------|
+| `ConfirmPendingNotificationMovementUseCase` | `MERGE` → elimina el movimiento `PENDING_CONFIRMATION` (notificación duplicada); mantiene el confirmado existente |
+| `SAVE_AS_NEW` | Promueve pending a `CONFIRMED` (sin cambio) |
+| `CANCEL` | Deja pending sin cambios |
+
+### UI (`feature/movements`)
+
+- `PendingNotificationDuplicateDialog` — paridad con `DuplicateResolutionDialog`: **Fusionar**, **No es duplicado**, **Cancelar**
+- Resumen compara ingreso por notificación vs ingreso confirmado
+
+### Tests
+
+- `ConfirmPendingNotificationMovementUseCaseTest` — +1 (`discards pending notification when user chooses merge`)
+- `PendingNotificationDuplicateDialogTest` — acciones en español (instrumentado)
+
+### Cierre Fase 25
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **Funcional MVP** |
+| **Evidencia** | `./gradlew :core:domain:test :app:assembleDebug` PASS |
+| **Hallazgos cerrados** | **F12-06** |
+| **Próxima fase sugerida** | Internal testing Play Console |
+
+---
+
+## Entregables Fase 26 — QA Play Store + cierre ECC F14
+
+### Documentación release
+
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/release/PRIVACY_POLICY.md` | Política de privacidad (español Perú) — publicar URL en Play Console |
+| `docs/release/PLAY_STORE.md` | Store listing, data safety, `bundleRelease`, checklist pre-lanzamiento |
+| `docs/ai/E2E_QA_CHECKLIST.md` | Criterios release + test privacidad |
+
+### UI
+
+| Pieza | Rol |
+|-------|-----|
+| `PrivacyPolicyScreen` | Política in-app (paridad con markdown) |
+| `ProfileRoutes.PRIVACY` | Ruta secundaria desde Perfil |
+| `ProfileScreen` | Enlace **Política de privacidad** |
+
+### Hallazgos cerrados
 
 | ID | Resolución |
 |----|------------|
-| **F16-01** | **Migraciones Room reales** v1→v6 (`KipuDatabaseMigrations`); eliminado `fallbackToDestructiveMigration` |
-| **F16-02** | **Editar junta** — `UpdateGatheringUseCase` + diálogo editar en `GatheringsScreen` |
-| **F16-03** | **Reparto igualitario** — `gathering_expenses` (Room v6), `RecordGatheringExpenseUseCase`, `CalculateGatheringEqualSplitUseCase`, totales en UI |
-| **F16-04** | **KSP race** — `dependsOn(:core:domain:jar)` en módulos KSP (root + `:feature:juntas`) |
-| **F8-01** | Cerrado vía F16-01 |
-| **F13-02** | DataStore `kipu_preferences.preferences_pb` excluido de backup y device transfer |
+| **F14-06** | ECC Fase 14 → **LISTO** retrospectivo jun 2026 |
+| **F14-07** | Heurística UI en `MovementPresentation`; `SuggestionConfidence` en parsers — aceptado MVP |
 
-### Archivos clave F16b
+### Tests
 
-| Capa | Archivos |
-|------|----------|
-| Data | `KipuDatabaseMigrations.kt`, `GatheringExpenseEntity/Dao`, `RoomGatheringExpenseRepository`, DB v6 |
-| Domain | `GatheringExpense`, `GatheringSummary`, `UpdateGatheringUseCase`, `RecordGatheringExpenseUseCase`, `CalculateGatheringEqualSplitUseCase`, `ObserveGatheringSummariesUseCase` |
-| Feature | `GatheringsScreen` (editar + registrar gasto + split), `GatheringsViewModel` |
-| Tests | `CalculateGatheringEqualSplitUseCaseTest`, `UpdateGatheringUseCaseTest`, `GatheringExpenseMapperTest`, `KipuDatabaseMigrationInstrumentedTest` |
-| Infra | `build.gradle.kts` (KSP dep), `backup_rules.xml`, `data_extraction_rules.xml` |
+- `PrivacyPolicyScreenTest` — instrumentado
+
+### Cierre Fase 26
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **LISTO** (pre-publicación) |
+| **Evidencia** | `./gradlew :core:domain:test :app:lintDebug assembleRelease` PASS |
+| **Pendiente humano** | AAB firmado; URL pública privacidad; E2E manual hardware |
+| **Próxima fase sugerida** | Subir AAB a Play Console — `INTERNAL_TESTING.md` |
+
+---
+
+## Entregables Fase 27 — Internal testing (release pipeline)
+
+### Infra release
+
+| Pieza | Rol |
+|-------|-----|
+| `keystore.properties.example` | Plantilla firma release (gitignored: `keystore.properties`, `*.jks`) |
+| `app/build.gradle.kts` | `signingConfigs.release` si existe keystore; `versionName` **1.0.0** |
+| `bundleRelease` | AAB para Play Console (`app/build/outputs/bundle/release/`) |
+
+### Documentación
+
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/release/INTERNAL_TESTING.md` | Keystore → AAB → Play Console internal track → QA |
+| `docs/privacy/index.html` | Política pública para GitHub Pages (`/docs` → `/privacy/`) |
+
+### Tests
+
+- `KipuNavigationE2ETest.profileNavigatesToPrivacyPolicy` — Perfil → Política de privacidad
+
+### Cierre Fase 27
+
+| Campo | Valor |
+|-------|-------|
+| **Veredicto ECC** | **LISTO** (repo); **pendiente humano** Play Console |
+| **Evidencia** | `./gradlew :core:domain:test :app:lintDebug bundleRelease` PASS |
+| **Pendiente humano** | Crear keystore; activar GitHub Pages; subir AAB; invitar testers; E2E manual N1–E4 |
+| **Próxima fase sugerida** | Closed testing / producción tras feedback internal |
 
 ---
 
@@ -701,7 +968,8 @@ MainActivity: onboardingCompleted == true
 
 | Ruta plantilla | Argumentos | Pantalla | Cómo llegar | Back stack |
 |----------------|------------|----------|-------------|------------|
-| `plan/{startStep}` | `startStep`: `income` \| `expenses` \| `summary` | `PlanWizardScreen` | Onboarding "Comenzar"; Sobres → Ingresos/Gastos | `popBackStack()` al terminar |
+| `plan/{startStep}` | `startStep`: `income` \| `expenses` \| `envelopes` \| `ant` \| `goal` \| `summary` | `PlanWizardScreen` | Onboarding; Sobres → chips Ingresos/Gastos/Sobres/Meta | `popBackStack()` al terminar |
+| `privacy` | — | `PrivacyPolicyScreen` | Perfil → Política de privacidad | Back del sistema |
 | `movements/category/{categoryId}` | `categoryId`: ej. `category-food` | `MovementsScreen(initialCategoryId=…)` | Sobres → Ver movimientos | Back del sistema |
 | `gatherings` | — | `GatheringsScreen` | Perfil → Ver juntas | Back del sistema |
 | `receipts` | — | `ReceiptsScreen` | Inicio / Movimientos vacío | Back del sistema |
@@ -737,16 +1005,16 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 
 ### Arquitectura / módulos
 
-5. **Dependencia `feature:envelopes` → `feature:movements`:** existe **solo** para reutilizar `formatMovementDateTime` y `movementDisplayTitle` en lista recientes. **No** crear `feature:movements` → `feature:envelopes` (ciclo). Alternativa futura: mover helpers a `core:designsystem` o `core:domain` presentation-agnostic.
+5. **Dependencia cruzada feature↔feature:** `:feature:envelopes` **no** depende de `:feature:movements` desde Fase 18 (`MovementDisplayLabels` en domain). No reintroducir el acoplamiento.
 6. **Domain puro:** ningún import Android/Room/Compose en `core/domain`. UseCases con `@Inject` están permitidos.
 7. **ViewModels sin lógica financiera:** cálculos en UseCases; VMs combinan flows y delega.
-8. **`CompleteOnboardingUseCase`:** orphan en domain; onboarding no lo usa — no asumir que está cableado.
+8. **`CompleteOnboardingUseCase`:** cableado en `OnboardingViewModel` (Fase 20); persiste prefs vía UseCase, no acceso directo al repo en presentation.
 
 ### Modelos / campos
 
 9. **`Movement.recordedAt`** — no usar `occurredAt` (no existe).
 10. **`FinancialPlanIds.PRIMARY` vs `DefaultFinancialPlanIds.PRIMARY`:** mismo string, dos objetos — unificar en refactor F11-04.
-11. **Confianza % en movimientos UI:** heurística por `MovementSource` en presentation — **no** hay campo `confidence` en domain.
+11. **Confianza % en movimientos UI:** heurística por `MovementSource` (`MovementPresentation`); parsers/comprobantes usan `SuggestionConfidence` — sin campo en `Movement` (F14-07 aceptado MVP).
 12. **Cambio categoría:** solo movimientos en lista principal (`MovementsViewModel` → confirmados del repo); no aplica a pending notification sin trabajo extra.
 
 ### UI Compose
@@ -839,7 +1107,7 @@ Al añadir un feature nuevo: `include` aquí **y** `implementation(project(...))
 | `SaveCommitmentUseCase` | `core/domain/.../SaveCommitmentUseCase.kt` | `CommitmentsViewModel` |
 | `DeleteCommitmentUseCase` | `core/domain/.../DeleteCommitmentUseCase.kt` | `CommitmentsViewModel` |
 | `MoneyInputParser` (util) | `core/domain/.../MoneyInputParser.kt` | Plan wizard, ajuste sobres, CRUD sobres/compromisos |
-| `CompleteOnboardingUseCase` | `core/domain/.../CompleteOnboardingUseCase.kt` | `OnboardingViewModel` (F21b) |
+| `CompleteOnboardingUseCase` | `core/domain/.../CompleteOnboardingUseCase.kt` | `OnboardingViewModel` (Fase 20) |
 
 ---
 
@@ -945,11 +1213,6 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | ID | Severidad | Hallazgo | Acción pendiente | Fase objetivo |
 |----|-----------|----------|------------------|---------------|
 | F0-05 | LOW | `material-icons-extended` aumenta tamaño APK | Parcialmente mitigado F14c arm64; evaluar subset icons | 16 |
-| F11-07 | LOW | Progreso metas no se actualiza desde movimientos | `commitmentId` en `Movement` (futuro) | 15+ |
-| F12-06 | LOW | Diálogo duplicado notificación sin MERGE | Solo SAVE_AS_NEW en MVP ingresos | 15+ |
-| F14-02 | LOW | Wizard no edita sobres ni metas | CRUD o paso extra en wizard | 15+ |
-| F14-06 | LOW | ECC formal Fase 14 no cerrada por gestor | Revisión ECC post-entrega | 14 |
-| F14-07 | LOW | Confianza movimiento es heurística UI | Campo domain si producto lo exige | 15+ |
 
 ## Hallazgos cerrados
 
@@ -983,35 +1246,40 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | F10-05 | LOW | Sin test instrumentado diálogo Compose | `DuplicateResolutionDialogTest` | Fase 10c |
 | F11-ECC | — | Revisión ECC Fase 11 | LISTO; hallazgos F11-01…F11-05 documentados | Fase 11 |
 | F11-01 | LOW | Alerta plan oculta si lista compromisos vacía | `CommitmentsScreen` refactor F11b | Fase 11b |
-| F11-02 | MEDIUM | TDD marcaba save plan inválido sin implementar gate | `SaveFinancialPlanUseCase` rechaza `Invalid`; test domain | Fase 21 |
-| F14-01 | MEDIUM | Flag `pendingOpenPlanWizard` solo en memoria | `UserPreferences.pendingPlanWizard` + `PendingPlanWizardInstrumentedTest` | Fase 20/21 |
-| F0-02 | MEDIUM | `allowBackup=true` sin política para DB financiera | DB + DataStore + cache exports/receipts excluidos | Fase 21 |
-| F21-01 | HIGH | Wipe no borraba imágenes de comprobantes en cache | `clearLocalFileCaches()` en wipe (exports + receipts) | Fase 21 |
-| F11-03 | LOW | Sin test directo de `ObserveCommitmentSummariesUseCase` | `ObserveCommitmentSummariesUseCaseTest` | Fase 21b |
-| F11-04 | LOW | `DefaultCommitmentIds` / `DefaultFinancialPlanIds` duplican ids de dominio | Seed/migraciones usan `CommitmentIds` / `FinancialPlanIds` | Fase 21b |
-| F11-05 | LOW | Sin test instrumentado Room tablas v4 | `KipuDatabaseMigrationInstrumentedTest` v4→v9 | Fase 21b |
+| F11-02 | MEDIUM | TDD marcaba save plan inválido sin implementar gate | `SaveFinancialPlanUseCase` rechaza `Invalid`; test domain | Fase 19 |
+| F14-01 | MEDIUM | Flag `pendingOpenPlanWizard` solo en memoria | `UserPreferences.pendingPlanWizard` + `PendingPlanWizardInstrumentedTest` | Fase 19 |
+| F0-02 | MEDIUM | `allowBackup=true` sin política para DB financiera | DB + DataStore + cache exports/receipts excluidos | Fase 19 |
+| F21-01 | HIGH | Wipe no borraba imágenes de comprobantes en cache | `clearLocalFileCaches()` en wipe (exports + receipts) | Fase 19 |
+| F11-03 | LOW | Sin test directo de `ObserveCommitmentSummariesUseCase` | `ObserveCommitmentSummariesUseCaseTest` | Fase 20 |
+| F11-04 | LOW | `DefaultCommitmentIds` / `DefaultFinancialPlanIds` duplican ids de dominio | Seed/migraciones usan `CommitmentIds` / `FinancialPlanIds` | Fase 20 |
+| F11-05 | LOW | Sin test instrumentado Room tablas v4 | `KipuDatabaseMigrationInstrumentedTest` v4→v9 | Fase 20 |
 | F12-05 | LOW | Package names Yape/Plin no verificados en dispositivo | Allowlist + `MonitoredPaymentAppsTest`; E2E hardware opcional | Pre-release |
-| F12-07 | LOW | Sin tests presentation Profile/Movements notificaciones | `NotificationListenerCoordinatorTest` (pref ON/OFF) | Fase 21b |
-| F14-03 | LOW | `CompleteOnboardingUseCase` orphan en domain | Cableado en `OnboardingViewModel` + test | Fase 21b |
-| F14-05 | LOW | Sin tests Compose wizard / cambio categoría | `PlanWizardE2ETest` | Fase 21b |
+| F12-07 | LOW | Sin tests presentation Profile/Movements notificaciones | `NotificationListenerCoordinatorTest` (pref ON/OFF) | Fase 20 |
+| F14-03 | LOW | `CompleteOnboardingUseCase` orphan en domain | Cableado en `OnboardingViewModel` + test | Fase 20 |
+| F14-05 | LOW | Sin tests Compose wizard / cambio categoría | `PlanWizardE2ETest` | Fase 20 |
 | F12-ECC | — | Revisión ECC Fase 12 | LISTO; hallazgos F12-01…F12-07 documentados | Fase 12 |
 | F12-01 | LOW | Docs auto-cerrados sin revisión gestor | Sincronización PROJECT_STATE + AGENTS en F12b | Fase 12b |
 | F12-02 | MEDIUM | Dedup bloqueaba re-ingreso tras confirmar | `RegisterNotificationIncomeUseCase` F12b | Fase 12b |
 | F12-03 | LOW | Conteo tests incorrecto en docs (16 vs 18) | Corregido en F12b | Fase 12b |
-| F8-01 | MEDIUM | `fallbackToDestructiveMigration` borraba DB al actualizar schema | `KipuDatabaseMigrations` v1→v6 | Fase 16b |
-| F13-02 | LOW | DataStore no excluido de backup Google | exclude `kipu_preferences.preferences_pb` | Fase 16b |
-| F16-01 | MEDIUM | Migraciones Room destructivas | Migraciones incrementales v1→v6 | Fase 16b |
-| F16-02 | LOW | Sin edición de juntas | `UpdateGatheringUseCase` + UI | Fase 16b |
-| F16-03 | LOW | Sin reparto de gastos en juntas | `gathering_expenses` + split igualitario | Fase 16b |
-| F16-04 | LOW | KSP race con domain jar stale | `dependsOn(:core:domain:jar)` en módulos KSP | Fase 16b |
-| F13-01 | LOW | Sin test instrumentado wipe Room real | `RoomUserDataWipeInstrumentedTest` | Fase 16c |
-| F13-03 | LOW | CSV solo exporta movimientos | Documentado en UI Perfil | Fase 16c |
-| F14-04 | LOW | Dependencia envelopes→movements acopla features | `MovementDisplayLabels` en domain | Fase 16c |
-| F16-05 | LOW | Sin vincular movimientos a juntas | `LinkMovementToGatheringUseCase` + UI | Fase 16c |
-| F16-06 | LOW | Sin liquidación por participante | `CalculateGatheringSettlementUseCase` + UI | Fase 16c |
-| F16-07 | LOW | Room v6 sin paidBy/movementId | `MIGRATION_6_7`, DB v7 | Fase 16c |
+| F8-01 | MEDIUM | `fallbackToDestructiveMigration` borraba DB al actualizar schema | `KipuDatabaseMigrations` v1→v6 | Fase 17 |
+| F13-02 | LOW | DataStore no excluido de backup Google | exclude `kipu_preferences.preferences_pb` | Fase 17 |
+| F16-01 | MEDIUM | Migraciones Room destructivas | Migraciones incrementales v1→v6 | Fase 17 |
+| F16-02 | LOW | Sin edición de juntas | `UpdateGatheringUseCase` + UI | Fase 17 |
+| F16-03 | LOW | Sin reparto de gastos en juntas | `gathering_expenses` + split igualitario | Fase 17 |
+| F16-04 | LOW | KSP race con domain jar stale | `dependsOn(:core:domain:jar)` en módulos KSP | Fase 17 |
+| F13-01 | LOW | Sin test instrumentado wipe Room real | `RoomUserDataWipeInstrumentedTest` | Fase 18 |
+| F13-03 | LOW | CSV solo exporta movimientos | Documentado en UI Perfil | Fase 18 |
+| F14-04 | LOW | Dependencia envelopes→movements acopla features | `MovementDisplayLabels` en domain | Fase 18 |
+| F16-05 | LOW | Sin vincular movimientos a juntas | `LinkMovementToGatheringUseCase` + UI | Fase 18 |
+| F16-06 | LOW | Sin liquidación por participante | `CalculateGatheringSettlementUseCase` + UI | Fase 18 |
+| F16-07 | LOW | Room v6 sin paidBy/movementId | `MIGRATION_6_7`, DB v7 | Fase 18 |
 | F8-03 | LOW | Sin UI **crear** sobres nuevos | `CreateEnvelopeUseCase` + `EnvelopeCreateDialog` + eliminar con confirmación | Fase 22 |
 | F11-06 | LOW | Sin CRUD compromisos en UI | `SaveCommitmentUseCase` / `DeleteCommitmentUseCase` + `CommitmentFormDialog` | Fase 22 |
+| F11-07 | LOW | Progreso metas no se actualiza desde movimientos | `commitmentId` + `LinkMovementToCommitmentUseCase` + progreso reactivo | Fase 23 |
+| F14-02 | LOW | Wizard no edita sobres ni metas | Wizard 6 pasos; `PlanWizardStateLoader`; chips Sobres/Meta en tab Sobres | Fase 24 |
+| F12-06 | LOW | Diálogo duplicado notificación sin MERGE | `ConfirmPendingNotificationMovementUseCase` MERGE + diálogo paridad UI | Fase 25 |
+| F14-06 | LOW | ECC formal Fase 14 no cerrada por gestor | Revisión ECC retrospectiva; veredicto LISTO Fase 26 | Fase 26 |
+| F14-07 | LOW | Confianza movimiento es heurística UI | Documentado MVP en `MovementPresentation`; sin campo en `Movement` | Fase 26 |
 
 ---
 
@@ -1035,11 +1303,21 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | 11 | Compromisos / metas | Metas de ahorro, plan financiero | ✅ **Cerrada formalmente** | Sí | Media |
 | 12 | Notificaciones | Listener opcional de ingresos | ✅ **Cerrada formalmente** | Parcial | Alta |
 | 13 | Exportar / eliminar datos | CSV/JSON local, wipe completo | ✅ **MVP funcional** | Sí (3 tests) | Alta |
-| 14 | Onboarding + plan + pulido UI | Intro plan, wizard, movimientos/sobres HTML, APK | ✅ **MVP funcional** (ECC formal pendiente) | Sí (3 UseCases) | Baja |
+| 14 | Onboarding + plan + pulido UI | Intro plan, wizard, movimientos/sobres HTML, APK | ✅ **ECC LISTO** (Fase 26) | Sí (3 UseCases) | Baja |
 | 15 | Comprobantes UI | Share intent, preview, edición manual | ✅ **MVP funcional** | Parcial | Alta |
 | 16 | Juntas + pulido | Feature social, QA, lint, release prep | ✅ **MVP funcional** | Parcial | Media |
-| 21c | Armonización UX/UI | Tokens DS + pantallas alineadas | ✅ **Completada** | No | Baja |
+| 17 | Cierre riesgos F16 | Migraciones Room, juntas edit/reparto, KSP, backup | ✅ **Completada** | Parcial | **Alta** |
+| 18 | Cierre riesgos restantes | Wipe instrumentado, liquidación juntas, Room v7 | ✅ **Completada** | Sí | Media |
+| 19 | Riesgos críticos | Backup, wipe cache, plan inválido, wizard persistente | ✅ **Completada** | Parcial | **Alta** |
+| 20 | Riesgos residuales | Tests domain/data, ids seed, onboarding UseCase | ✅ **Completada** | Sí | Baja |
+| 21 | Armonización UX/UI | Tokens DS + pantallas alineadas | ✅ **Completada** | No | Baja |
 | 22 | CRUD sobres + compromisos | Crear/eliminar sobres; CRUD compromisos | ✅ **Completada** | Sí (+2 tests) | Baja |
+| 23 | Metas ↔ movimientos | `commitmentId`; vincular ingresos a metas | ✅ **Completada** | Sí (+3 tests) | Media |
+| 24 | Wizard edita plan (F14-02) | Precarga + accesos sobres/meta en wizard | ✅ **Completada** | Sí (+5 tests) | Baja |
+| 25 | MERGE duplicados notificación | Paridad diálogo duplicados en ingresos por notificación | ✅ **Completada** | Sí (+1 test) | Baja |
+| 26 | QA Play Store + ECC F14 | Docs release, privacidad in-app, lint + release | ✅ **Completada** | Parcial (+1 test UI) | Media |
+| 27 | Internal testing pipeline | Keystore, bundleRelease, E2E privacidad, Pages HTML | ✅ **Completada** (repo) | Sí (+1 E2E) | Alta |
+| 28 | *(humano)* | Subir AAB Play Console + QA manual N1–E4 | ⏳ Pendiente | Manual | Alta |
 
 ### Mapeo TDD / Seguridad por fase (referencia cruzada)
 
@@ -1057,15 +1335,21 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | 14 | **Sí** (Save/Update/Get UseCases) | Bajo + plan financiero |
 | 15 | Parcial | **Alto** (OCR UI) |
 | 16 | Según lógica nueva | Medio + lint + revisión final |
+| 17–19 | Sí (migraciones, wipe, plan) | **Alto** (backup, wipe, persistencia) |
+| 20 | Sí (tests residuales) | Baja |
+| 21 | No | Baja |
+| 22–26 | Sí / docs release | Baja–Media |
 
 ---
 
-## Post-MVP (fuera del alcance Fase 16)
+## Post-MVP (Fases 17–24 completadas)
 
-MVP funcional **completo** (Fases 0–16). Próximos incrementos sugeridos:
+MVP funcional **completo** (Fases 0–16) + post-MVP **17–27 cerradas en repo**. Pendiente humano:
 
-- QA E2E en dispositivo real (Yape/Plin, share comprobante, wipe/export)
-- Publicación Play Store (store listing, política privacidad)
+- Crear keystore y `bundleRelease` firmado — `docs/release/INTERNAL_TESTING.md`
+- Activar GitHub Pages → URL privacidad
+- Subir AAB a **internal testing** e invitar testers
+- Checklist manual E2E hardware (N1–E4)
 
 ---
 
@@ -1073,10 +1357,8 @@ MVP funcional **completo** (Fases 0–16). Próximos incrementos sugeridos:
 
 ### Producto / features
 
-- Vincular movimientos a metas (`commitmentId` en `Movement`)
-- CRUD completo de plan financiero fuera del wizard (solo wizard edita ingresos/gastos fijos)
+- CRUD completo de plan financiero fuera del wizard (solo wizard edita ingresos/gastos fijos/sobres/meta)
 - Formulario de alta/edición manual de movimientos en UI (sin comprobante)
-- Edición de sobres dentro del wizard de plan
 - Pasos onboarding eliminados: Welcome, Cómo funciona, Permisos, Tutorial Yape — **no reintroducir** sin petición
 - Firebase / sync en nube
 - Detección de **gastos** desde notificaciones (F12 solo ingresos)
@@ -1096,7 +1378,7 @@ MVP funcional **completo** (Fases 0–16). Próximos incrementos sugeridos:
 ./gradlew assembleRelease                        # verificar R8/ProGuard
 ```
 
-Tras cambios en `:core:domain` UseCases, si KSP falla en features (mitigado en F16b con `dependsOn(:core:domain:jar)`):
+Tras cambios en `:core:domain` UseCases, si KSP falla en features (mitigado en Fase 17 con `dependsOn(:core:domain:jar)`):
 
 ```bash
 ./gradlew :core:domain:clean :core:domain:jar :app:assembleDebug

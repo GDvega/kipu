@@ -61,6 +61,17 @@ class ConfirmPendingNotificationMovementUseCaseTest {
         assertEquals(MovementStatus.CONFIRMED, repository.movements.first { it.id == "movement-pending-1" }.status)
     }
 
+    @Test
+    fun `discards pending notification when user chooses merge`() = runTest {
+        repository.movements = listOf(pendingMovement(), confirmedDuplicate())
+
+        val result = useCase("movement-pending-1", DuplicateResolution.MERGE)
+
+        assertEquals(ConfirmMovementResult.Cancelled, result)
+        assertTrue(repository.movements.none { it.id == "movement-pending-1" })
+        assertEquals(1, repository.movements.size)
+    }
+
     private fun pendingMovement(): Movement = Movement(
         id = "movement-pending-1",
         type = MovementType.INCOME,
@@ -95,6 +106,9 @@ class ConfirmPendingNotificationMovementUseCaseTest {
             return Result.success(Unit)
         }
 
-        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
+        override suspend fun delete(id: String): Result<Unit> {
+            movements = movements.filter { it.id != id }
+            return Result.success(Unit)
+        }
     }
 }

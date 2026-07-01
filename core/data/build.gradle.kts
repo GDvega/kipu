@@ -6,9 +6,7 @@ plugins {
 
 android {
     namespace = "pe.kipu.core.data"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -39,7 +37,7 @@ dependencies {
     testImplementation(libs.androidx.datastore.preferences.core)
 
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.room.runtime)
     androidTestImplementation(libs.androidx.room.ktx)
     androidTestImplementation(libs.kotlinx.coroutines.android)

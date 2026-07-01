@@ -127,11 +127,11 @@ Ejecutar antes de cada commit que toque código:
 
 ### Backup Android (`allowBackup`)
 
-- [x] `android:allowBackup=true` con exclusiones explícitas (`backup_rules.xml`, `data_extraction_rules.xml`)
-- [x] Room `kipu.db` (+ wal/shm) excluida de cloud backup y device transfer
+- [x] `android:allowBackup=false` en manifest (jun 2026 — remediación AUD-016); reglas XML mantienen exclusiones como defensa en profundidad
+- [x] Room `kipu.db` (+ wal/shm) excluida de cloud backup y device transfer (rules XML)
 - [x] DataStore `kipu_preferences.preferences_pb` excluido
 - [x] Cache `exports/` y `receipts/` excluida de backup/transfer
-- [x] Decisión documentada en `PROJECT_STATE.md` (F0-02 cerrado Fase 21)
+- [x] Decisión documentada en `PROJECT_STATE.md` (F0-02 cerrado Fase 19)
 
 ---
 

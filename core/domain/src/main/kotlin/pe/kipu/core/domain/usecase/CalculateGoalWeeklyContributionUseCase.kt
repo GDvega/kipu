@@ -5,6 +5,7 @@ import java.math.RoundingMode
 import javax.inject.Inject
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.plan.SavingsGoalBurdenCalculator
 import pe.kipu.core.domain.util.MoneyInputParser
 
 /**
@@ -17,12 +18,6 @@ class CalculateGoalWeeklyContributionUseCase @Inject constructor() {
         currentText: String,
         months: Int,
     ): DomainResult<Money> {
-        if (months <= 0) {
-            return DomainResult.Err(
-                pe.kipu.core.domain.model.DomainError.InvalidField("Months must be positive"),
-            )
-        }
-
         val target = parseAmount(targetText) ?: return invalidAmount()
         val current = parseAmount(currentText) ?: return invalidAmount()
 
@@ -37,11 +32,7 @@ class CalculateGoalWeeklyContributionUseCase @Inject constructor() {
             return DomainResult.Ok(Money.ZERO)
         }
 
-        val weeks = BigDecimal.valueOf(months.toLong()).multiply(WEEKS_PER_MONTH)
-        val weekly = remaining.amount
-            .divide(weeks, 2, RoundingMode.HALF_UP)
-
-        return Money.of(weekly)
+        return SavingsGoalBurdenCalculator.weeklyContribution(remaining, months)
     }
 
     private fun parseAmount(text: String): Money? {
@@ -55,8 +46,4 @@ class CalculateGoalWeeklyContributionUseCase @Inject constructor() {
 
     private fun invalidAmount(): DomainResult.Err =
         DomainResult.Err(pe.kipu.core.domain.model.DomainError.InvalidAmount("Invalid goal amount"))
-
-    private companion object {
-        val WEEKS_PER_MONTH: BigDecimal = BigDecimal("4")
-    }
 }

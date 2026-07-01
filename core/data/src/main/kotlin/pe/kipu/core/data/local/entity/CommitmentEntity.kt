@@ -15,4 +15,5 @@ data class CommitmentEntity(
     val counterpartyName: String?,
     val isSettled: Boolean,
     val currencyCode: String = "PEN",
+    val savingsHorizonMonths: Int? = null,
 )

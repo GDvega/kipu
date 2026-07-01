@@ -4,6 +4,8 @@ import pe.kipu.core.data.local.entity.FinancialPlanEntity
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.plan.IncomeProfile
+import pe.kipu.core.domain.plan.PayFrequency
 import java.math.BigDecimal
 
 private const val ENVELOPE_ID_SEPARATOR = ","
@@ -12,15 +14,33 @@ fun FinancialPlanEntity.toDomain(): FinancialPlan = FinancialPlan(
     id = id,
     estimatedMonthlyIncome = centsToMoney(estimatedMonthlyIncomeCents),
     fixedExpenses = centsToMoney(fixedExpensesCents),
+    initialBalance = centsToMoney(initialBalanceCents),
     envelopeIds = parseEnvelopeIds(envelopeIds),
+    incomeProfile = parseIncomeProfile(incomeProfile),
+    payFrequency = parsePayFrequency(payFrequency),
+    budgetCycle = parseBudgetCycle(budgetCycle),
 )
 
 fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
     id = id,
     estimatedMonthlyIncomeCents = moneyToCents(estimatedMonthlyIncome),
     fixedExpensesCents = moneyToCents(fixedExpenses),
+    initialBalanceCents = moneyToCents(initialBalance),
     envelopeIds = envelopeIds.joinToString(ENVELOPE_ID_SEPARATOR),
+    incomeProfile = incomeProfile.name,
+    payFrequency = payFrequency.name,
+    budgetCycle = budgetCycle.name,
 )
+
+private fun parseIncomeProfile(raw: String): IncomeProfile =
+    runCatching { IncomeProfile.valueOf(raw) }.getOrDefault(IncomeProfile.FIXED)
+
+private fun parsePayFrequency(raw: String): PayFrequency =
+    runCatching { PayFrequency.valueOf(raw) }.getOrDefault(PayFrequency.MONTHLY)
+
+private fun parseBudgetCycle(raw: String): pe.kipu.core.domain.model.BudgetCycle =
+    runCatching { pe.kipu.core.domain.model.BudgetCycle.valueOf(raw) }.getOrDefault(pe.kipu.core.domain.model.BudgetCycle.WEEKLY)
+
 
 private fun parseEnvelopeIds(raw: String): List<String> =
     if (raw.isBlank()) {

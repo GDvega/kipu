@@ -69,7 +69,7 @@ fun KipuAmountText(
         modifier = modifier,
         style = typography,
         fontWeight = if (type == AmountType.INCOME) FontWeight.W800 else FontWeight.SemiBold,
-        color = if (type == AmountType.INCOME) KipuPrimary else color,
+        color = if (type == AmountType.INCOME) MaterialTheme.colorScheme.primary else color,
     )
 }
 

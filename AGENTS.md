@@ -13,7 +13,7 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 
 **Idioma:** código en inglés; strings de UI en español peruano.
 
-**Estado actual:** Fases 0–16 MVP funcional + F16b riesgos cerrados. Listo para QA/publicación. Ver `docs/ai/PROJECT_STATE.md`.
+**Estado actual:** Fases 0–27 completadas en repo. Siguiente paso humano: Play Console internal testing. Ver `docs/release/INTERNAL_TESTING.md`.
 
 ---
 
@@ -31,10 +31,10 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 | Package / `applicationId` `pe.kipu.app` | ✅ Activo |
 | Hilt + KSP (DI) | ✅ Activo |
 | `core/domain` (JVM puro + parsers/UseCases financieros) | ✅ Activo |
-| `core/data` (Room v4 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
+| `core/data` (Room v12 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
 | ViewModels + UiState por feature | ✅ Activo |
 | DataStore (preferencias usuario) | ✅ Activo |
-| Room (`kipu.db` v4 — movimientos, categorías, sobres, compromisos, plan) | ✅ Activo |
+| Room (`kipu.db` v12 — movimientos, categorías, sobres, compromisos, plan + `incomeProfile`/`payFrequency`) | ✅ Activo |
 | UseCases presupuesto semanal (sobres) | ✅ Activo |
 | Disponible diario + gastos hormiga (Home insights) | ✅ Activo |
 | Duplicados con confirmación humana | ✅ Activo |
@@ -166,7 +166,7 @@ fun XxxScreen(modifier: Modifier = Modifier)
 - **No hardcodear** secretos, tokens ni API keys.
 - **Permisos mínimos** con explicación simple antes de solicitar.
 - **Validar** todo input de comprobantes, intents compartidos y OCR.
-- **`allowBackup`:** pendiente de revisar cuando exista Room (hallazgo Fase 0; ver `SECURITY_CHECKLIST.md`).
+- **`allowBackup`:** `false` en manifest (jun 2026); reglas XML como defensa en profundidad — ver `SECURITY_CHECKLIST.md`.
 - **Componentes exportados** solo si es estrictamente necesario (`MainActivity` launcher).
 - **Clasificación ECC:** CRITICAL / HIGH / MEDIUM / LOW (ver sección 9).
 

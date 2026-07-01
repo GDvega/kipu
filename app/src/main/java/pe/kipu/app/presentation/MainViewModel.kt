@@ -27,23 +27,23 @@ class MainViewModel @Inject constructor(
         .map { it.themeMode }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = ThemeMode.SYSTEM,
         )
 
-    val onboardingCompleted: StateFlow<Boolean?> = userPreferencesRepository.observePreferences()
+    val onboardingCompleted: StateFlow<Boolean> = userPreferencesRepository.observePreferences()
         .map { it.onboardingCompleted }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = null,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
         )
 
     val pendingPlanWizard: StateFlow<Boolean> = userPreferencesRepository.observePreferences()
         .map { it.pendingPlanWizard }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
+            started = SharingStarted.Eagerly,
             initialValue = false,
         )
 
@@ -51,6 +51,14 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferencesRepository.updatePreferences { preferences ->
                 preferences.copy(pendingPlanWizard = false)
+            }
+        }
+    }
+
+    fun resetOnboarding() {
+        viewModelScope.launch {
+            userPreferencesRepository.updatePreferences { preferences ->
+                preferences.copy(onboardingCompleted = false, pendingPlanWizard = false)
             }
         }
     }

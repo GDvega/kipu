@@ -11,8 +11,15 @@ import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.CommitmentStatusKeys
 import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.model.Movement
+import pe.kipu.core.domain.model.MovementSource
+import pe.kipu.core.domain.model.MovementStatus
+import pe.kipu.core.domain.model.MovementType
+import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.CommitmentRepository
+import pe.kipu.core.domain.repository.MovementRepository
+import java.time.Instant
 
 class ObserveCommitmentSummariesUseCaseTest {
 
@@ -31,7 +38,9 @@ class ObserveCommitmentSummariesUseCaseTest {
         )
         val useCase = ObserveCommitmentSummariesUseCase(
             commitmentRepository = FakeCommitmentRepository(commitments),
+            movementRepository = FakeMovementRepository(emptyList()),
             calculateSavingsGoalProgress = calculateSavingsGoalProgress,
+            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
         )
 
         val summaries = useCase().first()
@@ -39,6 +48,43 @@ class ObserveCommitmentSummariesUseCaseTest {
         assertEquals(1, summaries.size)
         assertEquals(24, summaries.first().savingsProgress?.progressPercent)
         assertEquals(CommitmentStatusKeys.SAVINGS_IN_PROGRESS, summaries.first().statusKey)
+    }
+
+    @Test
+    fun `includes linked income movements in savings progress`() = runTest {
+        val commitments = listOf(
+            Commitment(
+                id = "goal-1",
+                type = CommitmentType.SAVINGS_GOAL,
+                title = "Fondo emergencia",
+                targetAmount = Money.of(BigDecimal("500.00")).getOrError(),
+                currentAmount = Money.of(BigDecimal("100.00")).getOrError(),
+            ),
+        )
+        val movements = listOf(
+            Movement(
+                id = "mov-1",
+                type = MovementType.INCOME,
+                amount = Money.of(BigDecimal("25.00")).getOrError(),
+                categoryId = "category-other",
+                channel = PaymentChannel.YAPE,
+                source = MovementSource.MANUAL,
+                status = MovementStatus.CONFIRMED,
+                commitmentId = "goal-1",
+                recordedAt = Instant.parse("2026-06-16T12:00:00Z"),
+                createdAt = Instant.parse("2026-06-16T12:00:00Z"),
+            ),
+        )
+        val useCase = ObserveCommitmentSummariesUseCase(
+            commitmentRepository = FakeCommitmentRepository(commitments),
+            movementRepository = FakeMovementRepository(movements),
+            calculateSavingsGoalProgress = calculateSavingsGoalProgress,
+            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
+        )
+
+        val summaries = useCase().first()
+
+        assertEquals(25, summaries.first().savingsProgress?.progressPercent)
     }
 
     @Test
@@ -54,7 +100,9 @@ class ObserveCommitmentSummariesUseCaseTest {
         )
         val useCase = ObserveCommitmentSummariesUseCase(
             commitmentRepository = FakeCommitmentRepository(commitments),
+            movementRepository = FakeMovementRepository(emptyList()),
             calculateSavingsGoalProgress = calculateSavingsGoalProgress,
+            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
         )
 
         val summaries = useCase().first()
@@ -70,6 +118,20 @@ class ObserveCommitmentSummariesUseCaseTest {
         override suspend fun getById(id: String): Commitment? = commitments.find { it.id == id }
 
         override suspend fun save(commitment: Commitment): Result<Unit> = Result.success(Unit)
+
+        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class FakeMovementRepository(
+        private val movements: List<Movement>,
+    ) : MovementRepository {
+        override fun observeMovements(): Flow<List<Movement>> = flowOf(movements)
+
+        override suspend fun getById(id: String): Movement? = movements.find { it.id == id }
+
+        override suspend fun findByCounterpartyName(counterpartyName: String): List<Movement> = emptyList()
+
+        override suspend fun save(movement: Movement): Result<Unit> = Result.success(Unit)
 
         override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
     }

@@ -34,7 +34,7 @@ import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLoadingIndicator
 import pe.kipu.core.designsystem.component.KipuPenOutlinedTextField
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
-import pe.kipu.core.designsystem.component.KipuScreenHeader
+import pe.kipu.core.designsystem.component.KipuSubScreenScaffold
 import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.KipuSectionHeader
 import pe.kipu.core.domain.model.SuggestionConfidence
@@ -47,6 +47,7 @@ import pe.kipu.feature.receipts.presentation.receiptChannelLabel
 @Composable
 fun ReceiptReviewScreen(
     onFinished: () -> Unit,
+    onBack: () -> Unit = onFinished,
     modifier: Modifier = Modifier,
     viewModel: ReceiptReviewViewModel = hiltViewModel(),
 ) {
@@ -58,15 +59,15 @@ fun ReceiptReviewScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    KipuSubScreenScaffold(
+        title = "Revisar comprobante",
+        onBack = onBack,
+        modifier = modifier,
+    ) {
         when (val state = uiState) {
             ReceiptReviewUiState.Loading,
             is ReceiptReviewUiState.Processing,
             -> {
-                KipuScreenHeader(
-                    title = "Revisar comprobante",
-                    subtitle = "Leyendo datos localmente",
-                )
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -89,9 +90,14 @@ fun ReceiptReviewScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(bottom = KipuLayout.screenHorizontalPadding),
                 ) {
-                    KipuScreenHeader(
-                        title = "Revisar comprobante",
-                        subtitle = "Confirma antes de guardar",
+                    Text(
+                        text = "Confirma antes de guardar",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(
+                            horizontal = KipuLayout.screenHorizontalPadding,
+                            vertical = 8.dp,
+                        ),
                     )
 
                     Column(
@@ -211,12 +217,11 @@ fun ReceiptReviewScreen(
             }
 
             is ReceiptReviewUiState.Error -> {
-                KipuScreenHeader(title = "Comprobante")
                 KipuErrorState(
                     title = "No pudimos procesar el comprobante",
                     message = state.message,
-                    retryLabel = "Volver",
-                    onRetry = onFinished,
+                    retryLabel = "Reintentar",
+                    onRetry = viewModel::retryProcess,
                 )
             }
 

@@ -1,0 +1,6 @@
+# GitHub Actions Firebase Emulator Template
+
+```yaml
+- run: npm ci
+- run: firebase emulators:exec --only firestore "npm test"
+```

@@ -13,4 +13,6 @@ data class UserPreferences(
     /** Snapshot para widget de pantalla de inicio (sin PII). */
     val widgetDailyAvailableText: String? = null,
     val widgetIsOverBudget: Boolean = false,
+    val autoApproveHighConfidenceNotifications: Boolean = false,
+    val budgetCycle: BudgetCycle = BudgetCycle.WEEKLY,
 )

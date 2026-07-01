@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "pe.kipu.feature.movements"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 26
@@ -41,6 +39,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     ksp(libs.hilt.compiler)
+
+    testImplementation(libs.junit)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

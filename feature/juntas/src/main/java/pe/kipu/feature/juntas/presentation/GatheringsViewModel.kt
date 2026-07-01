@@ -7,7 +7,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.model.DomainResult
@@ -21,7 +25,7 @@ import pe.kipu.core.domain.usecase.UpdateGatheringUseCase
 
 @HiltViewModel
 class GatheringsViewModel @Inject constructor(
-    observeGatheringSummaries: ObserveGatheringSummariesUseCase,
+    private val observeGatheringSummaries: ObserveGatheringSummariesUseCase,
     private val saveGathering: SaveGatheringUseCase,
     private val updateGathering: UpdateGatheringUseCase,
     private val deleteGathering: DeleteGatheringUseCase,
@@ -32,36 +36,49 @@ class GatheringsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<GatheringsUiState>(GatheringsUiState.Loading)
     val uiState: StateFlow<GatheringsUiState> = _uiState.asStateFlow()
 
+    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     init {
         viewModelScope.launch {
-            observeGatheringSummaries()
-                .catch {
-                    _uiState.value = GatheringsUiState.Error("No pudimos cargar tus juntas")
-                }
-                .collect { dashboard ->
-                    _uiState.update { current ->
-                        when (current) {
-                            is GatheringsUiState.Content -> current.copy(
-                                summaries = dashboard.summaries,
-                                unlinkedMovements = dashboard.unlinkedMovements,
-                            )
-                            else -> GatheringsUiState.Content(
-                                summaries = dashboard.summaries,
-                                unlinkedMovements = dashboard.unlinkedMovements,
-                                dialogMode = null,
-                                formName = "",
-                                formParticipants = "",
-                                formAmount = "",
-                                formPaidBy = "",
-                                formDescription = "",
-                                formMovementId = null,
-                                formError = null,
-                                isSaving = false,
-                            )
+            reloadRequests
+                .onStart { emit(Unit) }
+                .flatMapLatest {
+                    observeGatheringSummaries()
+                        .map { dashboard ->
+                            val current = _uiState.value
+                            when (current) {
+                                is GatheringsUiState.Content -> current.copy(
+                                    summaries = dashboard.summaries,
+                                    unlinkedMovements = dashboard.unlinkedMovements,
+                                )
+
+                                else -> GatheringsUiState.Content(
+                                    summaries = dashboard.summaries,
+                                    unlinkedMovements = dashboard.unlinkedMovements,
+                                    dialogMode = null,
+                                    formName = "",
+                                    formParticipants = "",
+                                    formAmount = "",
+                                    formPaidBy = "",
+                                    formDescription = "",
+                                    formMovementId = null,
+                                    formError = null,
+                                    isSaving = false,
+                                )
+                            }
                         }
-                    }
+                        .map<GatheringsUiState.Content, GatheringsUiState> { it }
+                        .catch {
+                            emit(GatheringsUiState.Error("No pudimos cargar tus cuentas compartidas"))
+                        }
+                }.collect { state ->
+                    _uiState.value = state
                 }
         }
+    }
+
+    fun retryLoad() {
+        reloadRequests.tryEmit(Unit)
     }
 
     fun onCreateClick() = openFormDialog(GatheringDialogMode.Create)

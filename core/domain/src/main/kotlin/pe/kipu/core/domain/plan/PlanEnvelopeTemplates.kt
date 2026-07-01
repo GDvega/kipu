@@ -66,6 +66,13 @@ object PlanEnvelopeTemplates {
         template.presetAmounts.getOrElse(template.defaultPresetIndex) {
             template.presetAmounts.first()
         }
+
+    fun wizardEnvelopeIds(): List<String> = buildList {
+        WIZARD_ENVELOPES.forEach { add(it.envelopeId) }
+        add(ANT_SPENDING_ENVELOPE_ID)
+    }
+
+    fun wizardEnvelopeIdsCsv(): String = wizardEnvelopeIds().joinToString(",")
 }
 
 object DefaultPlanEnvelopeIds {

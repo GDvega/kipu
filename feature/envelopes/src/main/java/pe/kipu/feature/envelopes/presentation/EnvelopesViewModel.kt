@@ -4,17 +4,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.repository.CategoryRepository
+import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.usecase.CalculateWeeklyEnvelopeBalanceUseCase
 import pe.kipu.core.domain.usecase.CreateEnvelopeUseCase
 import pe.kipu.core.domain.usecase.DeleteEnvelopeUseCase
 import pe.kipu.core.domain.usecase.GetEnvelopeRecentMovementsUseCase
@@ -25,9 +32,11 @@ import pe.kipu.feature.envelopes.ui.EnvelopeCreateFormState
 
 @HiltViewModel
 class EnvelopesViewModel @Inject constructor(
-    observeEnvelopeBudgets: ObserveEnvelopeBudgetsUseCase,
-    categoryRepository: CategoryRepository,
-    movementRepository: MovementRepository,
+    private val observeEnvelopeBudgets: ObserveEnvelopeBudgetsUseCase,
+    private val categoryRepository: CategoryRepository,
+    private val movementRepository: MovementRepository,
+    private val financialPlanRepository: FinancialPlanRepository,
+    private val calculateWeeklyEnvelopeBalance: CalculateWeeklyEnvelopeBalanceUseCase,
     private val getEnvelopeRecentMovements: GetEnvelopeRecentMovementsUseCase,
     private val updateEnvelopeWeeklyLimit: UpdateEnvelopeWeeklyLimitUseCase,
     private val createEnvelope: CreateEnvelopeUseCase,
@@ -38,70 +47,93 @@ class EnvelopesViewModel @Inject constructor(
     private val showCreateDialog = MutableStateFlow(false)
     private val createForm = MutableStateFlow(EnvelopeCreateFormState())
     private val deleteTarget = MutableStateFlow<EnvelopeBudgetState?>(null)
+    private val adjustLimitError = MutableStateFlow<String?>(null)
 
     private val _uiState = MutableStateFlow<EnvelopesUiState>(EnvelopesUiState.Loading)
     val uiState: StateFlow<EnvelopesUiState> = _uiState.asStateFlow()
 
+    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     init {
         viewModelScope.launch {
-            val dataFlow = combine(
-                observeEnvelopeBudgets(),
-                categoryRepository.observeCategories(),
-                movementRepository.observeMovements(),
-            ) { budgets, categories, movements ->
-                Triple(budgets, categories, movements)
-            }
-
-            combine(
-                dataFlow,
-                adjustTarget,
-                showCreateDialog,
-                createForm,
-                deleteTarget,
-            ) { (budgets, categories, movements), adjust, creating, form, delete ->
-                EnvelopesUiState.Content(
-                    budgets = budgets.map { budget ->
-                        EnvelopeBudgetUiModel(
-                            budget = budget,
-                            recentMovements = getEnvelopeRecentMovements(
-                                categoryId = budget.categoryId,
-                                movements = movements,
-                            ),
-                        )
-                    },
-                    categories = categories,
-                    usedCategoryIds = budgets.map { it.categoryId }.toSet(),
-                    adjustTarget = adjust,
-                    showCreateDialog = creating,
-                    createForm = form,
-                    deleteTarget = delete,
-                )
-            }
-                .catch {
-                    _uiState.value = EnvelopesUiState.Error("No pudimos cargar tus sobres")
-                }
+            reloadRequests
+                .onStart { emit(Unit) }
+                .flatMapLatest { observeEnvelopesState() }
                 .collect { state ->
                     _uiState.value = state
                 }
         }
     }
 
+    fun retryLoad() {
+        reloadRequests.tryEmit(Unit)
+    }
+
+    private fun observeEnvelopesState(): Flow<EnvelopesUiState> {
+        val dataFlow = combine(
+            observeEnvelopeBudgets(),
+            categoryRepository.observeCategories(),
+            movementRepository.observeMovements(),
+            financialPlanRepository.observePlans(),
+        ) { budgets, categories, movements, plans ->
+            Quadruple(budgets, categories, movements, plans.firstOrNull())
+        }
+
+        val contentFlow = combine(
+            dataFlow,
+            adjustTarget,
+            showCreateDialog,
+            createForm,
+            deleteTarget,
+        ) { (budgets, categories, movements, plan), adjust, creating, form, delete ->
+            EnvelopesUiState.Content(
+                budgets = budgets.map { budget ->
+                    EnvelopeBudgetUiModel(
+                        budget = budget,
+                        recentMovements = getEnvelopeRecentMovements(
+                            categoryId = budget.categoryId,
+                            movements = movements,
+                        ),
+                    )
+                },
+                categories = categories,
+                usedCategoryIds = budgets.map { it.categoryId }.toSet(),
+                planBalance = calculateWeeklyEnvelopeBalance(plan, budgets),
+                adjustTarget = adjust,
+                showCreateDialog = creating,
+                createForm = form,
+                deleteTarget = delete,
+                budgetCycle = plan?.budgetCycle ?: pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
+            )
+        }
+
+        return combine(contentFlow, adjustLimitError) { content, limitError ->
+            content.copy(adjustLimitError = limitError)
+        }.map<EnvelopesUiState.Content, EnvelopesUiState> { it }
+            .catch {
+                emit(EnvelopesUiState.Error("No pudimos cargar tus sobres"))
+            }
+    }
+
     fun onAdjustClick(budget: EnvelopeBudgetState) {
         adjustTarget.value = budget
+        adjustLimitError.value = null
     }
 
     fun onDismissAdjust() {
         adjustTarget.value = null
+        adjustLimitError.value = null
     }
 
     fun onSaveWeeklyLimit(amountText: String) {
         val envelope = adjustTarget.value ?: return
         viewModelScope.launch {
             when (val parsed = MoneyInputParser.parsePen(amountText)) {
-                is DomainResult.Err -> Unit
+                is DomainResult.Err -> adjustLimitError.value = "Ingresa un monto válido"
                 is DomainResult.Ok -> {
                     updateEnvelopeWeeklyLimit(envelope.envelopeId, parsed.value)
                     adjustTarget.value = null
+                    adjustLimitError.value = null
                 }
             }
         }
@@ -182,3 +214,10 @@ class EnvelopesViewModel @Inject constructor(
         }
     }
 }
+
+private data class Quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+)

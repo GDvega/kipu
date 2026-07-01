@@ -37,4 +37,19 @@ class FixedExpenseBreakdownCalculatorTest {
 
         assertTrue(result is DomainResult.Err)
     }
+
+    @Test
+    fun sumAll_includesCustomLines() {
+        val custom = listOf(
+            PlanWizardLineItem(id = "1", label = "Netflix", amountText = "45"),
+            PlanWizardLineItem(id = "2", label = "Spotify", amountText = "15"),
+        )
+        val result = FixedExpenseBreakdownCalculator.sumAll(
+            presetParts = listOf("900", "350", "", "", ""),
+            customLines = custom,
+        )
+
+        assertTrue(result is DomainResult.Ok)
+        assertEquals("1310", (result as DomainResult.Ok).value.amount.stripTrailingZeros().toPlainString())
+    }
 }

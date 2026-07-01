@@ -7,6 +7,8 @@ object KipuPlanRoutes {
     const val STEP_INCOME = "income"
     const val STEP_EXPENSES = "expenses"
     const val STEP_ENVELOPES = "envelopes"
+    const val STEP_ANT = "ant"
+    const val STEP_GOAL = "goal"
     const val STEP_SUMMARY = "summary"
 
     fun wizard(startStep: String = STEP_INCOME): String = "plan/$startStep"

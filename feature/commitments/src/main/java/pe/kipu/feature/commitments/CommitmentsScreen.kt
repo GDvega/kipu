@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,7 +25,7 @@ import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLinearProgress
-import pe.kipu.core.designsystem.component.KipuLoadingIndicator
+import pe.kipu.core.designsystem.component.KipuScreenLoadingState
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
 import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.KipuSectionHeader
@@ -50,12 +52,7 @@ fun CommitmentsScreen(
         KipuScreenHeader(title = "Compromisos")
         when (val state = uiState) {
             CommitmentsUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    KipuLoadingIndicator()
-                }
+                KipuScreenLoadingState(title = "Compromisos")
             }
 
             is CommitmentsUiState.Content -> {
@@ -143,6 +140,8 @@ fun CommitmentsScreen(
                 KipuErrorState(
                     title = "No pudimos cargar los compromisos",
                     message = state.message,
+                    retryLabel = "Reintentar",
+                    onRetry = viewModel::retryLoad,
                 )
             }
         }
@@ -160,7 +159,7 @@ private fun PlanValidationAlertCard(
         Text(
             text = "Plan financiero en negativo",
             style = MaterialTheme.typography.titleMedium,
-            color = KipuExpense,
+            color = MaterialTheme.colorScheme.error,
         )
         Text(
             text = message,
@@ -182,7 +181,11 @@ private fun CommitmentListItem(
     val amountLabel = CommitmentSummaryTranslator.amountLabel(summary)
     val progressText = CommitmentSummaryTranslator.savingsProgressText(summary)
 
-    KipuCard(modifier = modifier) {
+    KipuCard(
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = "${commitment.title}, $statusText"
+        },
+    ) {
         Column {
             Text(
                 text = commitment.title,
@@ -211,6 +214,13 @@ private fun CommitmentListItem(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+                if (summary.isAtRisk) {
+                    pe.kipu.core.designsystem.component.KipuBadge(
+                        text = "⚠ El ahorro supera tu efectivo real",
+                        tone = pe.kipu.core.designsystem.component.KipuBadgeTone.Critical,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             } else if (amountLabel != null) {
                 Row(
                     modifier = Modifier
@@ -227,7 +237,7 @@ private fun CommitmentListItem(
                     Text(
                         text = amountLabel,
                         style = MaterialTheme.typography.titleSmall,
-                        color = KipuExpense,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }

@@ -41,6 +41,7 @@ class UserDataJsonSerializer @Inject constructor() {
             append("\"description\":").append(JsonEscaper.string(movement.description)).append(',')
             append("\"counterpartyName\":").append(JsonEscaper.string(movement.counterpartyName)).append(',')
             append("\"operationNumber\":").append(JsonEscaper.string(movement.operationNumber)).append(',')
+            append("\"commitmentId\":").append(JsonEscaper.string(movement.commitmentId)).append(',')
             append("\"recordedAt\":").append(JsonEscaper.string(movement.recordedAt.toString())).append(',')
             append("\"createdAt\":").append(JsonEscaper.string(movement.createdAt.toString()))
             append('}')
@@ -87,7 +88,9 @@ class UserDataJsonSerializer @Inject constructor() {
             append("\"currentAmount\":").append(JsonEscaper.string(commitment.currentAmount?.amount?.toPlainString())).append(',')
             append("\"dueDate\":").append(JsonEscaper.string(commitment.dueDate?.toString())).append(',')
             append("\"counterpartyName\":").append(JsonEscaper.string(commitment.counterpartyName)).append(',')
-            append("\"isSettled\":").append(commitment.isSettled)
+            append("\"isSettled\":").append(commitment.isSettled).append(',')
+            append("\"currencyCode\":").append(JsonEscaper.string(commitment.currencyCode)).append(',')
+            append("\"savingsHorizonMonths\":").append(commitment.savingsHorizonMonths?.toString() ?: "null")
             append('}')
         }
         append(']')
@@ -101,6 +104,7 @@ class UserDataJsonSerializer @Inject constructor() {
             append("\"id\":").append(JsonEscaper.string(plan.id)).append(',')
             append("\"estimatedMonthlyIncome\":").append(JsonEscaper.string(plan.estimatedMonthlyIncome.amount.toPlainString())).append(',')
             append("\"fixedExpenses\":").append(JsonEscaper.string(plan.fixedExpenses.amount.toPlainString())).append(',')
+            append("\"initialBalance\":").append(JsonEscaper.string(plan.initialBalance.amount.toPlainString())).append(',')
             append("\"envelopeIds\":").append(serializeStringList(plan.envelopeIds))
             append('}')
         }

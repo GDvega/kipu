@@ -60,6 +60,7 @@ fun KipuFilterChip(
         modifier = modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clip(shape)
+            .clickable(onClick = onClick)
             .then(
                 if (selected) {
                     Modifier.background(colors.primary, shape)
@@ -69,13 +70,12 @@ fun KipuFilterChip(
                         .border(1.5.dp, colors.outline, shape)
                 },
             )
-            .padding(horizontal = 18.dp, vertical = 10.dp)
-            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
             .semantics {
                 contentDescription = if (selected) "$text, seleccionado" else text
             },
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
-        color = if (selected) colors.onPrimary else colors.onSurfaceVariant,
+        color = if (selected) colors.onPrimary else colors.onSurface,
     )
 }

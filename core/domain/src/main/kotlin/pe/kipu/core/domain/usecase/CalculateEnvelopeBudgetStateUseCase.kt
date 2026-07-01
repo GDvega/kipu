@@ -5,26 +5,29 @@ import java.math.RoundingMode
 import javax.inject.Inject
 import pe.kipu.core.domain.EnvelopeBudgetThresholds
 import pe.kipu.core.domain.model.DomainResult
+import pe.kipu.core.domain.model.EntityId
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.model.EnvelopeBudgetStatus
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
-import pe.kipu.core.domain.time.WeekRange
+import pe.kipu.core.domain.time.CycleRange
 
 class CalculateEnvelopeBudgetStateUseCase @Inject constructor(
-    private val calculateCategoryWeeklySpent: CalculateCategoryWeeklySpentUseCase,
+    private val calculateCategoryPeriodSpent: CalculateCategoryPeriodSpentUseCase,
 ) {
 
     operator fun invoke(
         envelope: Envelope,
         movements: List<Movement>,
-        weekRange: WeekRange,
+        cycleRange: CycleRange,
+        gatheringLinkedMovementIds: Set<EntityId> = emptySet(),
     ): EnvelopeBudgetState {
-        val spentAmount = calculateCategoryWeeklySpent(
+        val spentAmount = calculateCategoryPeriodSpent(
             categoryId = envelope.categoryId,
             movements = movements,
-            weekRange = weekRange,
+            cycleRange = cycleRange,
+            gatheringLinkedMovementIds = gatheringLinkedMovementIds,
         )
         val percentUsed = calculatePercentUsed(spentAmount, envelope.weeklyLimit)
         val status = resolveStatus(spentAmount, envelope.weeklyLimit, percentUsed)

@@ -4,11 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.model.CommitmentSummary
@@ -22,7 +27,7 @@ import pe.kipu.feature.commitments.ui.CommitmentFormState
 
 @HiltViewModel
 class CommitmentsViewModel @Inject constructor(
-    observeCommitmentsInsights: ObserveCommitmentsInsightsUseCase,
+    private val observeCommitmentsInsights: ObserveCommitmentsInsightsUseCase,
     private val saveCommitment: SaveCommitmentUseCase,
     private val deleteCommitment: DeleteCommitmentUseCase,
 ) : ViewModel() {
@@ -35,31 +40,42 @@ class CommitmentsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<CommitmentsUiState>(CommitmentsUiState.Loading)
     val uiState: StateFlow<CommitmentsUiState> = _uiState.asStateFlow()
 
+    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     init {
         viewModelScope.launch {
-            combine(
-                observeCommitmentsInsights(),
-                showFormDialog,
-                formState,
-                deleteTargetId,
-                deleteTargetTitle,
-            ) { insights, showForm, form, deleteId, deleteTitle ->
-                CommitmentsUiState.Content(
-                    insights = insights,
-                    showFormDialog = showForm,
-                    formState = form,
-                    deleteTargetId = deleteId,
-                    deleteTargetTitle = deleteTitle,
-                )
-            }
-                .catch {
-                    _uiState.value = CommitmentsUiState.Error("No pudimos cargar los compromisos")
-                }
+            reloadRequests
+                .onStart { emit(Unit) }
+                .flatMapLatest { observeCommitmentsState() }
                 .collect { state ->
                     _uiState.value = state
                 }
         }
     }
+
+    fun retryLoad() {
+        reloadRequests.tryEmit(Unit)
+    }
+
+    private fun observeCommitmentsState(): Flow<CommitmentsUiState> =
+        combine(
+            observeCommitmentsInsights(),
+            showFormDialog,
+            formState,
+            deleteTargetId,
+            deleteTargetTitle,
+        ) { insights, showForm, form, deleteId, deleteTitle ->
+            CommitmentsUiState.Content(
+                insights = insights,
+                showFormDialog = showForm,
+                formState = form,
+                deleteTargetId = deleteId,
+                deleteTargetTitle = deleteTitle,
+            )
+        }.map<CommitmentsUiState.Content, CommitmentsUiState> { it }
+            .catch {
+                emit(CommitmentsUiState.Error("No pudimos cargar los compromisos"))
+            }
 
     fun onCreateClick() {
         showFormDialog.value = true

@@ -13,6 +13,9 @@ data class Envelope(
     val categoryId: EntityId,
     val spentAmount: Money = Money.ZERO,
 ) {
+    /** Alias semántico para el límite del sobre, que ahora depende del [BudgetCycle]. */
+    val cycleLimit: Money get() = weeklyLimit
+
     fun validate(): DomainResult<Unit> = when {
         id.isBlank() -> DomainResult.Err(DomainError.InvalidId("Envelope id must not be blank"))
         name.isBlank() -> DomainResult.Err(DomainError.InvalidField("Envelope name must not be blank"))

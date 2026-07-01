@@ -10,6 +10,7 @@ fun GatheringEntity.toDomain(): Gathering = Gathering(
     name = name,
     participantCount = participantCount,
     participantNames = decodeParticipantNames(participantNames),
+    isSettled = isSettled,
 )
 
 fun Gathering.toEntity(): GatheringEntity = GatheringEntity(
@@ -17,6 +18,7 @@ fun Gathering.toEntity(): GatheringEntity = GatheringEntity(
     name = name,
     participantCount = participantCount,
     participantNames = encodeParticipantNames(participantNames),
+    isSettled = isSettled,
 )
 
 internal fun encodeParticipantNames(names: List<String>): String =

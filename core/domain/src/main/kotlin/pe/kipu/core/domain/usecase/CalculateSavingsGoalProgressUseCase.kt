@@ -12,7 +12,10 @@ import pe.kipu.core.domain.model.SavingsGoalProgress
 
 class CalculateSavingsGoalProgressUseCase @Inject constructor() {
 
-    operator fun invoke(commitment: Commitment): DomainResult<SavingsGoalProgress> {
+    operator fun invoke(
+        commitment: Commitment,
+        linkedIncome: Money = Money.ZERO,
+    ): DomainResult<SavingsGoalProgress> {
         if (commitment.type != CommitmentType.SAVINGS_GOAL) {
             return DomainResult.Err(
                 DomainError.InvalidField("Savings goal progress requires SAVINGS_GOAL commitment"),
@@ -25,7 +28,7 @@ class CalculateSavingsGoalProgressUseCase @Inject constructor() {
             return DomainResult.Err(DomainError.InvalidAmount("Savings goal target must be greater than zero"))
         }
 
-        val savedAmount = commitment.currentAmount ?: Money.ZERO
+        val savedAmount = (commitment.currentAmount ?: Money.ZERO) + linkedIncome
         val isCompleted = commitment.isSettled || savedAmount.amount >= targetAmount.amount
         val progressPercent = calculateProgressPercent(savedAmount, targetAmount)
 

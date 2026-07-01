@@ -16,4 +16,5 @@ object UserPreferencesKeys {
     val ANT_SPENDING_ALERT_ENABLED = booleanPreferencesKey("ant_spending_alert_enabled")
     val ANT_SPENDING_ALERT_PERCENT = intPreferencesKey("ant_spending_alert_percent")
     val ANT_SPENDING_TRACKED_CATEGORIES = stringPreferencesKey("ant_spending_tracked_categories")
+    val AUTO_APPROVE_NOTIFICATIONS = booleanPreferencesKey("auto_approve_notifications")
 }

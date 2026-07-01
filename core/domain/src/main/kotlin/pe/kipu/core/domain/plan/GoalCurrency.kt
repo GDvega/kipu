@@ -21,7 +21,7 @@ fun GoalType.currency(): GoalCurrency = when (this) {
 
 object CurrencyConverter {
     fun toPen(amount: Money, currencyCode: String): Money {
-        if (currencyCode == GoalCurrency.USD.code) {
+        if (currencyCode.equals(GoalCurrency.USD.code, ignoreCase = true)) {
             val converted = amount.amount
                 .multiply(PeruPlanDefaults.REFERENCE_USD_TO_PEN)
                 .setScale(2, RoundingMode.HALF_UP)

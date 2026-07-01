@@ -6,31 +6,7 @@ import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.plan.CommitmentIds
 
 object DefaultCommitmentSeed {
-    /** Demo seed only — not the wizard's primary social-debt slot. */
-    private const val DEMO_SOCIAL_DEBT_JUAN_ID = "commitment-debt-juan"
-
-    val commitments: List<CommitmentEntity> = listOf(
-        CommitmentEntity(
-            id = CommitmentIds.EMERGENCY_FUND,
-            type = CommitmentType.SAVINGS_GOAL.name,
-            title = "Fondo emergencia",
-            targetAmountCents = 50_000L,
-            currentAmountCents = 12_000L,
-            dueDateEpochDay = null,
-            counterpartyName = null,
-            isSettled = false,
-        ),
-        CommitmentEntity(
-            id = DEMO_SOCIAL_DEBT_JUAN_ID,
-            type = CommitmentType.SOCIAL_DEBT.name,
-            title = "Deuda con Juan",
-            targetAmountCents = null,
-            currentAmountCents = 8_000L,
-            dueDateEpochDay = null,
-            counterpartyName = "Juan",
-            isSettled = false,
-        ),
-    )
+    val commitments: List<CommitmentEntity> = emptyList()
 
     fun insertInto(db: SupportSQLiteDatabase) {
         commitments.forEach { commitment ->
@@ -38,8 +14,8 @@ object DefaultCommitmentSeed {
                 """
                 INSERT OR IGNORE INTO commitments (
                     id, type, title, targetAmountCents, currentAmountCents,
-                    dueDateEpochDay, counterpartyName, isSettled, currencyCode
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    dueDateEpochDay, counterpartyName, isSettled, currencyCode, savingsHorizonMonths
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """.trimIndent(),
                 arrayOf<Any?>(
                     commitment.id,
@@ -51,6 +27,7 @@ object DefaultCommitmentSeed {
                     commitment.counterpartyName,
                     if (commitment.isSettled) 1 else 0,
                     commitment.currencyCode,
+                    null,
                 ),
             )
         }

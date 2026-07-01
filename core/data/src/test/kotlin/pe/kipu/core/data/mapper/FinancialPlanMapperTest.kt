@@ -5,6 +5,8 @@ import org.junit.Test
 import pe.kipu.core.data.local.entity.FinancialPlanEntity
 import pe.kipu.core.data.local.seed.DefaultEnvelopeIds
 import pe.kipu.core.domain.plan.FinancialPlanIds
+import pe.kipu.core.domain.plan.IncomeProfile
+import pe.kipu.core.domain.plan.PayFrequency
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.getOrError
@@ -18,10 +20,13 @@ class FinancialPlanMapperTest {
             id = FinancialPlanIds.PRIMARY,
             estimatedMonthlyIncomeCents = 300_000L,
             fixedExpensesCents = 180_000L,
+            initialBalanceCents = 50_000L,
             envelopeIds = listOf(
                 DefaultEnvelopeIds.FOOD,
                 DefaultEnvelopeIds.TRANSPORT,
             ).joinToString(","),
+            incomeProfile = "VARIABLE",
+            payFrequency = "BIWEEKLY",
         )
 
         val domain = original.toDomain()
@@ -29,7 +34,10 @@ class FinancialPlanMapperTest {
 
         assertEquals(original, roundTrip)
         assertEquals(BigDecimal("3000.00"), domain.estimatedMonthlyIncome.amount)
+        assertEquals(BigDecimal("500.00"), domain.initialBalance.amount)
         assertEquals(2, domain.envelopeIds.size)
+        assertEquals(IncomeProfile.VARIABLE, domain.incomeProfile)
+        assertEquals(PayFrequency.BIWEEKLY, domain.payFrequency)
     }
 
     @Test

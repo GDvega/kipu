@@ -6,6 +6,8 @@ import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.plan.IncomeProfile
+import pe.kipu.core.domain.plan.PayFrequency
 import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
@@ -24,6 +26,10 @@ class SaveFinancialPlanUseCase @Inject constructor(
         planId: String,
         estimatedMonthlyIncome: Money,
         fixedExpenses: Money,
+        initialBalance: Money = Money.ZERO,
+        incomeProfile: IncomeProfile = IncomeProfile.FIXED,
+        payFrequency: PayFrequency = PayFrequency.MONTHLY,
+        budgetCycle: pe.kipu.core.domain.model.BudgetCycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
     ): Result<SaveFinancialPlanResult> {
         val existing = financialPlanRepository.getById(planId)
         val envelopeIds = existing?.envelopeIds
@@ -33,7 +39,11 @@ class SaveFinancialPlanUseCase @Inject constructor(
             id = planId,
             estimatedMonthlyIncome = estimatedMonthlyIncome,
             fixedExpenses = fixedExpenses,
+            initialBalance = initialBalance,
             envelopeIds = envelopeIds,
+            incomeProfile = incomeProfile,
+            payFrequency = payFrequency,
+            budgetCycle = budgetCycle,
         )
 
         when (val structural = plan.validate()) {

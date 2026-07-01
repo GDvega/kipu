@@ -17,6 +17,17 @@ import java.math.BigDecimal
 class MovementMapperTest {
 
     @Test
+    fun `maps commitment id in round trip`() {
+        val entity = MapperTestFixtures.sampleMovementEntity().copy(commitmentId = "goal-1")
+
+        val domain = entity.toDomain()
+        val roundTrip = domain.toEntity()
+
+        assertEquals("goal-1", domain.commitmentId)
+        assertEquals(entity, roundTrip)
+    }
+
+    @Test
     fun `entity to domain to entity round trip`() {
         val original = MapperTestFixtures.sampleMovementEntity()
 

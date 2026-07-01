@@ -5,18 +5,20 @@ import javax.inject.Inject
 import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.model.DomainResult
+import pe.kipu.core.domain.model.EntityId
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.FinancialPlan
+import pe.kipu.core.domain.model.FinancialPlanBreakdown
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
-import pe.kipu.core.domain.plan.CurrencyConverter
+import pe.kipu.core.domain.plan.SavingsGoalBurdenCalculator
 
 /**
  * Validates whether estimated monthly income covers planned outflows.
  *
  * MVP formula:
  * - monthlyEnvelopeReserve = sum(weeklyLimit) * 4 for plan envelopes (or all if [FinancialPlan.envelopeIds] empty)
- * - commitmentsBurden = remaining savings targets + unsettled social debts / pending payments
+ * - commitmentsBurden = monthly savings quotas for goals + unsettled social debts / pending payments
  * - totalOutflows = fixedExpenses + monthlyEnvelopeReserve + commitmentsBurden
  * - deficit = totalOutflows - estimatedMonthlyIncome when income is insufficient
  */
@@ -26,7 +28,15 @@ class ValidateFinancialPlanUseCase @Inject constructor() {
         plan: FinancialPlan,
         envelopes: List<Envelope>,
         commitments: List<Commitment>,
-    ): FinancialPlanValidationResult {
+        linkedIncomeByCommitmentId: Map<EntityId, Money> = emptyMap(),
+    ): FinancialPlanValidationResult = analyze(plan, envelopes, commitments, linkedIncomeByCommitmentId).validation
+
+    fun analyze(
+        plan: FinancialPlan,
+        envelopes: List<Envelope>,
+        commitments: List<Commitment>,
+        linkedIncomeByCommitmentId: Map<EntityId, Money> = emptyMap(),
+    ): FinancialPlanBreakdown {
         val relevantEnvelopes = if (plan.envelopeIds.isEmpty()) {
             envelopes
         } else {
@@ -38,31 +48,53 @@ class ValidateFinancialPlanUseCase @Inject constructor() {
         }
         val monthlyEnvelopeReserve = multiplyMoney(weeklyEnvelopeTotal, WEEKS_PER_MONTH)
         val commitmentsBurden = commitments.fold(Money.ZERO) { acc, commitment ->
-            acc + commitmentBurden(commitment)
+            acc + commitmentBurden(commitment, linkedIncomeByCommitmentId)
         }
         val totalOutflows = plan.fixedExpenses + monthlyEnvelopeReserve + commitmentsBurden
 
         if (plan.estimatedMonthlyIncome.isZero()) {
-            return FinancialPlanValidationResult.Invalid(deficit = totalOutflows)
+            return FinancialPlanBreakdown(
+                monthlyEnvelopeReserve = monthlyEnvelopeReserve,
+                commitmentsBurden = commitmentsBurden,
+                totalOutflows = totalOutflows,
+                monthlySurplus = plan.estimatedMonthlyIncome.amount.subtract(totalOutflows.amount),
+                validation = FinancialPlanValidationResult.Invalid(deficit = totalOutflows),
+            )
         }
 
-        return if (plan.estimatedMonthlyIncome.amount >= totalOutflows.amount) {
+        val monthlySurplus = plan.estimatedMonthlyIncome.amount.subtract(totalOutflows.amount)
+        val validation = if (plan.estimatedMonthlyIncome.amount >= totalOutflows.amount) {
             FinancialPlanValidationResult.Valid
         } else {
-            val deficit = subtractMoney(totalOutflows, plan.estimatedMonthlyIncome)
-            FinancialPlanValidationResult.Invalid(deficit = deficit)
+            FinancialPlanValidationResult.Invalid(deficit = subtractMoney(totalOutflows, plan.estimatedMonthlyIncome))
         }
+
+        return FinancialPlanBreakdown(
+            monthlyEnvelopeReserve = monthlyEnvelopeReserve,
+            commitmentsBurden = commitmentsBurden,
+            totalOutflows = totalOutflows,
+            monthlySurplus = monthlySurplus,
+            validation = validation,
+        )
     }
 
-    private fun commitmentBurden(commitment: Commitment): Money {
+    private fun commitmentBurden(
+        commitment: Commitment,
+        linkedIncomeByCommitmentId: Map<EntityId, Money>,
+    ): Money {
         if (commitment.isSettled) return Money.ZERO
 
         return when (commitment.type) {
             CommitmentType.SAVINGS_GOAL -> {
                 val target = commitment.targetAmount ?: return Money.ZERO
-                val current = commitment.currentAmount ?: Money.ZERO
-                val remaining = subtractMoney(target, current)
-                CurrencyConverter.toPen(remaining, commitment.currencyCode)
+                val linkedIncome = linkedIncomeByCommitmentId[commitment.id] ?: Money.ZERO
+                val current = (commitment.currentAmount ?: Money.ZERO) + linkedIncome
+                SavingsGoalBurdenCalculator.monthlyBurden(
+                    target = target,
+                    current = current,
+                    horizonMonths = commitment.savingsHorizonMonths,
+                    currencyCode = commitment.currencyCode,
+                )
             }
 
             CommitmentType.SOCIAL_DEBT,

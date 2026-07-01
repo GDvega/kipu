@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.usecase.CompleteOnboardingUseCase
 
@@ -12,9 +15,8 @@ class OnboardingViewModel @Inject constructor(
     private val completeOnboarding: CompleteOnboardingUseCase,
 ) : ViewModel() {
 
-    fun onSkipOrFinishDemo() {
-        finishOnboarding(pendingPlanWizard = false)
-    }
+    private val _uiState = MutableStateFlow<OnboardingUiState>(OnboardingUiState.Idle)
+    val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
     fun onFinishOnboarding(pendingPlanWizard: Boolean = false) {
         finishOnboarding(pendingPlanWizard = pendingPlanWizard)
@@ -23,6 +25,15 @@ class OnboardingViewModel @Inject constructor(
     private fun finishOnboarding(pendingPlanWizard: Boolean) {
         viewModelScope.launch {
             completeOnboarding(pendingPlanWizard = pendingPlanWizard)
+                .onFailure {
+                    _uiState.value = OnboardingUiState.Error("No pudimos completar el inicio")
+                }
+        }
+    }
+
+    fun clearError() {
+        if (_uiState.value is OnboardingUiState.Error) {
+            _uiState.value = OnboardingUiState.Idle
         }
     }
 }

@@ -24,6 +24,7 @@ fun EnvelopeAdjustLimitDialog(
     budget: EnvelopeBudgetState,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
+    errorMessage: String? = null,
 ) {
     var amountText by rememberSaveable(budget.envelopeId) {
         mutableStateOf(budget.weeklyLimit.amount.stripTrailingZeros().toPlainString())
@@ -50,6 +51,14 @@ fun EnvelopeAdjustLimitDialog(
                     onValueChange = { amountText = it },
                     label = "Nuevo límite semanal",
                 )
+                errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
         },
         confirmButton = {

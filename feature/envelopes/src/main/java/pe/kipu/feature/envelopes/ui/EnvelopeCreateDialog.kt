@@ -50,6 +50,8 @@ fun EnvelopeCreateDialog(
                         value = formState.name,
                         onValueChange = onNameChanged,
                         label = "Nombre del sobre",
+                        showPrefix = false,
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
                     )
                     Text(
                         text = "Categoría",

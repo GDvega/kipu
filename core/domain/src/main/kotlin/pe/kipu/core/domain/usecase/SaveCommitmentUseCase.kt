@@ -21,6 +21,7 @@ class SaveCommitmentUseCase @Inject constructor(
         targetAmount: Money? = null,
         currentAmount: Money? = null,
         counterpartyName: String? = null,
+        savingsHorizonMonths: Int? = null,
     ): Result<Unit> {
         val trimmedTitle = title.trim()
         if (trimmedTitle.isEmpty()) {
@@ -39,6 +40,10 @@ class SaveCommitmentUseCase @Inject constructor(
             counterpartyName = counterpartyName?.trim()?.takeIf { it.isNotEmpty() },
             isSettled = existing?.isSettled ?: false,
             currencyCode = existing?.currencyCode ?: GoalCurrency.PEN.code,
+            savingsHorizonMonths = when (type) {
+                CommitmentType.SAVINGS_GOAL -> savingsHorizonMonths ?: existing?.savingsHorizonMonths
+                else -> null
+            },
         )
 
         when (val validation = commitment.validate()) {

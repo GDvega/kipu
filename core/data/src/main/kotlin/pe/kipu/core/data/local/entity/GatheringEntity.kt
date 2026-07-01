@@ -10,4 +10,5 @@ data class GatheringEntity(
     val participantCount: Int,
     /** Pipe-separated participant names. */
     val participantNames: String,
+    val isSettled: Boolean = false,
 )

@@ -5,6 +5,7 @@ import javax.inject.Singleton
 import java.math.BigDecimal
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.GatheringExpenseDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -21,21 +22,32 @@ class RoomGatheringExpenseRepository @Inject constructor(
 ) : GatheringExpenseRepository {
 
     override fun observeTotalsByGathering(): Flow<Map<EntityId, Money>> =
-        gatheringExpenseDao.observeTotalsByGathering().map { rows ->
-            rows.associate { row ->
-                row.gatheringId to Money.of(BigDecimal.valueOf(row.totalCents, 2)).getOrError()
+        gatheringExpenseDao.observeTotalsByGathering()
+            .map { rows ->
+                rows.associate { row ->
+                    row.gatheringId to Money.of(BigDecimal.valueOf(row.totalCents, 2)).getOrError()
+                }
             }
-        }
+            .withImmediateDefault(emptyMap())
 
     override fun observeExpensesByGathering(): Flow<Map<EntityId, List<GatheringExpense>>> =
-        gatheringExpenseDao.observeAll().map { entities ->
-            entities
-                .map { it.toDomain() }
-                .groupBy { expense -> expense.gatheringId }
-        }
+        gatheringExpenseDao.observeAll()
+            .map { entities ->
+                entities
+                    .map { it.toDomain() }
+                    .groupBy { expense -> expense.gatheringId }
+            }
+            .withImmediateDefault(emptyMap())
 
     override fun observeLinkedMovementIds(): Flow<Set<EntityId>> =
-        gatheringExpenseDao.observeLinkedMovementIds().map { ids -> ids.toSet() }
+        gatheringExpenseDao.observeLinkedMovementIds()
+            .map { ids -> ids.toSet() }
+            .withImmediateDefault(emptySet())
+
+    override fun observeActiveGatheringLinkedMovementIds(): Flow<Set<EntityId>> =
+        gatheringExpenseDao.observeActiveGatheringLinkedMovementIds()
+            .map { ids -> ids.toSet() }
+            .withImmediateDefault(emptySet())
 
     override suspend fun isMovementLinked(movementId: EntityId): Boolean =
         gatheringExpenseDao.isMovementLinked(movementId)

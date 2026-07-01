@@ -63,7 +63,9 @@ No reescribir; activar según tarea:
 | `tdd-workflow.md` | Ciclo RED-GREEN-REFACTOR |
 | `security-review.md` | Datos sensibles, permisos, logs, backup |
 
-Skill externa obligatoria en todo encargo de código: **ECC Engineering System** (`ecc-engineering-system`).
+**Skill externa obligatoria:** `super-android-kotlin-firebase` para orquestar subskills de Android/Compose/Firebase.
+
+**Skill metodológica obligatoria:** ECC Engineering System (`ecc-engineering-system`) para el ciclo de trabajo.
 
 ---
 

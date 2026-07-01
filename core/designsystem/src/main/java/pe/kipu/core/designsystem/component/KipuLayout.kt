@@ -14,4 +14,11 @@ object KipuLayout {
         end = screenHorizontalPadding,
         bottom = bottom.dp,
     )
+
+    fun listContentPadding(fabClearance: Boolean = false): PaddingValues = PaddingValues(
+        start = screenHorizontalPadding,
+        end = screenHorizontalPadding,
+        top = 0.dp,
+        bottom = if (fabClearance) 88.dp else screenHorizontalPadding,
+    )
 }

@@ -204,7 +204,7 @@ Medir cobertura a partir de Fase 5 (cuando exista `core:domain` con lógica).
 
 - [x] `ParseNotificationTextUseCaseTest` — enruta Yape vs Plin por `packageName`
 - [x] `RegisterNotificationIncomeUseCaseTest` — guarda `PENDING_CONFIRMATION`; no auto-confirma; dedup pendiente
-- [x] `ConfirmPendingNotificationMovementUseCaseTest` — promueve a `CONFIRMED`; bloquea si duplicado `CONFIRMED` sin resolución
+- [x] `ConfirmPendingNotificationMovementUseCaseTest` — promueve a `CONFIRMED`; bloquea si duplicado `CONFIRMED` sin resolución; MERGE descarta pending
 
 ### Data (opcional JVM)
 

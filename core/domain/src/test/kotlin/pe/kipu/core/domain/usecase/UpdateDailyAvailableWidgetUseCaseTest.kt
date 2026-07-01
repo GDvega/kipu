@@ -7,7 +7,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import pe.kipu.core.domain.model.DailyAvailableBudget
+import pe.kipu.core.domain.model.CycleAvailableBudget
 import pe.kipu.core.domain.model.HomeInsights
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.UserPreferences
@@ -25,16 +25,19 @@ class UpdateDailyAvailableWidgetUseCaseTest {
     fun persistsFormattedDailyAvailableAndRefreshesWidget() = runTest {
         val amount = Money.of(BigDecimal("42.50")).getOrError()
         val insights = HomeInsights(
-            dailyAvailable = DailyAvailableBudget(
-                weeklyRemaining = amount,
-                weeklyDeficit = null,
-                dailyAvailable = amount,
+            cycleAvailable = CycleAvailableBudget(
+                cycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
+                periodLabel = "Disponible",
+                cycleRemaining = amount,
+                cycleDeficit = null,
+                cycleAvailable = amount,
                 isOverBudget = false,
-                daysRemainingInWeek = 3,
+                daysRemainingInCycle = 3,
             ),
             antSpendingAlerts = emptyList(),
             movementCount = 2,
             envelopeCount = 2,
+            userPreferences = UserPreferences(),
         )
 
         val result = useCase(insights)
@@ -47,16 +50,19 @@ class UpdateDailyAvailableWidgetUseCaseTest {
     @Test
     fun usesSetupMessageWhenNoEnvelopes() = runTest {
         val insights = HomeInsights(
-            dailyAvailable = DailyAvailableBudget(
-                weeklyRemaining = Money.ZERO,
-                weeklyDeficit = null,
-                dailyAvailable = null,
+            cycleAvailable = CycleAvailableBudget(
+                cycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
+                periodLabel = "Disponible",
+                cycleRemaining = Money.ZERO,
+                cycleDeficit = null,
+                cycleAvailable = null,
                 isOverBudget = false,
-                daysRemainingInWeek = 0,
+                daysRemainingInCycle = 0,
             ),
             antSpendingAlerts = emptyList(),
             movementCount = 0,
             envelopeCount = 0,
+            userPreferences = UserPreferences(),
         )
 
         useCase(insights)

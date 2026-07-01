@@ -18,6 +18,9 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.compose.ui.graphics.Color
+import pe.kipu.core.designsystem.theme.KipuPrimary
+import pe.kipu.core.designsystem.theme.KipuRed
 import androidx.glance.unit.ColorProvider
 import pe.kipu.core.data.preferences.readKipuUserPreferences
 
@@ -47,7 +50,7 @@ private fun DailyAvailableWidgetContent(
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(GlanceTheme.colors.surface)
+            .background(ColorProvider(Color(0xFF0A0A0F)))
             .padding(12.dp),
         verticalAlignment = Alignment.Vertical.CenterVertically,
         horizontalAlignment = Alignment.Horizontal.Start,
@@ -55,7 +58,7 @@ private fun DailyAvailableWidgetContent(
         Text(
             text = "Disponible hoy",
             style = TextStyle(
-                color = GlanceTheme.colors.onSurfaceVariant,
+                color = ColorProvider(Color(0xFF9CA3AF)),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
             ),
@@ -64,9 +67,9 @@ private fun DailyAvailableWidgetContent(
             text = amountText,
             style = TextStyle(
                 color = if (isOverBudget) {
-                    ColorProvider(android.graphics.Color.parseColor("#C62828"))
+                    ColorProvider(KipuRed)
                 } else {
-                    GlanceTheme.colors.primary
+                    ColorProvider(KipuPrimary)
                 },
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,

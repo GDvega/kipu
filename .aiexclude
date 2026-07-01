@@ -1,0 +1,44 @@
+# Kipu .aiexclude - Optimización de tokens para Agentes de IA
+# Este archivo indica a las IAs qué directorios y archivos ignorar para reducir el consumo de tokens y ruido.
+
+# 1. Directorios de compilación y caché
+**/build/
+**/.gradle/
+**/.idea/
+**/captures/
+**/artifacts/
+
+# 2. Código generado (Room, Hilt, KSP)
+# No es necesario que la IA lea el código generado, solo las definiciones en el código fuente.
+**/generated/
+**/ksp/
+**/hilt/
+**/*_Hilt*.kt
+**/*_Hilt*.java
+**/*_GeneratedInjector.java
+**/*_Factory.java
+**/*_MembersInjector.java
+**/*_Impl.java
+
+# 3. Recursos pesados
+# Ignorar imágenes y recursos binarios que consumen mucho contexto si se procesan como texto.
+**/res/drawable*/
+**/res/mipmap*/
+**/res/raw/
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.gif
+**/*.svg
+
+# 4. Binarios de salida
+**/*.apk
+**/*.aab
+**/*.jar
+**/*.bin
+
+# 5. Archivos de sistema y logs
+**/*.log
+**/.DS_Store
+Thumbs.db

@@ -81,6 +81,7 @@ fun Movement.statusBadgeTone(): KipuBadgeTone = when (status) {
     MovementStatus.PENDING_CONFIRMATION -> KipuBadgeTone.Warning
 }
 
+/** UI labels for movement confidence. MVP uses source-based heuristics; [Movement] has no stored confidence (F14-07 accepted). */
 fun Movement.confidenceLabel(): String = when (source) {
     MovementSource.MANUAL -> "100% seguro"
     MovementSource.RECEIPT -> if (operationNumber.isNullOrBlank()) "85% seguro" else "92% seguro"

@@ -7,4 +7,5 @@ data class CommitmentSummary(
     val commitment: Commitment,
     val savingsProgress: SavingsGoalProgress? = null,
     val statusKey: String,
+    val isAtRisk: Boolean = false,
 )

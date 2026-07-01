@@ -13,4 +13,6 @@ data class EnvelopeBudgetState(
     val remainingAmount: Money,
     val percentUsed: Int,
     val status: EnvelopeBudgetStatus,
-)
+) {
+    val cycleLimit: Money get() = weeklyLimit
+}

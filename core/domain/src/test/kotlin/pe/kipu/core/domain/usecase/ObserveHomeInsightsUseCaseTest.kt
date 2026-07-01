@@ -26,11 +26,11 @@ import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
-import pe.kipu.core.domain.time.WeekRangeCalculator
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 class ObserveHomeInsightsUseCaseTest {
 
-    private val peruZone: ZoneId = WeekRangeCalculator.PERU_ZONE
+    private val peruZone: ZoneId = CycleRangeCalculator.PERU_ZONE
     private val wednesday = ZonedDateTime.of(2026, 6, 17, 10, 0, 0, 0, peruZone).toInstant()
 
     @Test
@@ -57,9 +57,35 @@ class ObserveHomeInsightsUseCaseTest {
 
         assertEquals(1, insights.envelopeCount)
         assertEquals(4, insights.movementCount)
-        assertEquals(Money.of(BigDecimal("6.40")).getOrError(), insights.dailyAvailable.dailyAvailable)
+        assertEquals(Money.of(BigDecimal("6.40")).getOrError(), insights.cycleAvailable.cycleAvailable)
+        // Envelope is healthy (68% < 80% ADJUSTED threshold) so ant alerts are suppressed
+        assertTrue(insights.antSpendingAlerts.isEmpty())
+    }
+
+    @Test
+    fun `still emits ant spending alerts when envelope is exceeded`() = runTest {
+        val envelope = Envelope(
+            id = "envelope-food",
+            name = "Comida",
+            weeklyLimit = Money.of(BigDecimal("15.00")).getOrError(),
+            categoryId = CategoryIds.FOOD,
+        )
+        val movements = listOf(
+            movement("m1", "5.00", hoursAgo = 1),
+            movement("m2", "6.00", hoursAgo = 2),
+            movement("m3", "7.00", hoursAgo = 3),
+        )
+        val useCase = createUseCase(
+            envelopes = listOf(envelope),
+            movements = movements,
+            reference = wednesday,
+        )
+
+        val insights = useCase().first()
+
+        // Envelope is EXCEEDED (18/15 = 120%) so ant alerts still fire
         assertEquals(1, insights.antSpendingAlerts.size)
-        assertEquals(AlertSeverity.AMBER, insights.antSpendingAlerts.first().severity)
+        assertEquals(AlertSeverity.RED, insights.antSpendingAlerts.first().severity)
     }
 
     @Test
@@ -79,7 +105,7 @@ class ObserveHomeInsightsUseCaseTest {
         val insights = useCase().first()
 
         assertTrue(insights.antSpendingAlerts.isEmpty())
-        assertEquals(Money.of(BigDecimal("19.00")).getOrError(), insights.dailyAvailable.dailyAvailable)
+        assertEquals(Money.of(BigDecimal("19.00")).getOrError(), insights.cycleAvailable.cycleAvailable)
     }
 
     private fun createUseCase(
@@ -88,26 +114,29 @@ class ObserveHomeInsightsUseCaseTest {
         reference: Instant,
     ): ObserveHomeInsightsUseCase {
         val timeProvider = FixedTimeProvider(reference)
-        val weekRangeCalculator = WeekRangeCalculator(timeProvider)
+        val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
         val observeEnvelopeBudgets = ObserveEnvelopeBudgetsUseCase(
             envelopeRepository = FakeEnvelopeRepository(envelopes),
             movementRepository = FakeMovementRepository(movements),
+            gatheringExpenseRepository = FakeGatheringExpenseRepository(),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
-                CalculateCategoryWeeklySpentUseCase(),
+                CalculateCategoryPeriodSpentUseCase(),
             ),
-            weekRangeCalculator = weekRangeCalculator,
+            cycleRangeCalculator = cycleRangeCalculator,
             timeProvider = timeProvider,
         )
         return ObserveHomeInsightsUseCase(
             observeEnvelopeBudgets = observeEnvelopeBudgets,
             movementRepository = FakeMovementRepository(movements),
+            commitmentRepository = FakeCommitmentRepository(),
+            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
-            calculateDailyAvailable = CalculateDailyAvailableUseCase(
-                CalculateWeeklyEnvelopeTotalsUseCase(),
+            calculateCycleAvailable = CalculateCycleAvailableUseCase(
+                CalculatePeriodEnvelopeTotalsUseCase(),
             ),
             detectAntSpending = DetectAntSpendingUseCase(),
             detectAntSpendingWeeklyLimitUseCase = DetectAntSpendingWeeklyLimitUseCase(),
-            weekRangeCalculator = weekRangeCalculator,
+            cycleRangeCalculator = cycleRangeCalculator,
             timeProvider = timeProvider,
         )
     }
@@ -157,5 +186,21 @@ class ObserveHomeInsightsUseCaseTest {
         override fun observePreferences(): Flow<UserPreferences> = flowOf(UserPreferences())
         override suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences) = Result.success(Unit)
         override suspend fun clear() = Result.success(Unit)
+    }
+
+    private class FakeGatheringExpenseRepository : pe.kipu.core.domain.repository.GatheringExpenseRepository {
+        override fun observeTotalsByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, pe.kipu.core.domain.model.Money>())
+        override fun observeExpensesByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, List<pe.kipu.core.domain.model.GatheringExpense>>())
+        override fun observeLinkedMovementIds() = flowOf(emptySet<pe.kipu.core.domain.model.EntityId>())
+        override fun observeActiveGatheringLinkedMovementIds() = flowOf(emptySet<pe.kipu.core.domain.model.EntityId>())
+        override suspend fun isMovementLinked(movementId: pe.kipu.core.domain.model.EntityId) = false
+        override suspend fun save(expense: pe.kipu.core.domain.model.GatheringExpense) = Result.success(Unit)
+    }
+
+    private class FakeCommitmentRepository : pe.kipu.core.domain.repository.CommitmentRepository {
+        override fun observeCommitments() = flowOf(emptyList<pe.kipu.core.domain.model.Commitment>())
+        override suspend fun getById(id: String) = null
+        override suspend fun save(commitment: pe.kipu.core.domain.model.Commitment) = Result.success(Unit)
+        override suspend fun delete(id: String) = Result.success(Unit)
     }
 }

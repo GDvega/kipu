@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import pe.kipu.core.designsystem.component.KipuAlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -34,10 +36,11 @@ import pe.kipu.core.designsystem.component.KipuDialogDismissButton
 import pe.kipu.core.designsystem.component.KipuErrorState
 import pe.kipu.core.designsystem.component.KipuFilterChipRow
 import pe.kipu.core.designsystem.component.KipuLayout
-import pe.kipu.core.designsystem.component.KipuLoadingIndicator
+import pe.kipu.core.designsystem.component.KipuScreenLoadingState
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
 import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.KipuScreenHeader
+import pe.kipu.core.designsystem.component.KipuTextLink
 import pe.kipu.core.domain.export.ExportFormat
 import pe.kipu.core.domain.model.ThemeMode
 import pe.kipu.feature.profile.presentation.ProfileEvent
@@ -48,6 +51,7 @@ import pe.kipu.feature.profile.presentation.ProfileViewModel
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onNavigateToGatherings: () -> Unit = {},
+    onNavigateToPrivacyPolicy: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -92,12 +96,10 @@ fun ProfileScreen(
         KipuScreenHeader(title = "Perfil", subtitle = "Configuración y preferencias")
         when (val state = uiState) {
             ProfileUiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    KipuLoadingIndicator()
-                }
+                KipuScreenLoadingState(
+                    title = "Perfil",
+                    subtitle = "Configuración y preferencias",
+                )
             }
 
             is ProfileUiState.Content -> {
@@ -126,7 +128,12 @@ fun ProfileScreen(
                     )
                 }
 
-                Column(modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = KipuLayout.screenHorizontalPadding),
+                ) {
                     KipuCard(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "Apariencia",
@@ -156,6 +163,15 @@ fun ProfileScreen(
                             checked = state.notificationsEnabled,
                             onCheckedChange = viewModel::onNotificationsToggleChanged,
                         )
+                        if (state.notificationsEnabled) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                            PreferenceSwitchRow(
+                                title = "Auto-registrar yapeos confiables",
+                                subtitle = "Ingresos con número de operación se confirmarán automáticamente.",
+                                checked = state.autoApproveHighConfidenceNotifications,
+                                onCheckedChange = viewModel::onAutoApproveToggleChanged,
+                            )
+                        }
                     }
 
                     KipuCard(
@@ -164,7 +180,7 @@ fun ProfileScreen(
                             .padding(top = KipuLayout.sectionSpacing),
                     ) {
                         Text(
-                            text = "Juntas",
+                            text = "Cuentas compartidas",
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
@@ -174,7 +190,7 @@ fun ProfileScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
                         )
                         KipuSecondaryButton(
-                            text = "Ver juntas",
+                            text = "Ver cuentas compartidas",
                             onClick = onNavigateToGatherings,
                             modifier = Modifier.fillMaxWidth(),
                             fillWidth = true,
@@ -191,7 +207,7 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = "Exporta una copia local (JSON incluye juntas; CSV solo movimientos). El CSV Excel usa punto y coma para abrir bien en Perú.",
+                            text = "Exporta una copia local (JSON incluye cuentas compartidas; CSV solo movimientos). El CSV Excel usa punto y coma para abrir bien en Perú.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -246,6 +262,11 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 16.dp),
                     )
+                    KipuTextLink(
+                        text = "Política de privacidad",
+                        onClick = onNavigateToPrivacyPolicy,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
 
@@ -253,6 +274,8 @@ fun ProfileScreen(
                 KipuErrorState(
                     title = "No pudimos cargar el perfil",
                     message = state.message,
+                    retryLabel = "Reintentar",
+                    onRetry = viewModel::retryLoad,
                 )
             }
         }
@@ -264,21 +287,14 @@ private fun ExportWarningDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    KipuAlertDialog(
+        title = "Archivo con datos sensibles",
         onDismissRequest = onDismiss,
-        title = { Text(text = "Archivo con datos sensibles") },
-        text = {
-            Text(
-                text = "La exportación incluye movimientos, sobres, compromisos y preferencias. " +
-                    "Guárdala en un lugar seguro y no la compartas por apps que no confíes.",
-            )
-        },
-        confirmButton = {
-            KipuDialogConfirmButton(text = "Exportar", onClick = onConfirm)
-        },
-        dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
-        },
+        text = "La exportación incluye movimientos, sobres, compromisos y preferencias. " +
+            "Guárdala en un lugar seguro y no la compartas por apps que no confíes.",
+        confirmText = "Exportar",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
     )
 }
 
@@ -287,21 +303,14 @@ private fun WipeFirstConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    KipuAlertDialog(
+        title = "Eliminar todos los datos",
         onDismissRequest = onDismiss,
-        title = { Text(text = "Eliminar todos los datos") },
-        text = {
-            Text(
-                text = "Se borrarán movimientos, duplicados descartados y preferencias. " +
-                    "Los sobres y compromisos demo se restaurarán para que puedas empezar de cero.",
-            )
-        },
-        confirmButton = {
-            KipuDialogConfirmButton(text = "Continuar", onClick = onConfirm)
-        },
-        dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
-        },
+        text = "Se borrarán movimientos, duplicados descartados y preferencias. " +
+            "Se restaurarán las categorías base para que puedas empezar de cero.",
+        confirmText = "Continuar",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
     )
 }
 
@@ -310,21 +319,14 @@ private fun WipeFinalConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    KipuAlertDialog(
+        title = "¿Estás seguro?",
         onDismissRequest = onDismiss,
-        title = { Text(text = "¿Estás seguro?") },
-        text = {
-            Text(
-                text = "Esta acción no se puede deshacer. Volverás al inicio de la app " +
-                    "y tendrás que configurar Kipu otra vez.",
-            )
-        },
-        confirmButton = {
-            KipuDialogConfirmButton(text = "Eliminar todo", onClick = onConfirm)
-        },
-        dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
-        },
+        text = "Esta acción no se puede deshacer. Volverás al inicio de la app " +
+            "y tendrás que configurar Kipu otra vez.",
+        confirmText = "Eliminar todo",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
     )
 }
 
@@ -333,22 +335,16 @@ private fun NotificationAccessExplanationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    KipuAlertDialog(
+        title = "Detectar ingresos de Yape y Plin",
         onDismissRequest = onDismiss,
-        title = { Text(text = "Detectar ingresos de Yape y Plin") },
-        text = {
-            Text(
-                text = "Kipu puede leer notificaciones de Yape y Plin para sugerirte ingresos. " +
-                    "Tú confirmas antes de guardarlos. Puedes desactivarlo cuando quieras.\n\n" +
-                    "En la siguiente pantalla, activa el acceso para Kipu.",
-            )
-        },
-        confirmButton = {
-            KipuDialogConfirmButton(text = "Ir a ajustes", onClick = onConfirm)
-        },
-        dismissButton = {
-            KipuDialogDismissButton(text = "Ahora no", onClick = onDismiss)
-        },
+        text = "Kipu no pide claves bancarias. Solo leemos notificaciones de ingreso en tu dispositivo " +
+            "para sugerirte movimientos. Tú confirmas antes de guardarlos. " +
+            "Puedes desactivarlo cuando quieras.\n\nEn la siguiente pantalla, activa el acceso para Kipu.",
+        confirmText = "Ir a ajustes",
+        onConfirm = onConfirm,
+        dismissText = "Ahora no",
+        onDismiss = onDismiss,
     )
 }
 

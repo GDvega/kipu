@@ -7,6 +7,8 @@ import pe.kipu.core.domain.AntSpendingThresholds
 import pe.kipu.core.domain.model.AlertSeverity
 import pe.kipu.core.domain.model.AntSpendingAlert
 import pe.kipu.core.domain.model.AntSpendingAlertKeys
+import pe.kipu.core.domain.model.EnvelopeBudgetState
+import pe.kipu.core.domain.model.EnvelopeBudgetStatus
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
@@ -17,14 +19,20 @@ class DetectAntSpendingUseCase @Inject constructor() {
         movements: List<Movement>,
         referenceInstant: Instant,
         isOverBudget: Boolean,
+        envelopeBudgets: List<EnvelopeBudgetState> = emptyList(),
     ): List<AntSpendingAlert> {
+        val healthyCategoryIds = envelopeBudgets
+            .filter { it.status == EnvelopeBudgetStatus.OK }
+            .map { it.categoryId }
+            .toSet()
         val windowStart = referenceInstant.minus(AntSpendingThresholds.WINDOW_HOURS.toLong(), ChronoUnit.HOURS)
         val eligible = movements.filter { movement ->
             movement.type == MovementType.EXPENSE &&
                 movement.status == MovementStatus.CONFIRMED &&
                 !movement.recordedAt.isBefore(windowStart) &&
                 !movement.recordedAt.isAfter(referenceInstant) &&
-                movement.amount.amount <= AntSpendingThresholds.MAX_SINGLE_AMOUNT
+                movement.amount.amount <= AntSpendingThresholds.MAX_SINGLE_AMOUNT &&
+                movement.categoryId !in healthyCategoryIds
         }
 
         return eligible
