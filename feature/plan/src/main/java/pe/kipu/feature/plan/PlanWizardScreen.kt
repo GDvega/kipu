@@ -133,176 +133,188 @@ fun PlanWizardScreen(
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = KipuLayout.screenHorizontalPadding)
-                            .padding(bottom = KipuLayout.screenHorizontalPadding)
                     ) {
-                    AnimatedContent(
-                        targetState = state.step,
-                        label = "wizard_step_transition",
-                        transitionSpec = {
-                            if (targetState.stepIndex() > initialState.stepIndex()) {
-                                slideInHorizontally(
-                                    animationSpec = tween(300),
-                                    initialOffsetX = { fullWidth -> fullWidth }
-                                ) togetherWith slideOutHorizontally(
-                                    animationSpec = tween(300),
-                                    targetOffsetX = { fullWidth -> -fullWidth }
-                                )
-                            } else {
-                                slideInHorizontally(
-                                    animationSpec = tween(300),
-                                    initialOffsetX = { fullWidth -> -fullWidth }
-                                ) togetherWith slideOutHorizontally(
-                                    animationSpec = tween(300),
-                                    targetOffsetX = { fullWidth -> fullWidth }
-                                )
+                        AnimatedContent(
+                            targetState = state.step,
+                            label = "wizard_step_transition",
+                            modifier = Modifier.fillMaxWidth(),
+                            transitionSpec = {
+                                if (targetState.stepIndex() > initialState.stepIndex()) {
+                                    slideInHorizontally(
+                                        animationSpec = tween(300),
+                                        initialOffsetX = { fullWidth -> fullWidth }
+                                    ) togetherWith slideOutHorizontally(
+                                        animationSpec = tween(300),
+                                        targetOffsetX = { fullWidth -> -fullWidth }
+                                    )
+                                } else {
+                                    slideInHorizontally(
+                                        animationSpec = tween(300),
+                                        initialOffsetX = { fullWidth -> -fullWidth }
+                                    ) togetherWith slideOutHorizontally(
+                                        animationSpec = tween(300),
+                                        targetOffsetX = { fullWidth -> fullWidth }
+                                    )
+                                }
+                            }
+                        ) { targetStep ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 24.dp) // Espacio para que no choque con los botones inferiores
+                            ) {
+                                when (targetStep) {
+                                    PlanWizardStep.Income -> IncomeStepContent(
+                                        state = state,
+                                        onProfileSelected = viewModel::onIncomeProfileSelected,
+                                        onFixedBaseChanged = viewModel::onFixedBaseChanged,
+                                        onInitialBalanceChanged = viewModel::onInitialBalanceChanged,
+                                        onSecondQuincenaChanged = viewModel::onSecondQuincenaChanged,
+                                        onPayFrequencySelected = viewModel::onPayFrequencySelected,
+                                        onLowWeekChanged = viewModel::onLowWeekChanged,
+                                        onNormalWeekChanged = viewModel::onNormalWeekChanged,
+                                        onGoodWeekChanged = viewModel::onGoodWeekChanged,
+                                        onApproximateIncomeChanged = viewModel::onApproximateIncomeChanged,
+                                        onAddIncomeLine = viewModel::onAddIncomeLine,
+                                        onRemoveIncomeLine = viewModel::onRemoveIncomeLine,
+                                        onIncomeLineChanged = viewModel::onIncomeLineChanged,
+                                        onSkipApproximate = viewModel::onSkipApproximate,
+                                    )
+
+                                    PlanWizardStep.FixedExpenses -> FixedExpensesStepContent(
+                                        educationText = state.educationText,
+                                        rentText = state.rentText,
+                                        utilitiesText = state.utilitiesText,
+                                        phoneText = state.phoneText,
+                                        debtsText = state.debtsText,
+                                        customExpenseLines = state.customExpenseLines,
+                                        onEducationChanged = viewModel::onEducationChanged,
+                                        onRentChanged = viewModel::onRentChanged,
+                                        onUtilitiesChanged = viewModel::onUtilitiesChanged,
+                                        onPhoneChanged = viewModel::onPhoneChanged,
+                                        onDebtsChanged = viewModel::onDebtsChanged,
+                                        onCustomLineChanged = viewModel::onCustomExpenseLineChanged,
+                                        onAddCustomExpenseLine = viewModel::onAddCustomExpenseLine,
+                                        onRemoveCustomExpenseLine = viewModel::onRemoveCustomExpenseLine,
+                                        onQuickExpenseSelected = viewModel::onQuickExpenseSelected,
+                                        onSkip = viewModel::onSkipFixedExpenses,
+                                    )
+
+                                    PlanWizardStep.Envelopes -> EnvelopesStepContent(
+                                        budgetCycle = state.budgetCycle,
+                                        envelopeLimits = state.envelopeLimits,
+                                        customizingEnvelopeId = state.customizingEnvelopeId,
+                                        customEnvelopeLines = state.customEnvelopeLines,
+                                        onBudgetCycleSelected = viewModel::onBudgetCycleSelected,
+                                        onPresetSelected = viewModel::onEnvelopePresetSelected,
+                                        onLimitChanged = viewModel::onEnvelopeLimitChanged,
+                                        onCustomize = viewModel::onCustomizeEnvelope,
+                                        onAddCustomEnvelope = viewModel::onAddCustomEnvelopeLine,
+                                        onRemoveCustomEnvelope = viewModel::onRemoveCustomEnvelopeLine,
+                                        onCustomEnvelopeChanged = viewModel::onCustomEnvelopeLineChanged,
+                                    )
+
+                                    PlanWizardStep.AntSpending -> AntSpendingStepContent(
+                                        categories = state.categories,
+                                        limitText = state.antSpendingLimitText,
+                                        selectedCategoryIds = state.antSpendingCategories,
+                                        pendingCategoryName = state.pendingAntCategoryName,
+                                        alertEnabled = state.antSpendingAlertEnabled,
+                                        onLimitChanged = viewModel::onAntSpendingLimitChanged,
+                                        onPresetSelected = viewModel::onAntSpendingPresetSelected,
+                                        onCategoryToggled = viewModel::onAntCategoryToggled,
+                                        onPendingCategoryNameChanged = viewModel::onPendingAntCategoryNameChanged,
+                                        onAddAntCategory = viewModel::onAddAntCategory,
+                                        onQuickAntCategorySelected = viewModel::onQuickAntCategorySelected,
+                                        onAlertToggled = viewModel::onAntSpendingAlertToggled,
+                                    )
+
+                                    PlanWizardStep.Goal -> GoalStepContent(
+                                        state = state,
+                                        onGoalTypeSelected = viewModel::onGoalTypeSelected,
+                                        onGoalNameChanged = viewModel::onGoalNameChanged,
+                                        onGoalTargetChanged = viewModel::onGoalTargetChanged,
+                                        onGoalCurrentChanged = viewModel::onGoalCurrentChanged,
+                                        onGoalMonthsChanged = viewModel::onGoalMonthsChanged,
+                                        onSocialDebtToggled = viewModel::onSocialDebtToggled,
+                                        onSocialDebtCounterpartyChanged = viewModel::onSocialDebtCounterpartyChanged,
+                                        onSocialDebtAmountChanged = viewModel::onSocialDebtAmountChanged,
+                                        onSkip = viewModel::onSkipGoal,
+                                    )
+
+                                    PlanWizardStep.Summary -> PlanSummaryContent(
+                                        state = state,
+                                        onNavigateToStep = viewModel::onNavigateToStep,
+                                    )
+                                }
+
+                                state.errorMessage?.let { message ->
+                                    Text(
+                                        text = message,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(top = 12.dp),
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
-                    ) { targetStep ->
-                        when (targetStep) {
-                            PlanWizardStep.Income -> IncomeStepContent(
-                                state = state,
-                                onProfileSelected = viewModel::onIncomeProfileSelected,
-                                onFixedBaseChanged = viewModel::onFixedBaseChanged,
-                                onInitialBalanceChanged = viewModel::onInitialBalanceChanged,
-                                onSecondQuincenaChanged = viewModel::onSecondQuincenaChanged,
-                                onPayFrequencySelected = viewModel::onPayFrequencySelected,
-                                onLowWeekChanged = viewModel::onLowWeekChanged,
-                                onNormalWeekChanged = viewModel::onNormalWeekChanged,
-                                onGoodWeekChanged = viewModel::onGoodWeekChanged,
-                                onApproximateIncomeChanged = viewModel::onApproximateIncomeChanged,
-                                onAddIncomeLine = viewModel::onAddIncomeLine,
-                                onRemoveIncomeLine = viewModel::onRemoveIncomeLine,
-                                onIncomeLineChanged = viewModel::onIncomeLineChanged,
-                                onSkipApproximate = viewModel::onSkipApproximate,
-                            )
+                    }
 
-                            PlanWizardStep.FixedExpenses -> FixedExpensesStepContent(
-                                educationText = state.educationText,
-                                rentText = state.rentText,
-                                utilitiesText = state.utilitiesText,
-                                phoneText = state.phoneText,
-                                debtsText = state.debtsText,
-                                customExpenseLines = state.customExpenseLines,
-                                onEducationChanged = viewModel::onEducationChanged,
-                                onRentChanged = viewModel::onRentChanged,
-                                onUtilitiesChanged = viewModel::onUtilitiesChanged,
-                                onPhoneChanged = viewModel::onPhoneChanged,
-                                onDebtsChanged = viewModel::onDebtsChanged,
-                                onCustomLineChanged = viewModel::onCustomExpenseLineChanged,
-                                onAddCustomExpenseLine = viewModel::onAddCustomExpenseLine,
-                                onRemoveCustomExpenseLine = viewModel::onRemoveCustomExpenseLine,
-                                onQuickExpenseSelected = viewModel::onQuickExpenseSelected,
-                                onSkip = viewModel::onSkipFixedExpenses,
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = KipuLayout.screenHorizontalPadding)
+                            .padding(bottom = KipuLayout.screenHorizontalPadding)
+                    ) {
+                        if (state.step != PlanWizardStep.Income && state.step != PlanWizardStep.Summary) {
+                            KipuSecondaryButton(
+                                text = "Atrás",
+                                onClick = handleBack,
+                                modifier = Modifier.fillMaxWidth(),
                             )
+                        }
 
-                            PlanWizardStep.Envelopes -> EnvelopesStepContent(
-                                budgetCycle = state.budgetCycle,
-                                envelopeLimits = state.envelopeLimits,
-                                customizingEnvelopeId = state.customizingEnvelopeId,
-                                customEnvelopeLines = state.customEnvelopeLines,
-                                onBudgetCycleSelected = viewModel::onBudgetCycleSelected,
-                                onPresetSelected = viewModel::onEnvelopePresetSelected,
-                                onLimitChanged = viewModel::onEnvelopeLimitChanged,
-                                onCustomize = viewModel::onCustomizeEnvelope,
-                                onAddCustomEnvelope = viewModel::onAddCustomEnvelopeLine,
-                                onRemoveCustomEnvelope = viewModel::onRemoveCustomEnvelopeLine,
-                                onCustomEnvelopeChanged = viewModel::onCustomEnvelopeLineChanged,
+                        if (state.step != PlanWizardStep.Summary) {
+                            KipuPrimaryButton(
+                                text = "Continuar →",
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    viewModel.onContinue()
+                                },
+                                modifier = Modifier.padding(top = 12.dp),
                             )
-
-                            PlanWizardStep.AntSpending -> AntSpendingStepContent(
-                                categories = state.categories,
-                                limitText = state.antSpendingLimitText,
-                                selectedCategoryIds = state.antSpendingCategories,
-                                pendingCategoryName = state.pendingAntCategoryName,
-                                alertEnabled = state.antSpendingAlertEnabled,
-                                onLimitChanged = viewModel::onAntSpendingLimitChanged,
-                                onPresetSelected = viewModel::onAntSpendingPresetSelected,
-                                onCategoryToggled = viewModel::onAntCategoryToggled,
-                                onPendingCategoryNameChanged = viewModel::onPendingAntCategoryNameChanged,
-                                onAddAntCategory = viewModel::onAddAntCategory,
-                                onQuickAntCategorySelected = viewModel::onQuickAntCategorySelected,
-                                onAlertToggled = viewModel::onAntSpendingAlertToggled,
+                        } else {
+                            KipuPrimaryButton(
+                                text = when {
+                                    state.isSaving -> "Guardando..."
+                                    state.isEditingExistingPlan -> "✓ Guardar mi plan"
+                                    else -> "✓ Crear mi plan"
+                                },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    viewModel.onFinish(onFinished)
+                                },
+                                enabled = !state.isSaving && state.validation !is FinancialPlanValidationResult.Invalid,
+                                modifier = Modifier.padding(top = 24.dp),
                             )
-
-                            PlanWizardStep.Goal -> GoalStepContent(
-                                state = state,
-                                onGoalTypeSelected = viewModel::onGoalTypeSelected,
-                                onGoalNameChanged = viewModel::onGoalNameChanged,
-                                onGoalTargetChanged = viewModel::onGoalTargetChanged,
-                                onGoalCurrentChanged = viewModel::onGoalCurrentChanged,
-                                onGoalMonthsChanged = viewModel::onGoalMonthsChanged,
-                                onSocialDebtToggled = viewModel::onSocialDebtToggled,
-                                onSocialDebtCounterpartyChanged = viewModel::onSocialDebtCounterpartyChanged,
-                                onSocialDebtAmountChanged = viewModel::onSocialDebtAmountChanged,
-                                onSkip = viewModel::onSkipGoal,
-                            )
-
-                            PlanWizardStep.Summary -> PlanSummaryContent(
-                                state = state,
-                                onNavigateToStep = viewModel::onNavigateToStep,
+                            if (state.validation is FinancialPlanValidationResult.Invalid) {
+                                Text(
+                                    text = "Ajusta tu plan para que tus ingresos cubran gastos y sobres antes de guardar.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                            KipuSecondaryButton(
+                                text = "Ajustar montos",
+                                onClick = { viewModel.onNavigateToStep(PlanWizardStep.Income) },
+                                modifier = Modifier.padding(top = 12.dp),
+                                fillWidth = true,
                             )
                         }
                     }
-
-                    state.errorMessage?.let { message ->
-                        Text(
-                            text = message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(top = 12.dp),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-
-                    if (state.step != PlanWizardStep.Income && state.step != PlanWizardStep.Summary) {
-                        KipuSecondaryButton(
-                            text = "Atrás",
-                            onClick = handleBack,
-                            modifier = Modifier.padding(top = 24.dp),
-                            fillWidth = true,
-                        )
-                    }
-
-                    if (state.step != PlanWizardStep.Summary) {
-                        KipuPrimaryButton(
-                            text = "Continuar →",
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                viewModel.onContinue()
-                            },
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    } else {
-                        KipuPrimaryButton(
-                            text = when {
-                                state.isSaving -> "Guardando..."
-                                state.isEditingExistingPlan -> "✓ Guardar mi plan"
-                                else -> "✓ Crear mi plan"
-                            },
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.onFinish(onFinished)
-                            },
-                            enabled = !state.isSaving && state.validation !is FinancialPlanValidationResult.Invalid,
-                            modifier = Modifier.padding(top = 24.dp),
-                        )
-                        if (state.validation is FinancialPlanValidationResult.Invalid) {
-                            Text(
-                                text = "Ajusta tu plan para que tus ingresos cubran gastos y sobres antes de guardar.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 8.dp),
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                        KipuSecondaryButton(
-                            text = "Ajustar montos",
-                            onClick = { viewModel.onNavigateToStep(PlanWizardStep.Income) },
-                            modifier = Modifier.padding(top = 12.dp),
-                            fillWidth = true,
-                        )
-                    }
-                }
                 }
             }
         }

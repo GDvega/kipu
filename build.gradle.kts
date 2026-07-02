@@ -18,6 +18,12 @@ configure<ModuleGraphExtension> {
 }
 
 subprojects {
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            freeCompilerArgs.add("-Xannotation-default-target=param-property")
+        }
+    }
+
     afterEvaluate {
         if (pluginManager.hasPlugin("com.google.devtools.ksp")) {
             tasks.matching { it.name.startsWith("ksp") && it.name.endsWith("Kotlin") }.configureEach {

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Handshake
-import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.School
@@ -262,7 +262,7 @@ private fun IncomeProfileIcon(profile: IncomeProfile) {
     val (icon, tint) = when (profile) {
         IncomeProfile.FIXED -> Icons.Default.Work to MaterialTheme.colorScheme.primary
         IncomeProfile.VARIABLE -> Icons.AutoMirrored.Filled.TrendingUp to MaterialTheme.colorScheme.tertiary
-        IncomeProfile.APPROXIMATE -> Icons.Default.HelpOutline to MaterialTheme.colorScheme.secondary
+        IncomeProfile.APPROXIMATE -> Icons.AutoMirrored.Filled.HelpOutline to MaterialTheme.colorScheme.secondary
     }
     IconBadge(icon = icon, tint = tint)
 }

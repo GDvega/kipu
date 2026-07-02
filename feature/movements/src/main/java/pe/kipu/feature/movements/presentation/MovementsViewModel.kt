@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +41,7 @@ import pe.kipu.core.domain.util.MoneyInputParser
 import pe.kipu.feature.movements.presentation.ManualMovementChannelOption
 import pe.kipu.feature.movements.ui.ManualMovementFormState
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MovementsViewModel @Inject constructor(
     private val movementRepository: MovementRepository,

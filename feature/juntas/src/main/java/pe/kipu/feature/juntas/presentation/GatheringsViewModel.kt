@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,7 @@ import pe.kipu.core.domain.usecase.RecordGatheringExpenseUseCase
 import pe.kipu.core.domain.usecase.SaveGatheringUseCase
 import pe.kipu.core.domain.usecase.UpdateGatheringUseCase
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class GatheringsViewModel @Inject constructor(
     private val observeGatheringSummaries: ObserveGatheringSummariesUseCase,

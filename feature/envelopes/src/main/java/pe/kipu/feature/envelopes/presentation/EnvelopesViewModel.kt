@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,7 @@ import pe.kipu.core.domain.usecase.UpdateEnvelopeWeeklyLimitUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
 import pe.kipu.feature.envelopes.ui.EnvelopeCreateFormState
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class EnvelopesViewModel @Inject constructor(
     private val observeEnvelopeBudgets: ObserveEnvelopeBudgetsUseCase,

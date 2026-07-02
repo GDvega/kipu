@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ import pe.kipu.core.domain.usecase.SaveCommitmentUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
 import pe.kipu.feature.commitments.ui.CommitmentFormState
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CommitmentsViewModel @Inject constructor(
     private val observeCommitmentsInsights: ObserveCommitmentsInsightsUseCase,

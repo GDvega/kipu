@@ -32,85 +32,78 @@ fun PlanIntroStep(
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
-        // Scrollable content
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 88.dp), // reserve space for the fixed button
-        ) {
-            KipuScreenHeader(
-                title = "Arma tu plan",
-                subtitle = "Para calcular cuánto puedes gastar sin descuadrarte, Kipu necesita conocer tus ingresos, gastos principales y metas.",
-            )
-            Text(
-                text = "Kipu nunca pide claves de Yape, Plin ni bancos. Tus datos se quedan en tu celular.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding),
-            )
-            Spacer(modifier = Modifier.height(KipuLayout.sectionSpacing))
-            Column(modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding)) {
-                KipuCard(modifier = Modifier.fillMaxWidth(), style = KipuCardStyle.Large) {
-                    Text(
-                        text = "¿Qué necesitamos?",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    PlanCheckItem("Tus ingresos (fijos o variables)")
-                    PlanCheckItem("Tus gastos fijos obligatorios")
-                    PlanCheckItem("Cuánto quieres gastar por semana")
-                    PlanCheckItem("Tus metas de ahorro")
-                }
-                KipuCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = KipuLayout.sectionSpacing),
-                    style = KipuCardStyle.Large,
-                ) {
-                    RowWithIcon(
-                        icon = { Icon(Icons.Filled.Star, contentDescription = null, tint = KipuAmber) },
-                        title = "Tiempo estimado",
-                        body = "Menos de 2 minutos para la versión rápida. Puedes completar los detalles después desde tu perfil.",
-                    )
-                }
-                KipuCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = KipuLayout.sectionSpacing),
-                    style = KipuCardStyle.Large,
-                ) {
-                    Text(
-                        text = "Tu plan, tus números",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "Configuramos ingresos y gastos fijos para calcular cuánto puedes gastar por semana. " +
-                            "Siempre puedes ajustarlo después desde Sobres o Perfil.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
-            }
-        }
-
-        // Fixed button at the bottom (always visible)
-        KipuPrimaryButton(
-            text = "Comenzar con mi plan",
-            onClick = onStart,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(
-                    start = KipuLayout.screenHorizontalPadding,
-                    end = KipuLayout.screenHorizontalPadding,
-                    bottom = KipuLayout.screenHorizontalPadding,
-                    top = 12.dp,
-                ),
+    // Scrollable content
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        KipuScreenHeader(
+            title = "Arma tu plan",
+            subtitle = "Para calcular cuánto puedes gastar sin descuadrarte, Kipu necesita conocer tus ingresos, gastos principales y metas.",
         )
+        Text(
+            text = "Kipu nunca pide claves de Yape, Plin ni bancos. Tus datos se quedan en tu celular.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding),
+        )
+        Spacer(modifier = Modifier.height(KipuLayout.sectionSpacing))
+        Column(modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding)) {
+            KipuCard(modifier = Modifier.fillMaxWidth(), style = KipuCardStyle.Large) {
+                Text(
+                    text = "¿Qué necesitamos?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                PlanCheckItem("Tus ingresos (fijos o variables)")
+                PlanCheckItem("Tus gastos fijos obligatorios")
+                PlanCheckItem("Cuánto quieres gastar por semana")
+                PlanCheckItem("Tus metas de ahorro")
+            }
+            KipuCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = KipuLayout.sectionSpacing),
+                style = KipuCardStyle.Large,
+            ) {
+                RowWithIcon(
+                    icon = { Icon(Icons.Filled.Star, contentDescription = null, tint = KipuAmber) },
+                    title = "Tiempo estimado",
+                    body = "Menos de 2 minutos para la versión rápida. Puedes completar los detalles después desde tu perfil.",
+                )
+            }
+            KipuCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = KipuLayout.sectionSpacing),
+                style = KipuCardStyle.Large,
+            ) {
+                Text(
+                    text = "Tu plan, tus números",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Configuramos ingresos y gastos fijos para calcular cuánto puedes gastar por semana. " +
+                        "Siempre puedes ajustarlo después desde Sobres o Perfil.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(KipuLayout.sectionSpacing * 2))
+
+            KipuPrimaryButton(
+                text = "Comenzar con mi plan",
+                onClick = onStart,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(KipuLayout.screenHorizontalPadding))
+        }
     }
 }
 

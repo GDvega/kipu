@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.usecase.ObserveHomeInsightsUseCase
 import pe.kipu.core.domain.usecase.UpdateDailyAvailableWidgetUseCase
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val observeHomeInsights: ObserveHomeInsightsUseCase,
