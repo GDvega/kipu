@@ -558,12 +558,12 @@ class PlanWizardViewModel @Inject constructor(
         updateContent { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                when (val result = persistPlan()) {
+                val result = persistPlan()
+                when (result) {
                     is PlanWizardSaveResult.Success -> {
                         updateContent {
                             it.copy(validation = result.validation, errorMessage = null)
                         }
-                        onFinished()
                     }
 
                     is PlanWizardSaveResult.SuccessWithWarning -> {
@@ -573,7 +573,6 @@ class PlanWizardViewModel @Inject constructor(
                                 errorMessage = "Tu plan se guardó, pero no pudimos guardar algunas preferencias.",
                             )
                         }
-                        onFinished()
                     }
 
                     is PlanWizardSaveResult.PreparationFailure -> {
@@ -588,6 +587,7 @@ class PlanWizardViewModel @Inject constructor(
 
                     PlanWizardSaveResult.AlreadyInProgress, null -> Unit
                 }
+                if (result?.shouldNavigate == true) onFinished()
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
