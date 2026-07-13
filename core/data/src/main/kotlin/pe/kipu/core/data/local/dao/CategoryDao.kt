@@ -16,6 +16,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): CategoryEntity?
 
+    @Query("SELECT id FROM categories WHERE id IN (:ids)")
+    suspend fun getExistingIds(ids: Set<String>): List<String>
+
     @Upsert
     suspend fun upsert(entity: CategoryEntity)
 
