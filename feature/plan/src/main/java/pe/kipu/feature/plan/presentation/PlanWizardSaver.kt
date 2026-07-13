@@ -2,7 +2,6 @@ package pe.kipu.feature.plan.presentation
 
 import java.util.concurrent.CancellationException
 import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +48,6 @@ val PlanWizardSaveResult.shouldNavigate: Boolean
     get() = this is PlanWizardSaveResult.Success ||
         this is PlanWizardSaveResult.SuccessWithWarning
 
-@Singleton
 class PlanWizardSaver @Inject constructor(
     private val preparePlanSetup: PreparePlanSetupUseCase,
     private val planSetupRepository: PlanSetupRepository,

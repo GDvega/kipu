@@ -33,6 +33,40 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlanWizardSaverTest {
     @Test
+    fun `independent saver instances persist concurrently without sharing a global lock`() = runTest {
+        val gateA = CompletableDeferred<Unit>()
+        val gateB = CompletableDeferred<Unit>()
+        val roomA = RecordingPlanSetupRepository(gate = gateA)
+        val roomB = RecordingPlanSetupRepository(gate = gateB)
+        val saverA = saver(room = roomA)
+        val saverB = saver(room = roomB)
+
+        assertTrue(saverA !== saverB)
+        assertTrue(saverA.isSaving !== saverB.isSaving)
+        assertFalse(
+            "PlanWizardSaver must remain unscoped so Hilt creates one per ViewModel",
+            PlanWizardSaver::class.java.isAnnotationPresent(javax.inject.Singleton::class.java),
+        )
+
+        val first = async { saverA.save(request()) }
+        val second = async { saverB.save(request()) }
+        runCurrent()
+
+        assertTrue(saverA.isSaving.value)
+        assertTrue(saverB.isSaving.value)
+        assertEquals(1, roomA.calls)
+        assertEquals(1, roomB.calls)
+
+        gateA.complete(Unit)
+        gateB.complete(Unit)
+
+        assertTrue(first.await() is PlanWizardSaveResult.Success)
+        assertTrue(second.await() is PlanWizardSaveResult.Success)
+        assertFalse(saverA.isSaving.value)
+        assertFalse(saverB.isSaving.value)
+    }
+
+    @Test
     fun `valid preparation sends the same setup instance to Room`() = runTest {
         val room = RecordingPlanSetupRepository()
         val saver = saver(room = room)
