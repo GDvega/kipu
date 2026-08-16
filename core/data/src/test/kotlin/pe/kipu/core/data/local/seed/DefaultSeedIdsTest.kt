@@ -9,13 +9,4 @@ class DefaultSeedIdsTest {
     fun newUserHasNoDemoCommitmentSeed() {
         assertTrue(DefaultCommitmentSeed.commitments.isEmpty())
     }
-
-    @Test
-    fun financialPlanSeedIsNotPersistedAutomatically() {
-        val recordingDb = RecordingSqliteDatabase()
-
-        DefaultFinancialPlanSeed.insertInto(recordingDb)
-
-        assertTrue(recordingDb.executedSql.isEmpty())
-    }
 }

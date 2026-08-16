@@ -15,7 +15,19 @@ class AndroidReceiptImageLoaderTest {
 
         val sampleSize = AndroidReceiptImageLoader.calculateInSampleSize(bounds, maxDimension = 2048)
 
-        assertEquals(2, sampleSize)
+        assertEquals(4, sampleSize)
+    }
+
+    @Test
+    fun `calculateInSampleSize constrains a single oversized dimension`() {
+        val bounds = BitmapFactory.Options().apply {
+            outWidth = 8192
+            outHeight = 1000
+        }
+
+        val sampleSize = AndroidReceiptImageLoader.calculateInSampleSize(bounds, maxDimension = 2048)
+
+        assertEquals(4, sampleSize)
     }
 
     @Test

@@ -4,7 +4,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.FinancialPlanDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -21,7 +20,6 @@ class RoomFinancialPlanRepository @Inject constructor(
     override fun observePlans(): Flow<List<FinancialPlan>> =
         financialPlanDao.observeAll()
             .map { entities -> entities.map { it.toDomain() } }
-            .withImmediateDefault(emptyList())
 
     override suspend fun getById(id: EntityId): FinancialPlan? =
         financialPlanDao.getById(id)?.toDomain()

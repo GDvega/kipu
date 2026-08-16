@@ -9,12 +9,15 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.Envelope
+import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.EnvelopeRepository
+import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
@@ -23,7 +26,16 @@ import pe.kipu.core.domain.time.CycleRangeCalculator
 class PlanWizardHomeConsistencyTest {
 
     @Test
-    fun wizardPreviewAndHomeUseSameDailyAvailableCalculation() = runTest {
+    fun wizardPreviewAndHomeAgreeOnWeeklyCycle() = runTest {
+        assertPreviewMatchesHome(BudgetCycle.WEEKLY)
+    }
+
+    @Test
+    fun wizardPreviewAndHomeAgreeOnMonthlyCycle() = runTest {
+        assertPreviewMatchesHome(BudgetCycle.MONTHLY)
+    }
+
+    private suspend fun assertPreviewMatchesHome(cycle: BudgetCycle) {
         val reference = Instant.parse("2026-06-17T15:00:00Z")
         val timeProvider = FixedTimeProvider(reference)
         val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
@@ -32,10 +44,18 @@ class PlanWizardHomeConsistencyTest {
             envelope("envelope-transport", "Transporte", "50.00", CategoryIds.TRANSPORT),
             envelope("envelope-ant-spending", "Gastos hormiga", "35.00", CategoryIds.OTHER),
         )
+        val plan = FinancialPlan(
+            id = "plan-1",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.ZERO,
+            initialBalance = Money.of(BigDecimal("150.00")).getOrError(),
+            budgetCycle = cycle,
+        )
         val observeEnvelopeBudgets = ObserveEnvelopeBudgetsUseCase(
             envelopeRepository = FakeEnvelopeRepository(envelopes),
             movementRepository = FakeMovementRepository(),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
             ),
@@ -50,6 +70,7 @@ class PlanWizardHomeConsistencyTest {
             movementRepository = FakeMovementRepository(),
             commitmentRepository = FakeCommitmentRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateCycleAvailable = calculateCycleAvailable,
             detectAntSpending = DetectAntSpendingUseCase(),
             detectAntSpendingWeeklyLimitUseCase = DetectAntSpendingWeeklyLimitUseCase(),
@@ -62,14 +83,18 @@ class PlanWizardHomeConsistencyTest {
         val previewDaily = calculateCycleAvailable(
             previewBudgets,
             reference,
-            cycleRangeCalculator.currentCycleRange(pe.kipu.core.domain.model.BudgetCycle.WEEKLY, reference),
-            pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
+            cycleRangeCalculator.currentCycleRange(cycle, reference),
+            cycle,
         )
-        val homeDaily = home().first().cycleAvailable
+        val homeInsights = home().first()
+        val homeDaily = homeInsights.cycleAvailable
+        val homeCash = requireNotNull(homeInsights.cashFlowSummary).netCash
 
+        assertEquals(cycle, homeDaily.cycle)
         assertEquals(previewDaily.cycleAvailable, homeDaily.cycleAvailable)
         assertEquals(previewDaily.cycleRemaining, homeDaily.cycleRemaining)
         assertEquals(previewDaily.daysRemainingInCycle, homeDaily.daysRemainingInCycle)
+        assertEquals(BigDecimal("150.00"), homeCash)
     }
 
     private fun envelope(id: String, name: String, weeklyLimit: String, categoryId: String): Envelope =
@@ -79,6 +104,15 @@ class PlanWizardHomeConsistencyTest {
             weeklyLimit = Money.of(BigDecimal(weeklyLimit)).getOrError(),
             categoryId = categoryId,
         )
+
+    private class FakeFinancialPlanRepository(
+        private val plan: FinancialPlan,
+    ) : FinancialPlanRepository {
+        override fun observePlans(): Flow<List<FinancialPlan>> = flowOf(listOf(plan))
+        override suspend fun getById(id: String): FinancialPlan? = plan.takeIf { it.id == id }
+        override suspend fun save(plan: FinancialPlan): Result<Unit> = Result.success(Unit)
+        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
+    }
 
     private class FakeEnvelopeRepository(
         private val envelopes: List<Envelope>,

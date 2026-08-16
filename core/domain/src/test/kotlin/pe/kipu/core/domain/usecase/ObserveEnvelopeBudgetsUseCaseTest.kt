@@ -9,8 +9,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.EnvelopeBudgetStatus
+import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementSource
@@ -19,6 +21,7 @@ import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.EnvelopeRepository
+import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
 import pe.kipu.core.domain.time.CycleRangeCalculator
@@ -53,6 +56,7 @@ class ObserveEnvelopeBudgetsUseCaseTest {
             envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
             movementRepository = FakeMovementRepository(listOf(movement)),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(emptyList()),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
             ),
@@ -65,6 +69,63 @@ class ObserveEnvelopeBudgetsUseCaseTest {
         assertEquals(1, states.size)
         assertEquals(50, states.first().percentUsed)
         assertEquals(EnvelopeBudgetStatus.OK, states.first().status)
+    }
+
+    @Test
+    fun `monthly plan counts spending from earlier in the month, outside the current week`() = runTest {
+        val reference = Instant.parse("2026-06-17T15:00:00Z")
+        val timeProvider = FixedTimeProvider(reference)
+        val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
+        // 2026-06-05 cae en el mes actual pero fuera de la semana del 15-21 (lunes-based).
+        val earlierInMonth = Instant.parse("2026-06-05T12:00:00Z")
+        val envelope = Envelope(
+            id = "envelope-food",
+            name = "Comida",
+            weeklyLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.FOOD,
+        )
+        val movement = Movement(
+            id = "m1",
+            type = MovementType.EXPENSE,
+            amount = Money.of(BigDecimal("40.00")).getOrError(),
+            categoryId = CategoryIds.FOOD,
+            channel = PaymentChannel.YAPE,
+            source = MovementSource.MANUAL,
+            status = MovementStatus.CONFIRMED,
+            recordedAt = earlierInMonth,
+            createdAt = earlierInMonth,
+        )
+        val plan = FinancialPlan(
+            id = "plan-1",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.ZERO,
+            budgetCycle = BudgetCycle.MONTHLY,
+        )
+        val useCase = ObserveEnvelopeBudgetsUseCase(
+            envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
+            movementRepository = FakeMovementRepository(listOf(movement)),
+            gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(listOf(plan)),
+            calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
+                CalculateCategoryPeriodSpentUseCase(),
+            ),
+            cycleRangeCalculator = cycleRangeCalculator,
+            timeProvider = timeProvider,
+        )
+
+        val states = useCase().first()
+
+        // Con ventana mensual el gasto del 5-jun cuenta (40/100 = 40%); con la semanal sería 0%.
+        assertEquals(40, states.first().percentUsed)
+    }
+
+    private class FakeFinancialPlanRepository(
+        private val plans: List<FinancialPlan>,
+    ) : FinancialPlanRepository {
+        override fun observePlans(): Flow<List<FinancialPlan>> = flowOf(plans)
+        override suspend fun getById(id: String): FinancialPlan? = plans.find { it.id == id }
+        override suspend fun save(plan: FinancialPlan) = Result.success(Unit)
+        override suspend fun delete(id: String) = Result.success(Unit)
     }
 
     private class FakeEnvelopeRepository(

@@ -27,6 +27,7 @@ fun PendingNotificationIncomeCard(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val title = movementDisplayTitle(movement.counterpartyName, movement.description)
     val channelLabel = NotificationMovementTranslator.channelLabel(movement.channel)
@@ -57,10 +58,12 @@ fun PendingNotificationIncomeCard(
                 KipuSecondaryButton(
                     text = "Descartar",
                     onClick = onDismiss,
+                    enabled = enabled,
                 )
                 KipuPrimaryButton(
                     text = "Confirmar",
                     onClick = onConfirm,
+                    enabled = enabled,
                 )
             }
         }
@@ -73,11 +76,14 @@ fun PendingNotificationDuplicateDialog(
     existingMatch: Movement,
     onResolve: (DuplicateResolution) -> Unit,
     modifier: Modifier = Modifier,
+    isProcessing: Boolean = false,
 ) {
     val summary = buildNotificationDuplicateSummary(pendingMovement, existingMatch)
 
     AlertDialog(
-        onDismissRequest = { onResolve(DuplicateResolution.CANCEL) },
+        onDismissRequest = {
+            if (!isProcessing) onResolve(DuplicateResolution.CANCEL)
+        },
         modifier = modifier,
         title = { Text(text = "Posible duplicado") },
         text = {
@@ -101,6 +107,7 @@ fun PendingNotificationDuplicateDialog(
             KipuDialogConfirmButton(
                 text = "Fusionar",
                 onClick = { onResolve(DuplicateResolution.MERGE) },
+                enabled = !isProcessing,
             )
         },
         dismissButton = {
@@ -111,10 +118,12 @@ fun PendingNotificationDuplicateDialog(
                 KipuDialogDismissButton(
                     text = "No es duplicado",
                     onClick = { onResolve(DuplicateResolution.SAVE_AS_NEW) },
+                    enabled = !isProcessing,
                 )
                 KipuDialogDismissButton(
                     text = "Cancelar",
                     onClick = { onResolve(DuplicateResolution.CANCEL) },
+                    enabled = !isProcessing,
                 )
             }
         },

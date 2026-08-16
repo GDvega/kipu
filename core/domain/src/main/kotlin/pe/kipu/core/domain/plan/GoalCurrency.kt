@@ -16,8 +16,10 @@ fun GoalType.currency(): GoalCurrency = when (this) {
     GoalType.TRAVEL,
     GoalType.PURCHASE,
     GoalType.DEBT,
+    GoalType.CUSTOM,
     -> GoalCurrency.PEN
 }
+
 
 object CurrencyConverter {
     fun toPen(amount: Money, currencyCode: String): Money {

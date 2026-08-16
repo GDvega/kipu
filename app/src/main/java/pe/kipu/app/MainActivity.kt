@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                         val currentRoute = navBackStackEntry?.destination?.route
                         val showBottomBar = KipuDestination.bottomBarDestinations.any { destination ->
                             destination.route == currentRoute
-                        }
+                        } || currentRoute == KipuPlanRoutes.MOVEMENTS_BY_CATEGORY
 
                         LaunchedEffect(onboardingCompleted, pendingPlanWizard, planWizardHandled) {
                             if (onboardingCompleted && pendingPlanWizard && !planWizardHandled) {
@@ -88,16 +88,12 @@ class MainActivity : ComponentActivity() {
                                 openManualOnMovements = true
                                 navController.navigate(KipuDestination.Movements.route)
                             }
-                            mainViewModel.consumePendingReceiptUri()?.let { uri ->
-                                navController.navigate(ReceiptRoutes.review(uri))
-                            }
                         }
 
                         LaunchedEffect(pendingReceiptUri) {
-                            pendingReceiptUri?.let { uri ->
-                                mainViewModel.consumePendingReceiptUri()
-                                navController.navigate(ReceiptRoutes.review(uri))
-                            }
+                            if (pendingReceiptUri == null) return@LaunchedEffect
+                            val uri = mainViewModel.consumePendingReceiptUri() ?: return@LaunchedEffect
+                            navController.navigate(ReceiptRoutes.review(uri))
                         }
 
                         Scaffold(

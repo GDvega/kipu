@@ -62,7 +62,6 @@ class ProfileViewModel @Inject constructor(
                             ProfileUiState.Content(
                                 themeMode = preferences.themeMode,
                                 notificationsEnabled = preferences.notificationsEnabled,
-                                autoApproveHighConfidenceNotifications = preferences.autoApproveHighConfidenceNotifications,
                                 notificationAccessGranted = accessGranted,
                                 showNotificationAccessDialog = dialogVisible,
                                 onboardingCompleted = preferences.onboardingCompleted,
@@ -72,7 +71,7 @@ class ProfileViewModel @Inject constructor(
                                 showWipeFinalConfirmDialog = previous?.showWipeFinalConfirmDialog == true,
                                 isExporting = previous?.isExporting == true,
                                 isWiping = previous?.isWiping == true,
-                                statusMessage = previous?.statusMessage,
+                                status = previous?.status,
                             )
                         }
                         .map<ProfileUiState.Content, ProfileUiState> { it }
@@ -129,10 +128,6 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun onAutoApproveToggleChanged(enabled: Boolean) {
-        updatePreferences { current -> current.copy(autoApproveHighConfidenceNotifications = enabled) }
-    }
-
     fun onNotificationAccessDialogConfirm() {
         notificationAccessSettingsNavigator.openListenerSettings()
         dismissNotificationAccessDialog()
@@ -154,7 +149,7 @@ class ProfileViewModel @Inject constructor(
                 current.copy(
                     showExportWarningDialog = true,
                     pendingExportFormat = format,
-                    statusMessage = null,
+                    status = null,
                 )
             } else {
                 current
@@ -174,16 +169,15 @@ class ProfileViewModel @Inject constructor(
 
     fun confirmExportAfterWarning() {
         val state = _uiState.value as? ProfileUiState.Content ?: return
+        if (state.isExporting || state.isWiping || !state.showExportWarningDialog) return
         val format = state.pendingExportFormat ?: return
+        _uiState.value = state.copy(
+            isExporting = true,
+            showExportWarningDialog = false,
+            pendingExportFormat = null,
+            status = null,
+        )
         viewModelScope.launch {
-            _uiState.update { current ->
-                (current as? ProfileUiState.Content)?.copy(
-                    isExporting = true,
-                    showExportWarningDialog = false,
-                    pendingExportFormat = null,
-                    statusMessage = null,
-                ) ?: current
-            }
             exportUserData(format)
                 .mapCatching { payload ->
                     exportFileRepository.writeExport(
@@ -199,10 +193,10 @@ class ProfileViewModel @Inject constructor(
                             mimeType = stored.mimeType,
                         ),
                     )
-                    setStatusMessage("Exportación lista para compartir.")
+                    setStatus(ProfileStatus.Success("Exportación lista para compartir."))
                 }
                 .onFailure {
-                    setStatusMessage("No pudimos exportar tus datos. Intenta de nuevo.")
+                    setStatus(ProfileStatus.Error("No pudimos exportar tus datos. Intenta de nuevo."))
                 }
             _uiState.update { current ->
                 (current as? ProfileUiState.Content)?.copy(isExporting = false) ?: current
@@ -213,7 +207,7 @@ class ProfileViewModel @Inject constructor(
     fun onWipeRequested() {
         _uiState.update { current ->
             if (current is ProfileUiState.Content) {
-                current.copy(showWipeFirstConfirmDialog = true, statusMessage = null)
+                current.copy(showWipeFirstConfirmDialog = true, status = null)
             } else {
                 current
             }
@@ -254,20 +248,20 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun confirmWipeAllData() {
+        val state = _uiState.value as? ProfileUiState.Content ?: return
+        if (state.isExporting || state.isWiping || !state.showWipeFinalConfirmDialog) return
+        _uiState.value = state.copy(
+            isWiping = true,
+            showWipeFinalConfirmDialog = false,
+            status = null,
+        )
         viewModelScope.launch {
-            _uiState.update { current ->
-                (current as? ProfileUiState.Content)?.copy(
-                    isWiping = true,
-                    showWipeFinalConfirmDialog = false,
-                    statusMessage = null,
-                ) ?: current
-            }
             wipeAllUserData()
                 .onSuccess {
                     _events.emit(ProfileEvent.DataWiped)
                 }
                 .onFailure {
-                    setStatusMessage("No pudimos eliminar tus datos. Intenta de nuevo.")
+                    setStatus(ProfileStatus.Error("No pudimos eliminar tus datos. Intenta de nuevo."))
                 }
             _uiState.update { current ->
                 (current as? ProfileUiState.Content)?.copy(isWiping = false) ?: current
@@ -278,17 +272,17 @@ class ProfileViewModel @Inject constructor(
     fun clearStatusMessage() {
         _uiState.update { current ->
             if (current is ProfileUiState.Content) {
-                current.copy(statusMessage = null)
+                current.copy(status = null)
             } else {
                 current
             }
         }
     }
 
-    private fun setStatusMessage(message: String) {
+    private fun setStatus(status: ProfileStatus) {
         _uiState.update { current ->
             if (current is ProfileUiState.Content) {
-                current.copy(statusMessage = message)
+                current.copy(status = status)
             } else {
                 current
             }
@@ -299,7 +293,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             userPreferencesRepository.updatePreferences(transform)
                 .onFailure {
-                    setStatusMessage("No pudimos guardar tus preferencias. Intenta de nuevo.")
+                    setStatus(ProfileStatus.Error("No pudimos guardar tus preferencias. Intenta de nuevo."))
                 }
         }
     }

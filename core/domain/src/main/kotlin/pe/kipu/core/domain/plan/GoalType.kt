@@ -6,6 +6,7 @@ enum class GoalType {
     PURCHASE,
     DEBT,
     DOLLARS,
+    CUSTOM,
 }
 
 fun GoalType.label(): String = when (this) {
@@ -14,6 +15,7 @@ fun GoalType.label(): String = when (this) {
     GoalType.PURCHASE -> "Compra"
     GoalType.DEBT -> "Pagar deuda"
     GoalType.DOLLARS -> "Dólares"
+    GoalType.CUSTOM -> "+ Personalizada"
 }
 
 fun GoalType.defaultTitle(): String = when (this) {
@@ -22,7 +24,9 @@ fun GoalType.defaultTitle(): String = when (this) {
     GoalType.PURCHASE -> "Compra"
     GoalType.DEBT -> "Pagar deuda"
     GoalType.DOLLARS -> "Ahorro en dólares"
+    GoalType.CUSTOM -> "Mi meta"
 }
+
 
 object GoalTimeframeOptions {
     val MONTHS: List<Int> = listOf(3, 5, 8, 12)

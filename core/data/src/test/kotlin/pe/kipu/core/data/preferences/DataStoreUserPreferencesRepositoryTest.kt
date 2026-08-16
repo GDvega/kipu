@@ -3,13 +3,16 @@ package pe.kipu.core.data.preferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.emptyPreferences
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -72,5 +75,28 @@ class DataStoreUserPreferencesRepositoryTest {
 
         assertTrue(preferences.onboardingCompleted)
         assertTrue(preferences.pendingPlanWizard)
+    }
+
+    @Test
+    fun updatePreferences_reportsDiskFailureAndRestoresInMemoryState() = runTest {
+        val failingRepository = DataStoreUserPreferencesRepository(
+            dataStore = FailingDataStore(),
+            applicationScope = scope,
+        )
+
+        val result = failingRepository.updatePreferences {
+            it.copy(onboardingCompleted = true)
+        }
+
+        assertTrue(result.isFailure)
+        assertFalse(failingRepository.observePreferences().first().onboardingCompleted)
+    }
+
+    private class FailingDataStore : DataStore<Preferences> {
+        override val data = flowOf(emptyPreferences())
+
+        override suspend fun updateData(
+            transform: suspend (t: Preferences) -> Preferences,
+        ): Preferences = throw IOException("disk full")
     }
 }

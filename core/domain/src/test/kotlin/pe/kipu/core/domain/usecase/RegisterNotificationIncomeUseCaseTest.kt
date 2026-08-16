@@ -19,25 +19,16 @@ import pe.kipu.core.domain.model.RegisterNotificationIncomeResult
 import pe.kipu.core.domain.model.SuggestedMovement
 import pe.kipu.core.domain.model.SuggestionConfidence
 import pe.kipu.core.domain.model.getOrError
-import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.repository.MovementRepository
-import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
-import pe.kipu.core.domain.duplicate.MovementDuplicateMatcher
 
 class RegisterNotificationIncomeUseCaseTest {
 
     private val now = Instant.parse("2026-06-16T15:00:00Z")
     private val repository = RecordingMovementRepository()
-    private val userPrefsRepo = RecordingUserPreferencesRepository()
-    private val detectDuplicate = DetectDuplicateMovementUseCase(MovementDuplicateMatcher())
-    private val evaluateAutoApproval = EvaluateAutoApprovalUseCase()
     private val useCase = RegisterNotificationIncomeUseCase(
         movementRepository = repository,
         timeProvider = FixedTimeProvider(now),
-        userPreferencesRepository = userPrefsRepo,
-        detectDuplicateMovement = detectDuplicate,
-        evaluateAutoApproval = evaluateAutoApproval,
     )
 
     @Test
@@ -48,21 +39,6 @@ class RegisterNotificationIncomeUseCaseTest {
         val saved = (result as RegisterNotificationIncomeResult.Saved).movement
         assertEquals(MovementStatus.PENDING_CONFIRMATION, saved.status)
         assertEquals(MovementSource.NOTIFICATION, saved.source)
-        assertEquals(1, repository.saveCount)
-    }
-
-    @Test
-    fun `auto confirms when preferences enabled and high confidence`() = runTest {
-        userPrefsRepo.preferences = pe.kipu.core.domain.model.UserPreferences(autoApproveHighConfidenceNotifications = true)
-        val highConfSuggestion = suggestion().copy(
-            operationReference = "123456"
-        )
-        
-        val result = useCase(highConfSuggestion)
-        
-        assertTrue(result is RegisterNotificationIncomeResult.AutoApproved)
-        val saved = (result as RegisterNotificationIncomeResult.AutoApproved).movement
-        assertEquals(MovementStatus.CONFIRMED, saved.status)
         assertEquals(1, repository.saveCount)
     }
 
@@ -132,18 +108,5 @@ class RegisterNotificationIncomeUseCaseTest {
         }
 
         override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
-    }
-
-    private class RecordingUserPreferencesRepository : UserPreferencesRepository {
-        var preferences = UserPreferences()
-
-        override fun observePreferences(): Flow<UserPreferences> = flowOf(preferences)
-
-        override suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences): Result<Unit> {
-            preferences = transform(preferences)
-            return Result.success(Unit)
-        }
-
-        override suspend fun clear(): Result<Unit> = Result.success(Unit)
     }
 }

@@ -9,6 +9,7 @@ import pe.kipu.core.domain.plan.PayFrequency
 import java.math.BigDecimal
 
 private const val ENVELOPE_ID_SEPARATOR = ","
+private const val CATEGORY_ID_SEPARATOR = ","
 
 fun FinancialPlanEntity.toDomain(): FinancialPlan = FinancialPlan(
     id = id,
@@ -19,6 +20,10 @@ fun FinancialPlanEntity.toDomain(): FinancialPlan = FinancialPlan(
     incomeProfile = parseIncomeProfile(incomeProfile),
     payFrequency = parsePayFrequency(payFrequency),
     budgetCycle = parseBudgetCycle(budgetCycle),
+    antSpendingLimit = antSpendingLimitCents?.let(::centsToMoney),
+    antSpendingAlertEnabled = antSpendingAlertEnabled,
+    antSpendingAlertPercent = antSpendingAlertPercent,
+    antSpendingTrackedCategoryIds = parseIds(antSpendingTrackedCategoryIds, CATEGORY_ID_SEPARATOR).toSet(),
 )
 
 fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
@@ -30,6 +35,12 @@ fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
     incomeProfile = incomeProfile.name,
     payFrequency = payFrequency.name,
     budgetCycle = budgetCycle.name,
+    antSpendingLimitCents = antSpendingLimit?.let(::moneyToCents),
+    antSpendingAlertEnabled = antSpendingAlertEnabled,
+    antSpendingAlertPercent = antSpendingAlertPercent,
+    antSpendingTrackedCategoryIds = antSpendingTrackedCategoryIds
+        .sorted()
+        .joinToString(CATEGORY_ID_SEPARATOR),
 )
 
 private fun parseIncomeProfile(raw: String): IncomeProfile =
@@ -42,11 +53,13 @@ private fun parseBudgetCycle(raw: String): pe.kipu.core.domain.model.BudgetCycle
     runCatching { pe.kipu.core.domain.model.BudgetCycle.valueOf(raw) }.getOrDefault(pe.kipu.core.domain.model.BudgetCycle.WEEKLY)
 
 
-private fun parseEnvelopeIds(raw: String): List<String> =
+private fun parseEnvelopeIds(raw: String): List<String> = parseIds(raw, ENVELOPE_ID_SEPARATOR)
+
+private fun parseIds(raw: String, separator: String): List<String> =
     if (raw.isBlank()) {
         emptyList()
     } else {
-        raw.split(ENVELOPE_ID_SEPARATOR).map { it.trim() }.filter { it.isNotEmpty() }
+        raw.split(separator).map { it.trim() }.filter { it.isNotEmpty() }
     }
 
 private fun moneyToCents(money: Money): Long =
@@ -56,6 +69,6 @@ private fun centsToMoney(cents: Long): Money {
     val value = BigDecimal.valueOf(cents).movePointLeft(2)
     return when (val result = Money.of(value)) {
         is DomainResult.Ok -> result.value
-        is DomainResult.Err -> error("Invalid stored financial plan amount cents: $cents")
+        is DomainResult.Err -> error("Invalid stored financial plan amount cents")
     }
 }

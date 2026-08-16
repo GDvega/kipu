@@ -1,12 +1,14 @@
 package pe.kipu.feature.profile
 
 import android.content.Intent
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -44,13 +51,13 @@ import pe.kipu.core.designsystem.component.KipuTextLink
 import pe.kipu.core.domain.export.ExportFormat
 import pe.kipu.core.domain.model.ThemeMode
 import pe.kipu.feature.profile.presentation.ProfileEvent
+import pe.kipu.feature.profile.presentation.ProfileStatus
 import pe.kipu.feature.profile.presentation.ProfileUiState
 import pe.kipu.feature.profile.presentation.ProfileViewModel
 
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    onNavigateToGatherings: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
@@ -96,10 +103,7 @@ fun ProfileScreen(
         KipuScreenHeader(title = "Perfil", subtitle = "Configuración y preferencias")
         when (val state = uiState) {
             ProfileUiState.Loading -> {
-                KipuScreenLoadingState(
-                    title = "Perfil",
-                    subtitle = "Configuración y preferencias",
-                )
+                KipuScreenLoadingState()
             }
 
             is ProfileUiState.Content -> {
@@ -163,39 +167,8 @@ fun ProfileScreen(
                             checked = state.notificationsEnabled,
                             onCheckedChange = viewModel::onNotificationsToggleChanged,
                         )
-                        if (state.notificationsEnabled) {
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-                            PreferenceSwitchRow(
-                                title = "Auto-registrar yapeos confiables",
-                                subtitle = "Ingresos con número de operación se confirmarán automáticamente.",
-                                checked = state.autoApproveHighConfidenceNotifications,
-                                onCheckedChange = viewModel::onAutoApproveToggleChanged,
-                            )
-                        }
                     }
 
-                    KipuCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = KipuLayout.sectionSpacing),
-                    ) {
-                        Text(
-                            text = "Cuentas compartidas",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = "Salidas, cenas y paseos con amigos. Registra quién participó para repartir gastos después.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
-                        )
-                        KipuSecondaryButton(
-                            text = "Ver cuentas compartidas",
-                            onClick = onNavigateToGatherings,
-                            modifier = Modifier.fillMaxWidth(),
-                            fillWidth = true,
-                        )
-                    }
 
                     KipuCard(
                         modifier = Modifier
@@ -239,6 +212,7 @@ fun ProfileScreen(
                         KipuSecondaryButton(
                             text = if (state.isWiping) "Eliminando..." else "Eliminar todos mis datos",
                             onClick = viewModel::onWipeRequested,
+                            destructive = true,
                             enabled = !state.isExporting && !state.isWiping,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -247,11 +221,9 @@ fun ProfileScreen(
                         )
                     }
 
-                    state.statusMessage?.let { message ->
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
+                    state.status?.let { status ->
+                        ProfileStatusMessage(
+                            status = status,
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     }
@@ -309,6 +281,7 @@ private fun WipeFirstConfirmDialog(
         text = "Se borrarán movimientos, duplicados descartados y preferencias. " +
             "Se restaurarán las categorías base para que puedas empezar de cero.",
         confirmText = "Continuar",
+        destructiveConfirm = true,
         onConfirm = onConfirm,
         onDismiss = onDismiss,
     )
@@ -325,6 +298,7 @@ private fun WipeFinalConfirmDialog(
         text = "Esta acción no se puede deshacer. Volverás al inicio de la app " +
             "y tendrás que configurar Kipu otra vez.",
         confirmText = "Eliminar todo",
+        destructiveConfirm = true,
         onConfirm = onConfirm,
         onDismiss = onDismiss,
     )
@@ -367,7 +341,29 @@ private fun notificationSubtitle(enabled: Boolean, accessGranted: Boolean): Stri
 }
 
 @Composable
-private fun PreferenceSwitchRow(
+internal fun ProfileStatusMessage(
+    status: ProfileStatus,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = status.message,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (status is ProfileStatus.Error) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.primary
+        },
+        modifier = modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            if (status is ProfileStatus.Error) {
+                error(status.message)
+            }
+        },
+    )
+}
+
+@Composable
+internal fun PreferenceSwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -375,7 +371,14 @@ private fun PreferenceSwitchRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -392,7 +395,7 @@ private fun PreferenceSwitchRow(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
         )
     }
 }

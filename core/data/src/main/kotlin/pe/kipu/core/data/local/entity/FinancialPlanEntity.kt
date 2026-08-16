@@ -14,4 +14,9 @@ data class FinancialPlanEntity(
     val incomeProfile: String = "FIXED",
     val payFrequency: String = "MONTHLY",
     val budgetCycle: String = "WEEKLY",
+    val antSpendingLimitCents: Long? = null,
+    val antSpendingAlertEnabled: Boolean = true,
+    val antSpendingAlertPercent: Int = 80,
+    /** Comma-separated category ids. */
+    val antSpendingTrackedCategoryIds: String = "",
 )

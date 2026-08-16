@@ -22,18 +22,18 @@ class OnboardingViewModel @Inject constructor(
         finishOnboarding(pendingPlanWizard = pendingPlanWizard)
     }
 
+    fun retryOnboarding() {
+        finishOnboarding(pendingPlanWizard = true)
+    }
+
     private fun finishOnboarding(pendingPlanWizard: Boolean) {
+        if (_uiState.value == OnboardingUiState.Loading) return
+        _uiState.value = OnboardingUiState.Loading
         viewModelScope.launch {
             completeOnboarding(pendingPlanWizard = pendingPlanWizard)
                 .onFailure {
                     _uiState.value = OnboardingUiState.Error("No pudimos completar el inicio")
                 }
-        }
-    }
-
-    fun clearError() {
-        if (_uiState.value is OnboardingUiState.Error) {
-            _uiState.value = OnboardingUiState.Idle
         }
     }
 }

@@ -28,6 +28,36 @@ class PenAmountParserTest {
     }
 
     @Test
+    fun `parses thousands amount without thousands separator`() {
+        val amount = PenAmountParser.parse("S/ 1234.50")
+        assertEquals(Money.of(BigDecimal("1234.50")).getOrError(), amount)
+    }
+
+    @Test
+    fun `parses round thousands amount without fractional part`() {
+        val amount = PenAmountParser.parse("S/ 3000")
+        assertEquals(Money.of(BigDecimal("3000.00")).getOrError(), amount)
+    }
+
+    @Test
+    fun `parses large amount without thousands separator`() {
+        val amount = PenAmountParser.parse("S/ 12345.00")
+        assertEquals(Money.of(BigDecimal("12345.00")).getOrError(), amount)
+    }
+
+    @Test
+    fun `parses amount with thousands separator`() {
+        val amount = PenAmountParser.parse("S/ 1,234.50")
+        assertEquals(Money.of(BigDecimal("1234.50")).getOrError(), amount)
+    }
+
+    @Test
+    fun `parses millions with multiple thousands separators`() {
+        val amount = PenAmountParser.parse("S/ 1,000,000.00")
+        assertEquals(Money.of(BigDecimal("1000000.00")).getOrError(), amount)
+    }
+
+    @Test
     fun `returns null when no amount present`() {
         assertNull(PenAmountParser.parse("Hola"))
     }

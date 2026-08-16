@@ -66,11 +66,15 @@ class CalculateEnvelopeBudgetStateUseCase @Inject constructor(
     companion object {
         fun calculatePercentUsed(spent: Money, limit: Money): Int {
             if (limit.isZero()) return 0
-            return spent.amount
+            val percent = spent.amount
                 .divide(limit.amount, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal(100))
                 .setScale(0, RoundingMode.HALF_UP)
-                .intValueExact()
+            return if (percent > BigDecimal.valueOf(Int.MAX_VALUE.toLong())) {
+                Int.MAX_VALUE
+            } else {
+                percent.intValueExact()
+            }
         }
     }
 }

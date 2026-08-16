@@ -13,6 +13,7 @@ import pe.kipu.core.data.export.AndroidUserDataExportFileRepository
 import pe.kipu.core.data.preferences.DataStoreUserPreferencesRepository
 import pe.kipu.core.data.repository.RoomDuplicateDismissalRepository
 import pe.kipu.core.data.repository.RoomEnvelopeRepository
+import pe.kipu.core.data.repository.RoomEnvelopePlanRepository
 import pe.kipu.core.data.repository.RoomFinancialPlanRepository
 import pe.kipu.core.data.repository.RoomUserDataWipeRepository
 import pe.kipu.core.data.repository.RoomGatheringExpenseRepository
@@ -21,6 +22,7 @@ import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.DuplicateDismissalRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
+import pe.kipu.core.domain.repository.EnvelopePlanRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.GatheringExpenseRepository
 import pe.kipu.core.domain.repository.GatheringRepository
@@ -45,6 +47,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindEnvelopeRepository(impl: RoomEnvelopeRepository): EnvelopeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEnvelopePlanRepository(impl: RoomEnvelopePlanRepository): EnvelopePlanRepository
 
     @Binds
     @Singleton

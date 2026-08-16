@@ -1,6 +1,7 @@
 package pe.kipu.feature.movements.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,9 +12,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
+import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.Movement
 
@@ -22,11 +25,12 @@ fun GoalLinkDialog(
     movement: Movement,
     savingsGoals: List<Commitment>,
     currentGoalTitle: String?,
+    isProcessing: Boolean,
     onGoalSelected: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isProcessing) onDismiss() },
         title = { Text(text = "Vincular a meta") },
         text = {
             Column {
@@ -49,21 +53,19 @@ fun GoalLinkDialog(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 } else {
-                    LazyColumn {
-                        if (movement.commitmentId != null) {
-                            item(key = "unlink") {
-                                Text(
-                                    text = "Quitar vínculo",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onGoalSelected(null) }
-                                        .padding(vertical = 12.dp),
-                                )
-                            }
-                        }
+                    if (movement.commitmentId != null) {
+                        KipuSecondaryButton(
+                            text = "Quitar vínculo",
+                            onClick = { onGoalSelected(null) },
+                            destructive = true,
+                            enabled = !isProcessing,
+                            fillWidth = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                        )
+                    }
+                    LazyColumn(modifier = Modifier.selectableGroup()) {
                         items(savingsGoals, key = { it.id }) { goal ->
                             Text(
                                 text = goal.title,
@@ -75,7 +77,12 @@ fun GoalLinkDialog(
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onGoalSelected(goal.id) }
+                                    .selectable(
+                                        selected = goal.id == movement.commitmentId,
+                                        enabled = !isProcessing,
+                                        onClick = { onGoalSelected(goal.id) },
+                                        role = Role.RadioButton,
+                                    )
                                     .padding(vertical = 12.dp),
                             )
                         }
@@ -85,7 +92,11 @@ fun GoalLinkDialog(
         },
         confirmButton = {},
         dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isProcessing,
+            )
         },
     )
 }

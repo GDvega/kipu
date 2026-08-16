@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.ThemeMode
 import pe.kipu.core.domain.model.UserPreferences
 
@@ -76,6 +77,13 @@ class UserPreferencesMapperTest {
     }
 
     @Test
+    fun `parseBudgetCycle rejects unknown values`() {
+        assertEquals(BudgetCycle.WEEKLY, parseBudgetCycle(null))
+        assertEquals(BudgetCycle.WEEKLY, parseBudgetCycle(""))
+        assertEquals(BudgetCycle.WEEKLY, parseBudgetCycle("not_a_cycle"))
+    }
+
+    @Test
     fun `preference keys are stable`() {
         assertEquals("theme_mode", UserPreferencesKeys.THEME_MODE.name)
         assertEquals("notifications_enabled", UserPreferencesKeys.NOTIFICATIONS_ENABLED.name)
@@ -89,6 +97,7 @@ class UserPreferencesMapperTest {
             pendingPlanWizard = true,
             widgetDailyAvailableText = "S/ 40.00",
             widgetIsOverBudget = false,
+            widgetDailyAvailableUpdatedAtMillis = 1_786_122_600_000L,
         )
 
         val mapped = userPreferences.toPreferences().toUserPreferences()
@@ -96,5 +105,6 @@ class UserPreferencesMapperTest {
         assertTrue(mapped.pendingPlanWizard)
         assertEquals("S/ 40.00", mapped.widgetDailyAvailableText)
         assertFalse(mapped.widgetIsOverBudget)
+        assertEquals(1_786_122_600_000L, mapped.widgetDailyAvailableUpdatedAtMillis)
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -48,8 +49,8 @@ class EnvelopesViewModel @Inject constructor(
     private val adjustTarget = MutableStateFlow<EnvelopeBudgetState?>(null)
     private val showCreateDialog = MutableStateFlow(false)
     private val createForm = MutableStateFlow(EnvelopeCreateFormState())
-    private val deleteTarget = MutableStateFlow<EnvelopeBudgetState?>(null)
-    private val adjustLimitError = MutableStateFlow<String?>(null)
+    private val deleteState = MutableStateFlow(EnvelopeDeleteState())
+    private val adjustState = MutableStateFlow(EnvelopeAdjustState())
 
     private val _uiState = MutableStateFlow<EnvelopesUiState>(EnvelopesUiState.Loading)
     val uiState: StateFlow<EnvelopesUiState> = _uiState.asStateFlow()
@@ -86,8 +87,8 @@ class EnvelopesViewModel @Inject constructor(
             adjustTarget,
             showCreateDialog,
             createForm,
-            deleteTarget,
-        ) { (budgets, categories, movements, plan), adjust, creating, form, delete ->
+            deleteState,
+        ) { (budgets, categories, movements, plan), adjust, creating, form, deleting ->
             EnvelopesUiState.Content(
                 budgets = budgets.map { budget ->
                     EnvelopeBudgetUiModel(
@@ -95,6 +96,7 @@ class EnvelopesViewModel @Inject constructor(
                         recentMovements = getEnvelopeRecentMovements(
                             categoryId = budget.categoryId,
                             movements = movements,
+                            cycle = plan?.budgetCycle ?: pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
                         ),
                     )
                 },
@@ -104,13 +106,18 @@ class EnvelopesViewModel @Inject constructor(
                 adjustTarget = adjust,
                 showCreateDialog = creating,
                 createForm = form,
-                deleteTarget = delete,
+                deleteTarget = deleting.target,
+                isDeleting = deleting.isDeleting,
+                deleteErrorMessage = deleting.errorMessage,
                 budgetCycle = plan?.budgetCycle ?: pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
             )
         }
 
-        return combine(contentFlow, adjustLimitError) { content, limitError ->
-            content.copy(adjustLimitError = limitError)
+        return combine(contentFlow, adjustState) { content, adjusting ->
+            content.copy(
+                isAdjustingLimit = adjusting.isSaving,
+                adjustLimitError = adjusting.errorMessage,
+            )
         }.map<EnvelopesUiState.Content, EnvelopesUiState> { it }
             .catch {
                 emit(EnvelopesUiState.Error("No pudimos cargar tus sobres"))
@@ -119,23 +126,42 @@ class EnvelopesViewModel @Inject constructor(
 
     fun onAdjustClick(budget: EnvelopeBudgetState) {
         adjustTarget.value = budget
-        adjustLimitError.value = null
+        adjustState.value = EnvelopeAdjustState()
     }
 
     fun onDismissAdjust() {
+        if (adjustState.value.isSaving) return
         adjustTarget.value = null
-        adjustLimitError.value = null
+        adjustState.value = EnvelopeAdjustState()
     }
 
     fun onSaveWeeklyLimit(amountText: String) {
         val envelope = adjustTarget.value ?: return
-        viewModelScope.launch {
-            when (val parsed = MoneyInputParser.parsePen(amountText)) {
-                is DomainResult.Err -> adjustLimitError.value = "Ingresa un monto válido"
-                is DomainResult.Ok -> {
-                    updateEnvelopeWeeklyLimit(envelope.envelopeId, parsed.value)
-                    adjustTarget.value = null
-                    adjustLimitError.value = null
+        if (adjustState.value.isSaving) return
+        when (val parsed = MoneyInputParser.parsePen(amountText)) {
+            is DomainResult.Err -> {
+                adjustState.value = EnvelopeAdjustState(errorMessage = "Ingresa un monto válido")
+            }
+
+            is DomainResult.Ok -> {
+                adjustState.value = EnvelopeAdjustState(isSaving = true)
+                viewModelScope.launch {
+                    try {
+                        updateEnvelopeWeeklyLimit(envelope.envelopeId, parsed.value)
+                            .onSuccess {
+                                adjustTarget.value = null
+                                adjustState.value = EnvelopeAdjustState()
+                            }
+                            .onFailure { error ->
+                                if (error is CancellationException) throw error
+                                showAdjustError()
+                            }
+                    } catch (error: CancellationException) {
+                        adjustState.update { it.copy(isSaving = false) }
+                        throw error
+                    } catch (_: Exception) {
+                        showAdjustError()
+                    }
                 }
             }
         }
@@ -147,75 +173,136 @@ class EnvelopesViewModel @Inject constructor(
     }
 
     fun onDismissCreate() {
+        if (createForm.value.isSaving) return
         showCreateDialog.value = false
         createForm.value = EnvelopeCreateFormState()
     }
 
     fun onCreateNameChanged(value: String) {
+        if (createForm.value.isSaving) return
         createForm.update { it.copy(name = value, errorMessage = null) }
     }
 
     fun onCreateCategorySelected(index: Int) {
+        if (createForm.value.isSaving) return
         createForm.update { it.copy(selectedCategoryIndex = index, errorMessage = null) }
     }
 
     fun onCreateAmountChanged(value: String) {
+        if (createForm.value.isSaving) return
         createForm.update { it.copy(amountText = value, errorMessage = null) }
     }
 
     fun onConfirmCreate() {
         val state = (_uiState.value as? EnvelopesUiState.Content) ?: return
+        val form = createForm.value
+        if (form.isSaving) return
         val available = state.categories.filter { it.id !in state.usedCategoryIds }
-        val category = available.getOrNull(createForm.value.selectedCategoryIndex) ?: return
+        val category = available.getOrNull(form.selectedCategoryIndex) ?: return
 
+        createForm.value = form.copy(isSaving = true, errorMessage = null)
         viewModelScope.launch {
-            createForm.update { it.copy(isSaving = true, errorMessage = null) }
-            when (val parsed = MoneyInputParser.parsePen(createForm.value.amountText)) {
-                is DomainResult.Err -> {
-                    createForm.update {
-                        it.copy(isSaving = false, errorMessage = "Ingresa un monto válido")
+            try {
+                when (val parsed = MoneyInputParser.parsePen(form.amountText)) {
+                    is DomainResult.Err -> {
+                        createForm.update {
+                            it.copy(isSaving = false, errorMessage = "Ingresa un monto válido")
+                        }
+                    }
+
+                    is DomainResult.Ok -> {
+                        createEnvelope(
+                            name = form.name,
+                            categoryId = category.id,
+                            weeklyLimit = parsed.value,
+                        )
+                            .onSuccess {
+                                showCreateDialog.value = false
+                                createForm.value = EnvelopeCreateFormState()
+                            }
+                            .onFailure { error ->
+                                if (error is CancellationException) throw error
+                                showCreateError()
+                            }
                     }
                 }
-
-                is DomainResult.Ok -> {
-                    createEnvelope(
-                        name = createForm.value.name,
-                        categoryId = category.id,
-                        weeklyLimit = parsed.value,
-                    )
-                        .onSuccess {
-                            showCreateDialog.value = false
-                            createForm.value = EnvelopeCreateFormState()
-                        }
-                        .onFailure {
-                            createForm.update {
-                                it.copy(
-                                    isSaving = false,
-                                    errorMessage = "No pudimos crear el sobre. Revisa los datos.",
-                                )
-                            }
-                        }
-                }
+            } catch (error: CancellationException) {
+                createForm.update { it.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showCreateError()
             }
         }
     }
 
     fun onDeleteClick(budget: EnvelopeBudgetState) {
-        deleteTarget.value = budget
+        deleteState.value = EnvelopeDeleteState(target = budget)
     }
 
     fun onDismissDelete() {
-        deleteTarget.value = null
+        if (deleteState.value.isDeleting) return
+        deleteState.value = EnvelopeDeleteState()
     }
 
     fun onConfirmDelete() {
-        val target = deleteTarget.value ?: return
+        val state = deleteState.value
+        val target = state.target ?: return
+        if (state.isDeleting) return
+        deleteState.value = state.copy(isDeleting = true, errorMessage = null)
         viewModelScope.launch {
-            deleteEnvelope(target.envelopeId)
-            deleteTarget.value = null
+            try {
+                deleteEnvelope(target.envelopeId)
+                    .onSuccess {
+                        deleteState.value = EnvelopeDeleteState()
+                    }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        showDeleteError()
+                    }
+            } catch (error: CancellationException) {
+                deleteState.update { it.copy(isDeleting = false) }
+                throw error
+            } catch (_: Exception) {
+                showDeleteError()
+            }
+        }
+    }
+
+    private fun showAdjustError() {
+        adjustState.value = EnvelopeAdjustState(
+            errorMessage = "No pudimos actualizar el límite",
+        )
+    }
+
+    private fun showCreateError() {
+        createForm.update {
+            it.copy(
+                isSaving = false,
+                errorMessage = "No pudimos crear el sobre. Revisa los datos.",
+            )
+        }
+    }
+
+    private fun showDeleteError() {
+        deleteState.update {
+            it.copy(
+                isDeleting = false,
+                errorMessage = "No pudimos eliminar el sobre",
+            )
         }
     }
 }
+
+private data class EnvelopeDeleteState(
+    val target: EnvelopeBudgetState? = null,
+    val isDeleting: Boolean = false,
+    val errorMessage: String? = null,
+)
+
+private data class EnvelopeAdjustState(
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null,
+)
 
 private data class Quadruple<A, B, C, D>(
     val first: A,

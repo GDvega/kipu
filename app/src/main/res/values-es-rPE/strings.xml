@@ -1,22 +1,9 @@
 <resources>
     <string name="app_name">Kipu</string>
 
-    <!-- Navegación principal -->
-    <string name="nav_home">Inicio</string>
-    <string name="nav_movements">Movimientos</string>
-    <string name="nav_envelopes">Sobres</string>
-    <string name="nav_commitments">Compromisos</string>
-    <string name="nav_profile">Perfil</string>
-
     <!-- Widget -->
     <string name="widget_daily_available_title">Disponible hoy</string>
     <string name="widget_daily_available_description">Cuánto puedes gastar hoy según tus sobres de la semana.</string>
-
-    <!-- Accesibilidad -->
-    <string name="a11y_wizard_step">Paso %1$d de %2$d</string>
-    <string name="a11y_filter_selected">%1$s, seleccionado</string>
-    <string name="a11y_daily_available">Disponible hoy: %1$s</string>
-    <string name="a11y_over_budget">Ya pasaste tu presupuesto semanal</string>
-    <string name="a11y_empty_state">Sin datos todavía</string>
-    <string name="a11y_error_state">Ocurrió un error</string>
+    <string name="widget_amount_placeholder">S/ —</string>
+    <string name="widget_daily_available_updated_placeholder">Actualizado al abrir Kipu</string>
 </resources>

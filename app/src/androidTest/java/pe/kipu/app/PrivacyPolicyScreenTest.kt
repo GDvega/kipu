@@ -28,6 +28,7 @@ class PrivacyPolicyScreenTest {
 
         composeRule.onNodeWithText("Política de privacidad").assertIsDisplayed()
         composeRule.onNodeWithText("Notificaciones (opcional)").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Métricas técnicas de ML Kit").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Exportar y eliminar").performScrollTo().assertIsDisplayed()
     }
 }

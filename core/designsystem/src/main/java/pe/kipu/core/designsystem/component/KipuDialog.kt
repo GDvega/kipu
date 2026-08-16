@@ -20,6 +20,7 @@ fun KipuAlertDialog(
     dismissText: String? = "Cancelar",
     onDismiss: (() -> Unit)? = null,
     confirmEnabled: Boolean = true,
+    destructiveConfirm: Boolean = false,
     textContent: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
@@ -42,6 +43,7 @@ fun KipuAlertDialog(
                 text = confirmText,
                 onClick = onConfirm,
                 enabled = confirmEnabled,
+                destructive = destructiveConfirm,
             )
         },
         dismissButton = if (dismissText != null) {

@@ -50,13 +50,13 @@ import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.EnvelopeBudgetState
+import pe.kipu.core.domain.model.EnvelopeBudgetStatus
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.feature.envelopes.presentation.EnvelopeBudgetUiModel
 import pe.kipu.feature.envelopes.presentation.EnvelopesUiState
 import pe.kipu.feature.envelopes.presentation.EnvelopesViewModel
 import pe.kipu.feature.envelopes.presentation.daysRemainingLabel
 import pe.kipu.feature.envelopes.presentation.percentLabel
-import pe.kipu.feature.envelopes.presentation.percentToneColor
 import pe.kipu.feature.envelopes.presentation.visualStyle
 import pe.kipu.feature.envelopes.ui.EnvelopeAdjustLimitDialog
 import pe.kipu.feature.envelopes.ui.EnvelopeCreateDialog
@@ -88,6 +88,7 @@ fun EnvelopesScreen(
                     EnvelopeAdjustLimitDialog(
                         budget = budget,
                         errorMessage = state.adjustLimitError,
+                        isSaving = state.isAdjustingLimit,
                         onSave = viewModel::onSaveWeeklyLimit,
                         onDismiss = viewModel::onDismissAdjust,
                     )
@@ -107,6 +108,8 @@ fun EnvelopesScreen(
                 state.deleteTarget?.let { target ->
                     EnvelopeDeleteConfirmDialog(
                         envelopeName = target.name,
+                        isDeleting = state.isDeleting,
+                        errorMessage = state.deleteErrorMessage,
                         onConfirm = viewModel::onConfirmDelete,
                         onDismiss = viewModel::onDismissDelete,
                     )
@@ -232,6 +235,13 @@ private fun EnvelopeDetailCard(
     val budget = item.budget
     val style = budget.visualStyle()
     val progress = (budget.percentUsed.coerceAtLeast(0).toFloat() / 100f).coerceAtMost(1f)
+    val percentToneColor = when {
+        budget.status == EnvelopeBudgetStatus.EXCEEDED || budget.percentUsed >= 100 ->
+            MaterialTheme.colorScheme.error
+        budget.status == EnvelopeBudgetStatus.ADJUSTED || budget.percentUsed >= 75 ->
+            MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.primary
+    }
     val cycleSuffix = when (budgetCycle) {
         pe.kipu.core.domain.model.BudgetCycle.WEEKLY -> "semanal"
         pe.kipu.core.domain.model.BudgetCycle.MONTHLY -> "mensual"
@@ -304,7 +314,7 @@ private fun EnvelopeDetailCard(
                     text = "Te quedan ${formatPenAmountForDisplay(budget.remainingAmount.amount)} · " +
                         "${budget.percentLabel()} usado · ${pe.kipu.feature.envelopes.presentation.daysRemainingLabel(budgetCycle)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = budget.percentToneColor(),
+                    color = percentToneColor,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -331,6 +341,7 @@ private fun EnvelopeDetailCard(
                 KipuSecondaryButton(
                     text = "Eliminar sobre",
                     onClick = onDelete,
+                    destructive = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 10.dp),

@@ -13,7 +13,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.AlertSeverity
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.Envelope
+import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementSource
@@ -22,6 +24,7 @@ import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.EnvelopeRepository
+import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
@@ -108,10 +111,74 @@ class ObserveHomeInsightsUseCaseTest {
         assertEquals(Money.of(BigDecimal("19.00")).getOrError(), insights.cycleAvailable.cycleAvailable)
     }
 
+    @Test
+    fun `derives budget cycle from the plan, not the never-written preference`() = runTest {
+        val envelope = Envelope(
+            id = "envelope-food",
+            name = "Comida",
+            weeklyLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.FOOD,
+        )
+        val plan = FinancialPlan(
+            id = "plan-1",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.ZERO,
+            budgetCycle = BudgetCycle.MONTHLY,
+        )
+        val useCase = createUseCase(
+            envelopes = listOf(envelope),
+            movements = listOf(movement("m1", "5.00", hoursAgo = 1)),
+            reference = wednesday,
+            plan = plan,
+        )
+
+        val insights = useCase().first()
+
+        // El ciclo sale del plan (MENSUAL), no del preferences.budgetCycle fantasma (que sería SEMANAL).
+        assertEquals(BudgetCycle.MONTHLY, insights.cycleAvailable.cycle)
+    }
+
+    @Test
+    fun `derives ant spending alert configuration from the plan instead of DataStore`() = runTest {
+        val antEnvelope = Envelope(
+            id = pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds.ANT_SPENDING,
+            name = "Gastos hormiga",
+            weeklyLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.FOOD,
+        )
+        val plan = FinancialPlan(
+            id = "plan-1",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.ZERO,
+            antSpendingLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            antSpendingAlertEnabled = false,
+            antSpendingAlertPercent = 80,
+            antSpendingTrackedCategoryIds = setOf(CategoryIds.FOOD),
+        )
+        val legacyPreferences = UserPreferences(
+            antSpendingWeeklyLimitCents = 10_000L,
+            antSpendingAlertEnabled = true,
+            antSpendingAlertPercent = 80,
+        )
+        val useCase = createUseCase(
+            envelopes = listOf(antEnvelope),
+            movements = listOf(movement("m1", "85.00", hoursAgo = 1)),
+            reference = wednesday,
+            plan = plan,
+            preferences = legacyPreferences,
+        )
+
+        val insights = useCase().first()
+
+        assertTrue(insights.antSpendingAlerts.isEmpty())
+    }
+
     private fun createUseCase(
         envelopes: List<Envelope>,
         movements: List<Movement>,
         reference: Instant,
+        plan: FinancialPlan? = null,
+        preferences: UserPreferences = UserPreferences(),
     ): ObserveHomeInsightsUseCase {
         val timeProvider = FixedTimeProvider(reference)
         val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
@@ -119,6 +186,7 @@ class ObserveHomeInsightsUseCaseTest {
             envelopeRepository = FakeEnvelopeRepository(envelopes),
             movementRepository = FakeMovementRepository(movements),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
             ),
@@ -130,7 +198,8 @@ class ObserveHomeInsightsUseCaseTest {
             movementRepository = FakeMovementRepository(movements),
             commitmentRepository = FakeCommitmentRepository(),
             calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
-            userPreferencesRepository = FakeUserPreferencesRepository(),
+            userPreferencesRepository = FakeUserPreferencesRepository(preferences),
+            financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateCycleAvailable = CalculateCycleAvailableUseCase(
                 CalculatePeriodEnvelopeTotalsUseCase(),
             ),
@@ -182,10 +251,21 @@ class ObserveHomeInsightsUseCaseTest {
         override suspend fun delete(id: String) = Result.success(Unit)
     }
 
-    private class FakeUserPreferencesRepository : UserPreferencesRepository {
-        override fun observePreferences(): Flow<UserPreferences> = flowOf(UserPreferences())
+    private class FakeUserPreferencesRepository(
+        private val preferences: UserPreferences,
+    ) : UserPreferencesRepository {
+        override fun observePreferences(): Flow<UserPreferences> = flowOf(preferences)
         override suspend fun updatePreferences(transform: (UserPreferences) -> UserPreferences) = Result.success(Unit)
         override suspend fun clear() = Result.success(Unit)
+    }
+
+    private class FakeFinancialPlanRepository(
+        private val plan: FinancialPlan?,
+    ) : FinancialPlanRepository {
+        override fun observePlans(): Flow<List<FinancialPlan>> = flowOf(listOfNotNull(plan))
+        override suspend fun getById(id: String): FinancialPlan? = plan?.takeIf { it.id == id }
+        override suspend fun save(plan: FinancialPlan) = Result.success(Unit)
+        override suspend fun delete(id: String) = Result.success(Unit)
     }
 
     private class FakeGatheringExpenseRepository : pe.kipu.core.domain.repository.GatheringExpenseRepository {

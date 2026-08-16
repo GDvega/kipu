@@ -1,6 +1,7 @@
 package pe.kipu.core.data.mapper
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import pe.kipu.core.data.local.entity.FinancialPlanEntity
 import pe.kipu.core.data.local.seed.DefaultEnvelopeIds
@@ -9,6 +10,7 @@ import pe.kipu.core.domain.plan.IncomeProfile
 import pe.kipu.core.domain.plan.PayFrequency
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.getOrError
 import java.math.BigDecimal
 
@@ -27,6 +29,11 @@ class FinancialPlanMapperTest {
             ).joinToString(","),
             incomeProfile = "VARIABLE",
             payFrequency = "BIWEEKLY",
+            budgetCycle = "MONTHLY",
+            antSpendingLimitCents = 7_500L,
+            antSpendingAlertEnabled = false,
+            antSpendingAlertPercent = 75,
+            antSpendingTrackedCategoryIds = "category-coffee,category-food",
         )
 
         val domain = original.toDomain()
@@ -38,6 +45,14 @@ class FinancialPlanMapperTest {
         assertEquals(2, domain.envelopeIds.size)
         assertEquals(IncomeProfile.VARIABLE, domain.incomeProfile)
         assertEquals(PayFrequency.BIWEEKLY, domain.payFrequency)
+        assertEquals(BudgetCycle.MONTHLY, domain.budgetCycle)
+        assertEquals(BigDecimal("75.00"), domain.antSpendingLimit?.amount)
+        assertFalse(domain.antSpendingAlertEnabled)
+        assertEquals(75, domain.antSpendingAlertPercent)
+        assertEquals(
+            setOf("category-food", "category-coffee"),
+            domain.antSpendingTrackedCategoryIds,
+        )
     }
 
     @Test

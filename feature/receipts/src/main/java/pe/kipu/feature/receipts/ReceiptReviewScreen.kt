@@ -1,5 +1,6 @@
 package pe.kipu.feature.receipts
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,12 +15,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import android.graphics.BitmapFactory
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,7 +33,9 @@ import pe.kipu.core.designsystem.component.KipuAlertTone
 import pe.kipu.core.designsystem.component.KipuBadge
 import pe.kipu.core.designsystem.component.KipuBadgeTone
 import pe.kipu.core.designsystem.component.KipuCard
+import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.KipuFilterChip
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLoadingIndicator
 import pe.kipu.core.designsystem.component.KipuPenOutlinedTextField
@@ -52,16 +58,13 @@ fun ReceiptReviewScreen(
     viewModel: ReceiptReviewViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isSaving = (uiState as? ReceiptReviewUiState.Ready)?.isSaving == true
 
-    LaunchedEffect(uiState) {
-        if (uiState is ReceiptReviewUiState.Saved || uiState is ReceiptReviewUiState.DuplicateMerged) {
-            onFinished()
-        }
-    }
+    BackHandler(enabled = isSaving) {}
 
     KipuSubScreenScaffold(
         title = "Revisar comprobante",
-        onBack = onBack,
+        onBack = { if (!isSaving) onBack() },
         modifier = modifier,
     ) {
         when (val state = uiState) {
@@ -134,6 +137,7 @@ fun ReceiptReviewScreen(
                             value = state.amountText,
                             onValueChange = viewModel::onAmountChanged,
                             label = "Monto",
+                            enabled = !state.isSaving,
                         )
 
                         OutlinedTextField(
@@ -141,6 +145,7 @@ fun ReceiptReviewScreen(
                             onValueChange = viewModel::onCounterpartyChanged,
                             label = { Text("Destinatario") },
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isSaving,
                             singleLine = true,
                         )
 
@@ -149,6 +154,7 @@ fun ReceiptReviewScreen(
                             onValueChange = viewModel::onOperationReferenceChanged,
                             label = { Text("Nro. de operación (opcional)") },
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isSaving,
                             singleLine = true,
                         )
 
@@ -157,6 +163,7 @@ fun ReceiptReviewScreen(
                             onValueChange = viewModel::onMessageChanged,
                             label = { Text("Mensaje (opcional)") },
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.isSaving,
                         )
 
                         KipuSectionHeader(
@@ -174,29 +181,17 @@ fun ReceiptReviewScreen(
 
                         state.categories.forEach { category ->
                             val selected = category.id == state.selectedCategoryId
-                            if (selected) {
-                                KipuPrimaryButton(
-                                    text = category.name,
-                                    onClick = {},
-                                    enabled = false,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            } else {
-                                KipuSecondaryButton(
-                                    text = category.name,
-                                    onClick = { viewModel.onCategorySelected(category.id) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !state.isSaving,
-                                )
-                            }
+                            KipuFilterChip(
+                                text = category.name,
+                                selected = selected,
+                                onClick = { viewModel.onCategorySelected(category.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !state.isSaving,
+                            )
                         }
 
                         state.errorMessage?.let { message ->
-                            Text(
-                                text = message,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            ReceiptReviewErrorText(message)
                         }
 
                         KipuPrimaryButton(
@@ -225,10 +220,59 @@ fun ReceiptReviewScreen(
                 )
             }
 
-            is ReceiptReviewUiState.Saved,
-            ReceiptReviewUiState.DuplicateMerged,
-            -> Unit
+            is ReceiptReviewUiState.Saved -> ReceiptReviewResultContent(
+                duplicateMerged = false,
+                onFinished = onFinished,
+            )
+
+            ReceiptReviewUiState.DuplicateMerged -> ReceiptReviewResultContent(
+                duplicateMerged = true,
+                onFinished = onFinished,
+            )
         }
+    }
+}
+
+@Composable
+internal fun ReceiptReviewErrorText(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = message,
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = modifier.semantics {
+            error(message)
+            liveRegion = LiveRegionMode.Polite
+        },
+    )
+}
+
+@Composable
+internal fun ReceiptReviewResultContent(
+    duplicateMerged: Boolean,
+    onFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        KipuEmptyState(
+            title = if (duplicateMerged) "Comprobante revisado" else "Movimiento guardado",
+            message = if (duplicateMerged) {
+                "Ya existía un movimiento igual. No se creó un duplicado."
+            } else {
+                "Tu movimiento se guardó correctamente."
+            },
+            icon = null,
+            actionLabel = "Listo",
+            onAction = onFinished,
+            modifier = Modifier.semantics {
+                liveRegion = LiveRegionMode.Polite
+            },
+        )
     }
 }
 

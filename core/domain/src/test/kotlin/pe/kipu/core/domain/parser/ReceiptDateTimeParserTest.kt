@@ -57,4 +57,25 @@ class ReceiptDateTimeParserTest {
     fun `returns null for blank text`() {
         assertNull(ReceiptDateTimeParser.parse(""))
     }
+
+    @Test
+    fun `returns null for out of range slash date`() {
+        val text = "Yape Pagaste S/ 10.00 Para TIENDA 99/99/9999 10:30"
+        assertNull(ReceiptDateTimeParser.parse(text))
+    }
+
+    @Test
+    fun `returns null for invalid february date`() {
+        val text = "Yape Pagaste S/ 10.00 Para TIENDA 31/02/2026 10:30"
+        assertNull(ReceiptDateTimeParser.parse(text))
+    }
+
+    @Test
+    fun `returns null for invalid hour or minute`() {
+        val invalidHour = "Yape Pagaste S/ 10.00 Para TIENDA 15/06/2026 25:30"
+        assertNull(ReceiptDateTimeParser.parse(invalidHour))
+
+        val invalidMinute = "Yape Pagaste S/ 10.00 Para TIENDA 15/06/2026 10:75"
+        assertNull(ReceiptDateTimeParser.parse(invalidMinute))
+    }
 }

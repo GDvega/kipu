@@ -7,16 +7,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,7 +37,6 @@ import pe.kipu.core.designsystem.component.KipuBadgeTone
 import pe.kipu.core.designsystem.component.KipuCard
 import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
-import pe.kipu.core.designsystem.component.KipuFilterChip
 import pe.kipu.core.designsystem.component.KipuHeroCard
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
@@ -47,12 +44,12 @@ import pe.kipu.core.designsystem.component.KipuRegisterFab
 import pe.kipu.core.designsystem.component.KipuScreenHeader
 import pe.kipu.core.designsystem.component.KipuScreenLoadingState
 import pe.kipu.core.designsystem.component.KipuSectionHeader
-import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.KipuTestTags
 import pe.kipu.core.designsystem.component.KipuTextLink
 import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
 import pe.kipu.core.domain.model.AlertSeverity
 import pe.kipu.core.domain.model.AntSpendingAlert
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.CycleAvailableBudget
 import pe.kipu.core.domain.model.HomePeriodSummary
 import pe.kipu.core.domain.model.Movement
@@ -60,6 +57,7 @@ import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.util.MovementDisplayLabels
 import pe.kipu.core.domain.util.RelativeDateFormatter
 import pe.kipu.feature.home.presentation.HomeAlertTranslator
+import pe.kipu.feature.home.presentation.HomeCycleText
 import pe.kipu.feature.home.presentation.HomeUiState
 import pe.kipu.feature.home.presentation.HomeViewModel
 import androidx.compose.animation.core.animateFloatAsState
@@ -68,11 +66,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextAlign
+
 
 @Composable
 fun HomeScreen(
@@ -80,6 +80,7 @@ fun HomeScreen(
     onRegisterCash: () -> Unit = {},
     onNavigateToMovements: () -> Unit = {},
     onNavigateToCategoryMovements: (categoryId: String) -> Unit = {},
+    speedDialModalBottomPadding: Dp = 0.dp,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -89,6 +90,9 @@ fun HomeScreen(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            floatingActionButton = {
+                KipuRegisterFab(onClick = onRegisterCash)
+            },
         ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             when (val state = uiState) {
@@ -141,8 +145,11 @@ fun HomeScreen(
                                 }
                             }
                             insights.periodSummary?.let { summary ->
-                                item(key = "weekly-summary") {
-                                    WeeklySummaryCard(summary = summary)
+                                item(key = "period-summary") {
+                                    PeriodSummaryCard(
+                                        summary = summary,
+                                        cycle = insights.cycleAvailable.cycle,
+                                    )
                                 }
                             }
                             if (state.userCategories.isNotEmpty()) {
@@ -159,28 +166,22 @@ fun HomeScreen(
                             item {
                                 KipuCard {
                                     Text(
-                                        text = "¿Pagaste con Yape, Plin o efectivo?",
+                                        text = "¿Registrar un nuevo movimiento?",
                                         style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
                                     )
                                     Text(
-                                        text = "Comparte un comprobante o registra un gasto en efectivo al instante.",
+                                        text = "Registra tus gastos o ingresos en efectivo, Yape, Plin o banco al instante.",
                                         style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(top = 8.dp),
                                     )
                                     KipuPrimaryButton(
-                                        text = "Registrar comprobante",
-                                        onClick = onRegisterReceipt,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 16.dp),
-                                    )
-                                    KipuSecondaryButton(
-                                        text = "Registrar en efectivo",
+                                        text = "Registrar movimiento",
                                         onClick = onRegisterCash,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                        fillWidth = true,
+                                            .padding(top = 16.dp),
                                     )
                                 }
                             }
@@ -221,6 +222,7 @@ fun HomeScreen(
                                     AntSpendingAlertCard(
                                         alert = alert,
                                         categoryName = state.categoryNamesById[alert.categoryId],
+                                        cycle = insights.cycleAvailable.cycle,
                                     )
                                 }
                             }
@@ -239,33 +241,12 @@ fun HomeScreen(
             }
         }
         } // close Scaffold content
-
-        pe.kipu.core.designsystem.component.KipuSpeedDialFab(
-            actions = listOf(
-                pe.kipu.core.designsystem.component.SpeedDialAction(
-                    label = "Registrar ingreso",
-                    icon = Icons.Filled.Add,
-                    onClick = { /* TODO: Ingreso */ }
-                ),
-                pe.kipu.core.designsystem.component.SpeedDialAction(
-                    label = "Escanear comprobante",
-                    icon = Icons.Filled.ShoppingCart,
-                    onClick = onRegisterReceipt
-                ),
-                pe.kipu.core.designsystem.component.SpeedDialAction(
-                    label = "Registro manual",
-                    icon = Icons.Filled.Edit,
-                    onClick = onRegisterCash
-                )
-            ),
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun UserCategoriesRow(
+internal fun UserCategoriesRow(
     categories: List<pe.kipu.core.domain.model.Category>,
     onCategoryClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -276,23 +257,30 @@ private fun UserCategoriesRow(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         categories.forEach { category ->
-            KipuFilterChip(
-                text = category.name,
-                selected = false,
+            AssistChip(
                 onClick = { onCategoryClick(category.id) },
+                label = {
+                    Text(
+                        text = category.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
             )
         }
     }
 }
 
 @Composable
-private fun WeeklySummaryCard(
+private fun PeriodSummaryCard(
     summary: HomePeriodSummary,
+    cycle: BudgetCycle,
     modifier: Modifier = Modifier,
 ) {
     KipuCard(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Esta semana",
+            text = HomeCycleText.periodTitle(cycle),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
@@ -386,107 +374,119 @@ private fun DailyAvailableCard(
             .semantics {
                 contentDescription = when {
                     envelopeCount == 0 -> "Configura sobres para ver tu disponible"
-                    cycleAvailable.isOverBudget -> "Presupuesto semanal excedido"
+                    cycleAvailable.isOverBudget ->
+                        HomeCycleText.overBudgetContentDescription(cycleAvailable.cycle)
                     availableAmount != null ->
                         "Disponible hoy: S/ ${availableAmount.amount.toPlainString()}"
                     else -> "Disponible hoy no calculado"
                 }
             },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "DISPONIBLE HOY",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold,
-                )
-                
-                when {
-                    envelopeCount == 0 -> {
-                        Text(
-                            text = "Configura sobres para ver tu disponible",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "DISPONIBLE HOY",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+            )
+            
+            when {
+                envelopeCount == 0 -> {
+                    Text(
+                        text = "Configura sobres para ver tu disponible",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
 
-                    cycleAvailable.isOverBudget -> {
-                        KipuBadge(
-                            text = "Presupuesto excedido",
-                            tone = KipuBadgeTone.Critical,
-                            modifier = Modifier.padding(top = 16.dp),
-                        )
-                        Text(
-                            text = "Ya pasaste tu presupuesto semanal",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
+                cycleAvailable.isOverBudget -> {
+                    KipuBadge(
+                        text = "Presupuesto excedido",
+                        tone = KipuBadgeTone.Critical,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                    Text(
+                        text = HomeCycleText.overBudgetMessage(cycleAvailable.cycle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
 
-                    cycleAvailable.daysRemainingInCycle <= 0 -> {
-                        Text(
-                            text = "Sin días restantes esta semana",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
+                cycleAvailable.daysRemainingInCycle <= 0 -> {
+                    Text(
+                        text = HomeCycleText.noDaysRemaining(cycleAvailable.cycle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
 
-                    else -> {
-                        cycleAvailable.cycleAvailable?.let { amount ->
+                else -> {
+                    cycleAvailable.cycleAvailable?.let { amount ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
                                 text = formatPenAmountForDisplay(amount.amount),
                                 style = MaterialTheme.typography.displayMedium,
                                 fontWeight = FontWeight.W800,
-                                modifier = Modifier.padding(top = 4.dp),
                             )
                             KipuBadge(
-                                text = "Te quedan ${cycleAvailable.daysRemainingInCycle} días esta semana",
+                                text = HomeCycleText.remainingDays(
+                                    cycle = cycleAvailable.cycle,
+                                    days = cycleAvailable.daysRemainingInCycle,
+                                ),
                                 tone = KipuBadgeTone.Primary,
-                                modifier = Modifier.padding(top = 12.dp),
                             )
                         }
                     }
                 }
             }
             
-            // Dynamic Circular Progress Ring
+            // Dynamic High-Visibility Linear Progress Bar
             if (envelopeCount > 0 && !cycleAvailable.isOverBudget && cycleAvailable.daysRemainingInCycle > 0) {
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(72.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            progress = { 1f },
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            modifier = Modifier.fillMaxSize(),
-                            strokeWidth = 6.dp,
-                        )
-                        CircularProgressIndicator(
-                            progress = { animatedProgress },
-                            color = progressColor,
-                            modifier = Modifier.fillMaxSize(),
-                            strokeWidth = 6.dp,
-                            strokeCap = StrokeCap.Round
-                        )
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                ) {
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        color = progressColor,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        strokeCap = StrokeCap.Round,
+                    )
                     if (periodSummary != null) {
-                        Text(
-                            text = "${formatPenAmountForDisplay(periodSummary.totalCycleSpent.amount)} gastado de\n${formatPenAmountForDisplay(periodSummary.totalCycleLimit.amount)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
+                        val percentInt = (targetProgress * 100).toInt()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "${formatPenAmountForDisplay(periodSummary.totalCycleSpent.amount)} gastados de " +
+                                    formatPenAmountForDisplay(periodSummary.totalCycleLimit.amount),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "$percentInt%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = progressColor,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
                 }
             }
@@ -494,10 +494,12 @@ private fun DailyAvailableCard(
     }
 }
 
+
 @Composable
 private fun AntSpendingAlertCard(
     alert: AntSpendingAlert,
     categoryName: String?,
+    cycle: BudgetCycle,
     modifier: Modifier = Modifier,
 ) {
     val tone = when (alert.severity) {
@@ -520,7 +522,11 @@ private fun AntSpendingAlertCard(
             color = titleColor,
         )
         Text(
-            text = HomeAlertTranslator.toDisplayText(alert, categoryName),
+            text = HomeAlertTranslator.toDisplayText(
+                alert = alert,
+                categoryName = categoryName,
+                cycle = cycle,
+            ),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 12.dp),
         )
@@ -544,14 +550,19 @@ private fun CashFlowSummaryCard(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Total ingresado menos total gastado.",
+            text = "Saldo inicial más ingresos, menos gastos confirmados.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
         )
         KipuAmountText(
-            amount = summary.netCash.amount,
-            type = AmountType.INCOME,
+            amount = summary.netCash,
+            type = when (summary.netCash.signum()) {
+                1 -> AmountType.INCOME
+                -1 -> AmountType.EXPENSE
+                else -> AmountType.NEUTRAL
+            },
+            showSign = summary.netCash.signum() < 0,
             modifier = Modifier.padding(top = 12.dp)
         )
         if (summary.isGoalAtRisk) {
@@ -561,7 +572,7 @@ private fun CashFlowSummaryCard(
                 modifier = Modifier.padding(top = 16.dp),
             )
             Text(
-                text = "El efectivo real es menor que la suma de tus metas de ahorro.",
+                text = "El efectivo real es menor que lo que aún falta para tus metas de ahorro.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 8.dp),

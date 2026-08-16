@@ -2,7 +2,8 @@ package pe.kipu.feature.envelopes.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -13,12 +14,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuCard
 import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
-import pe.kipu.core.designsystem.theme.KipuAmber
-import pe.kipu.core.designsystem.theme.KipuPrimary
-import pe.kipu.core.designsystem.theme.KipuRed
 import pe.kipu.core.domain.model.WeeklyEnvelopeBalanceStatus
 import pe.kipu.core.domain.model.WeeklyEnvelopeBalanceSummary
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EnvelopePlanBalanceBanner(
     summary: WeeklyEnvelopeBalanceSummary,
@@ -27,9 +26,12 @@ fun EnvelopePlanBalanceBanner(
     if (summary.status == WeeklyEnvelopeBalanceStatus.NO_PLAN) return
 
     val (title, titleColor) = when (summary.status) {
-        WeeklyEnvelopeBalanceStatus.BALANCED -> "Tu presupuesto semanal está balanceado" to KipuPrimary
-        WeeklyEnvelopeBalanceStatus.UNALLOCATED -> "Tienes plata sin asignar a sobres" to KipuAmber
-        WeeklyEnvelopeBalanceStatus.OVER_ALLOCATED -> "Sobreasignaste tus sobres semanales" to KipuRed
+        WeeklyEnvelopeBalanceStatus.BALANCED ->
+            "Tu presupuesto semanal está balanceado" to MaterialTheme.colorScheme.primary
+        WeeklyEnvelopeBalanceStatus.UNALLOCATED ->
+            "Tienes plata sin asignar a sobres" to MaterialTheme.colorScheme.secondary
+        WeeklyEnvelopeBalanceStatus.OVER_ALLOCATED ->
+            "Sobreasignaste tus sobres semanales" to MaterialTheme.colorScheme.error
         WeeklyEnvelopeBalanceStatus.NO_PLAN -> return
     }
 
@@ -40,23 +42,22 @@ fun EnvelopePlanBalanceBanner(
             color = titleColor,
             fontWeight = FontWeight.Bold,
         )
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             summary.weeklyIncome?.let { income ->
                 BalanceCell(
                     label = "Ingresos/sem",
                     value = formatPenAmountForDisplay(income.amount),
-                    modifier = Modifier.weight(1f),
                 )
             }
             BalanceCell(
                 label = "Asignado",
                 value = formatPenAmountForDisplay(summary.allocated.amount),
-                modifier = Modifier.weight(1f),
             )
             summary.unallocated?.let { unallocated ->
                 BalanceCell(
@@ -66,7 +67,6 @@ fun EnvelopePlanBalanceBanner(
                         "Sin asignar"
                     },
                     value = formatPenAmountForDisplay(unallocated.amount),
-                    modifier = Modifier.weight(1f),
                     valueColor = titleColor,
                 )
             }

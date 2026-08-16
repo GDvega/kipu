@@ -6,10 +6,11 @@ import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Gathering
+import pe.kipu.core.domain.model.GatheringExpense
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.UserPreferences
 
-const val USER_DATA_EXPORT_VERSION: Int = 2
+const val USER_DATA_EXPORT_VERSION: Int = 3
 
 data class UserDataSnapshot(
     val exportVersion: Int = USER_DATA_EXPORT_VERSION,
@@ -20,6 +21,7 @@ data class UserDataSnapshot(
     val commitments: List<Commitment>,
     val financialPlans: List<FinancialPlan>,
     val gatherings: List<Gathering>,
+    val gatheringExpenses: List<GatheringExpense>,
     val dismissedDuplicatePairKeys: Set<String>,
     val preferences: UserPreferences,
 )

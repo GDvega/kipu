@@ -9,6 +9,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
@@ -36,7 +40,7 @@ fun EnvelopeCreateDialog(
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!formState.isSaving) onDismiss() },
         title = { Text(text = "Nuevo sobre") },
         text = {
             Column {
@@ -52,6 +56,7 @@ fun EnvelopeCreateDialog(
                         label = "Nombre del sobre",
                         showPrefix = false,
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                        enabled = !formState.isSaving,
                     )
                     Text(
                         text = "Categoría",
@@ -64,12 +69,14 @@ fun EnvelopeCreateDialog(
                         selectedIndex = formState.selectedCategoryIndex.coerceIn(availableCategories.indices),
                         onSelected = onCategorySelected,
                         contentPadding = PaddingValues(0.dp),
+                        enabled = !formState.isSaving,
                     )
                     KipuPenOutlinedTextField(
                         value = formState.amountText,
                         onValueChange = onAmountChanged,
                         label = "Límite semanal",
                         modifier = Modifier.padding(top = 12.dp),
+                        enabled = !formState.isSaving,
                     )
                 }
                 formState.errorMessage?.let { message ->
@@ -77,7 +84,12 @@ fun EnvelopeCreateDialog(
                         text = message,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .semantics {
+                                error(message)
+                                liveRegion = LiveRegionMode.Polite
+                            },
                     )
                 }
             }
@@ -102,22 +114,48 @@ fun EnvelopeCreateDialog(
 @Composable
 fun EnvelopeDeleteConfirmDialog(
     envelopeName: String,
+    isDeleting: Boolean,
+    errorMessage: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isDeleting) onDismiss() },
         title = { Text(text = "Eliminar sobre") },
         text = {
-            Text(
-                text = "¿Eliminar el sobre \"$envelopeName\"? Los movimientos de su categoría no se borran.",
-            )
+            Column {
+                Text(
+                    text = "¿Eliminar el sobre \"$envelopeName\"? Los movimientos de su categoría no se borran.",
+                )
+                errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .semantics {
+                                error(message)
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                    )
+                }
+            }
         },
         confirmButton = {
-            KipuDialogConfirmButton(text = "Eliminar", onClick = onConfirm)
+            KipuDialogConfirmButton(
+                text = if (isDeleting) "Eliminando..." else "Eliminar",
+                onClick = onConfirm,
+                enabled = !isDeleting,
+                destructive = true,
+            )
         },
         dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isDeleting,
+            )
         },
     )
 }

@@ -27,7 +27,7 @@ internal object ReceiptFieldExtractor {
     )
 
     private val MESSAGE_PATTERN = Regex(
-        """(?i)\bmensaje\s+(.+)$""",
+        """(?i)\bmensaje\s+(.{1,500})$""",
     )
 
     private val DATE_PATTERN = Regex(

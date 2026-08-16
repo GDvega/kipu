@@ -256,6 +256,23 @@ object KipuDatabaseMigrations {
         }
     }
 
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN antSpendingLimitCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN antSpendingAlertEnabled INTEGER NOT NULL DEFAULT 1",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN antSpendingAlertPercent INTEGER NOT NULL DEFAULT 80",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN antSpendingTrackedCategoryIds TEXT NOT NULL DEFAULT ''",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -271,5 +288,6 @@ object KipuDatabaseMigrations {
         MIGRATION_12_13,
         MIGRATION_13_14,
         MIGRATION_14_15,
+        MIGRATION_15_16,
     )
 }

@@ -33,6 +33,13 @@ class PreparePlanSetupUseCaseTest {
             ),
             success.validation,
         )
+        assertEquals(money("20"), success.setup.plan.antSpendingLimit)
+        assertFalse(success.setup.plan.antSpendingAlertEnabled)
+        assertEquals(75, success.setup.plan.antSpendingAlertPercent)
+        assertEquals(
+            setOf(CategoryIds.FOOD, CategoryIds.TRANSPORT),
+            success.setup.plan.antSpendingTrackedCategoryIds,
+        )
     }
 
     @Test
@@ -175,6 +182,22 @@ class PreparePlanSetupUseCaseTest {
     }
 
     @Test
+    fun `omitted wizard custom envelope is removed but manual envelope is retained`() {
+        val removed = envelope("envelope-plan-old", "Mascota", "category-pets", "25")
+        val manual = envelope("envelope-manual", "Salud", "category-health", "30")
+
+        val setup = (
+            useCase(validInput(existingEnvelopes = listOf(removed, manual)))
+                as PlanSetupPreparationResult.Success
+            ).setup
+
+        assertEquals(setOf(removed.id), setup.envelopeIdsToDelete)
+        assertTrue(setup.envelopes.none { it.id == removed.id })
+        assertTrue(setup.envelopes.any { it.id == manual.id })
+        assertTrue(removed.id !in setup.plan.envelopeIds)
+    }
+
+    @Test
     fun `preparation is pure and keeps supplied collections unchanged`() {
         val categories = mutableListOf(Category("category-pets", "Mascota"))
         val envelopes = mutableListOf(envelope("existing", "Existente", CategoryIds.OTHER, "10"))
@@ -205,6 +228,9 @@ class PreparePlanSetupUseCaseTest {
         budgetCycle = BudgetCycle.WEEKLY,
         envelopeLimits = mapOf(DefaultPlanEnvelopeIds.FOOD to "100"),
         antSpendingLimitText = "20",
+        antSpendingAlertEnabled = false,
+        antSpendingAlertPercent = 75,
+        antSpendingTrackedCategoryIds = setOf(CategoryIds.FOOD, CategoryIds.TRANSPORT),
         customEnvelopeLines = customEnvelopeLines,
         goalSkipped = goalSkipped,
         goalTitle = "Fondo de emergencia",

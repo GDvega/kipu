@@ -5,6 +5,7 @@ import javax.inject.Inject
 import pe.kipu.core.domain.model.HomeInsights
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.repository.UserPreferencesRepository
+import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.widget.DailyAvailableWidgetGateway
 
 /**
@@ -13,16 +14,26 @@ import pe.kipu.core.domain.widget.DailyAvailableWidgetGateway
 class UpdateDailyAvailableWidgetUseCase @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val widgetGateway: DailyAvailableWidgetGateway,
+    private val timeProvider: TimeProvider,
 ) {
 
     suspend operator fun invoke(insights: HomeInsights): Result<Unit> {
         val displayText = resolveDisplayText(insights)
         val isOverBudget = insights.cycleAvailable.isOverBudget
+        val preferences = insights.userPreferences
+        if (
+            preferences.widgetDailyAvailableText == displayText &&
+            preferences.widgetIsOverBudget == isOverBudget &&
+            preferences.widgetDailyAvailableUpdatedAtMillis != null
+        ) {
+            return Result.success(Unit)
+        }
 
         return userPreferencesRepository.updatePreferences { prefs ->
             prefs.copy(
                 widgetDailyAvailableText = displayText,
                 widgetIsOverBudget = isOverBudget,
+                widgetDailyAvailableUpdatedAtMillis = timeProvider.now().toEpochMilli(),
             )
         }.also { result ->
             if (result.isSuccess) {

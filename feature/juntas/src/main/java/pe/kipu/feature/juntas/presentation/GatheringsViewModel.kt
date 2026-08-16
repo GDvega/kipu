@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,6 +116,12 @@ class GatheringsViewModel @Inject constructor(
     }
 
     fun onDismissDialog() {
+        val state = _uiState.value as? GatheringsUiState.Content ?: return
+        if (state.isSaving) return
+        closeDialog()
+    }
+
+    private fun closeDialog() {
         updateContent {
             it.copy(
                 dialogMode = null,
@@ -130,35 +137,96 @@ class GatheringsViewModel @Inject constructor(
         }
     }
 
-    fun onFormNameChanged(value: String) = updateContent { it.copy(formName = value, formError = null) }
+    fun onFormNameChanged(value: String) = updateContent {
+        if (it.isSaving) it else it.copy(formName = value, formError = null)
+    }
 
     fun onFormParticipantsChanged(value: String) =
-        updateContent { it.copy(formParticipants = value, formError = null) }
+        updateContent { if (it.isSaving) it else it.copy(formParticipants = value, formError = null) }
 
-    fun onFormAmountChanged(value: String) = updateContent { it.copy(formAmount = value, formError = null) }
+    fun onFormAmountChanged(value: String) = updateContent {
+        if (it.isSaving) it else it.copy(formAmount = value, formError = null)
+    }
 
-    fun onFormPaidByChanged(value: String) = updateContent { it.copy(formPaidBy = value, formError = null) }
+    fun onFormPaidByChanged(value: String) = updateContent {
+        if (it.isSaving) it else it.copy(formPaidBy = value, formError = null)
+    }
 
     fun onFormDescriptionChanged(value: String) =
-        updateContent { it.copy(formDescription = value, formError = null) }
+        updateContent { if (it.isSaving) it else it.copy(formDescription = value, formError = null) }
 
     fun onFormMovementSelected(movementId: String) =
-        updateContent { it.copy(formMovementId = movementId, formError = null) }
+        updateContent { if (it.isSaving) it else it.copy(formMovementId = movementId, formError = null) }
 
     fun onConfirmDialog() {
         val state = _uiState.value as? GatheringsUiState.Content ?: return
-        when (val mode = state.dialogMode) {
+        val mode = state.dialogMode ?: return
+        if (!state.canConfirmDialog) return
+        if (mode is GatheringDialogMode.LinkMovement && state.formMovementId == null) {
+            updateContent { it.copy(formError = "Selecciona un movimiento") }
+            return
+        }
+        updateContent { it.copy(isSaving = true, formError = null) }
+        when (mode) {
             GatheringDialogMode.Create -> confirmCreate(state)
             is GatheringDialogMode.Edit -> confirmEdit(state, mode.gatheringId)
             is GatheringDialogMode.RecordExpense -> confirmRecordExpense(state, mode.gatheringId)
             is GatheringDialogMode.LinkMovement -> confirmLinkMovement(state, mode.gatheringId)
-            null -> Unit
         }
     }
 
-    fun onDeleteGathering(id: String) {
+    fun onDeleteClick(summary: GatheringSummary) {
+        updateContent {
+            it.copy(
+                deleteTarget = summary,
+                deleteErrorMessage = null,
+            )
+        }
+    }
+
+    fun onDismissDelete() {
+        val state = _uiState.value as? GatheringsUiState.Content ?: return
+        if (state.isDeleting) return
+        updateContent {
+            it.copy(
+                deleteTarget = null,
+                deleteErrorMessage = null,
+            )
+        }
+    }
+
+    fun onConfirmDelete() {
+        val state = _uiState.value as? GatheringsUiState.Content ?: return
+        val target = state.deleteTarget ?: return
+        if (!state.canConfirmDelete) return
+        updateContent {
+            it.copy(
+                isDeleting = true,
+                deleteErrorMessage = null,
+            )
+        }
         viewModelScope.launch {
-            deleteGathering(id)
+            try {
+                deleteGathering(target.gathering.id)
+                    .onSuccess {
+                        updateContent {
+                            it.copy(
+                                deleteTarget = null,
+                                isDeleting = false,
+                                deleteErrorMessage = null,
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        showDeleteError()
+                    }
+            } catch (error: CancellationException) {
+                updateContent { it.copy(isDeleting = false) }
+                throw error
+            } catch (_: Exception) {
+                showDeleteError()
+            }
         }
     }
 
@@ -187,77 +255,116 @@ class GatheringsViewModel @Inject constructor(
 
     private fun confirmCreate(state: GatheringsUiState.Content) {
         viewModelScope.launch {
-            updateContent { it.copy(isSaving = true, formError = null) }
-            when (
-                val result = saveGathering(
-                    name = state.formName,
-                    participantsInput = state.formParticipants,
-                )
-            ) {
-                is DomainResult.Ok -> onDismissDialog()
-                is DomainResult.Err -> updateContent {
-                    it.copy(isSaving = false, formError = result.error.message)
+            try {
+                when (
+                    val result = saveGathering(
+                        name = state.formName,
+                        participantsInput = state.formParticipants,
+                    )
+                ) {
+                    is DomainResult.Ok -> closeDialog()
+                    is DomainResult.Err -> showFormError(result.error.message)
                 }
+            } catch (error: CancellationException) {
+                updateContent { it.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showFormError("No pudimos crear la cuenta compartida")
             }
         }
     }
 
     private fun confirmEdit(state: GatheringsUiState.Content, gatheringId: String) {
         viewModelScope.launch {
-            updateContent { it.copy(isSaving = true, formError = null) }
-            when (
-                val result = updateGathering(
-                    id = gatheringId,
-                    name = state.formName,
-                    participantsInput = state.formParticipants,
-                )
-            ) {
-                is DomainResult.Ok -> onDismissDialog()
-                is DomainResult.Err -> updateContent {
-                    it.copy(isSaving = false, formError = result.error.message)
+            try {
+                when (
+                    val result = updateGathering(
+                        id = gatheringId,
+                        name = state.formName,
+                        participantsInput = state.formParticipants,
+                    )
+                ) {
+                    is DomainResult.Ok -> closeDialog()
+                    is DomainResult.Err -> showFormError(result.error.message)
                 }
+            } catch (error: CancellationException) {
+                updateContent { it.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showFormError("No pudimos guardar la cuenta compartida")
             }
         }
     }
 
     private fun confirmRecordExpense(state: GatheringsUiState.Content, gatheringId: String) {
         viewModelScope.launch {
-            updateContent { it.copy(isSaving = true, formError = null) }
-            when (
-                val result = recordGatheringExpense(
-                    gatheringId = gatheringId,
-                    amountInput = state.formAmount,
-                    paidByParticipant = state.formPaidBy,
-                    description = state.formDescription,
-                )
-            ) {
-                is DomainResult.Ok -> onDismissDialog()
-                is DomainResult.Err -> updateContent {
-                    it.copy(isSaving = false, formError = result.error.message)
+            try {
+                when (
+                    val result = recordGatheringExpense(
+                        gatheringId = gatheringId,
+                        amountInput = state.formAmount,
+                        paidByParticipant = state.formPaidBy,
+                        description = state.formDescription,
+                    )
+                ) {
+                    is DomainResult.Ok -> closeDialog()
+                    is DomainResult.Err -> showFormError(result.error.message)
                 }
+            } catch (error: CancellationException) {
+                updateContent { it.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showFormError("No pudimos registrar el gasto")
             }
         }
     }
 
     private fun confirmLinkMovement(state: GatheringsUiState.Content, gatheringId: String) {
         val movementId = state.formMovementId ?: run {
-            updateContent { it.copy(formError = "Selecciona un movimiento") }
+            updateContent {
+                it.copy(
+                    isSaving = false,
+                    formError = "Selecciona un movimiento",
+                )
+            }
             return
         }
         viewModelScope.launch {
-            updateContent { it.copy(isSaving = true, formError = null) }
-            when (
-                val result = linkMovementToGathering(
-                    gatheringId = gatheringId,
-                    movementId = movementId,
-                    paidByParticipant = state.formPaidBy,
-                )
-            ) {
-                is DomainResult.Ok -> onDismissDialog()
-                is DomainResult.Err -> updateContent {
-                    it.copy(isSaving = false, formError = result.error.message)
+            try {
+                when (
+                    val result = linkMovementToGathering(
+                        gatheringId = gatheringId,
+                        movementId = movementId,
+                        paidByParticipant = state.formPaidBy,
+                    )
+                ) {
+                    is DomainResult.Ok -> closeDialog()
+                    is DomainResult.Err -> showFormError(result.error.message)
                 }
+            } catch (error: CancellationException) {
+                updateContent { it.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showFormError("No pudimos vincular el movimiento")
             }
+        }
+    }
+
+    private fun showFormError(message: String) {
+        updateContent {
+            it.copy(
+                isSaving = false,
+                formError = message,
+            )
+        }
+    }
+
+    private fun showDeleteError() {
+        updateContent {
+            it.copy(
+                isDeleting = false,
+                deleteErrorMessage = "No pudimos eliminar la cuenta compartida",
+            )
         }
     }
 

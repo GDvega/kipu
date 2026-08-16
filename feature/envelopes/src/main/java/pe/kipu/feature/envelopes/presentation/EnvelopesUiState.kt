@@ -23,9 +23,15 @@ sealed interface EnvelopesUiState {
         val showCreateDialog: Boolean = false,
         val createForm: EnvelopeCreateFormState = EnvelopeCreateFormState(),
         val deleteTarget: EnvelopeBudgetState? = null,
+        val isDeleting: Boolean = false,
+        val deleteErrorMessage: String? = null,
+        val isAdjustingLimit: Boolean = false,
         val adjustLimitError: String? = null,
         val budgetCycle: pe.kipu.core.domain.model.BudgetCycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
-    ) : EnvelopesUiState
+    ) : EnvelopesUiState {
+        val canConfirmDelete: Boolean
+            get() = deleteTarget != null && !isDeleting
+    }
 
     data class Error(val message: String) : EnvelopesUiState
 }

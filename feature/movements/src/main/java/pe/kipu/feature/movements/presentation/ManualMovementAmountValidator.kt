@@ -19,4 +19,26 @@ object ManualMovementAmountValidator {
     }
 
     fun isValid(amountText: String): Boolean = errorMessage(amountText) == null
+
+    fun applyPreset(currentText: String, presetAmount: java.math.BigDecimal): String {
+        val trimmed = currentText.trim()
+        if (trimmed.isEmpty()) {
+            return presetAmount.stripTrailingZeros().toPlainString()
+        }
+        val currentAmount = when (val parsed = MoneyInputParser.parsePen(trimmed)) {
+            is DomainResult.Ok -> parsed.value.amount
+            is DomainResult.Err -> null
+        }
+        return if (currentAmount != null) {
+            val newAmount = currentAmount.add(presetAmount)
+            if (newAmount.stripTrailingZeros().scale() > 0) {
+                newAmount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()
+            } else {
+                newAmount.stripTrailingZeros().toPlainString()
+            }
+        } else {
+            presetAmount.stripTrailingZeros().toPlainString()
+        }
+    }
 }
+

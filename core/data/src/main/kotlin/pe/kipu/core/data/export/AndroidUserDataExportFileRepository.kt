@@ -21,9 +21,11 @@ class AndroidUserDataExportFileRepository @Inject constructor(
         mimeType: String,
     ): Result<StoredExportFile> = runCatching {
         withContext(Dispatchers.IO) {
-            val exportDir = exportDirectory()
+            val exportDir = exportDirectory().canonicalFile
             exportDir.mkdirs()
-            val targetFile = File(exportDir, sanitizeFileName(fileName))
+            val safeName = ExportFileNameSanitizer.sanitize(fileName)
+            val targetFile = File(exportDir, safeName).canonicalFile
+            require(targetFile.parentFile == exportDir) { "Invalid export file path" }
             targetFile.writeText(content, Charsets.UTF_8)
             StoredExportFile(
                 absolutePath = targetFile.absolutePath,
@@ -49,11 +51,6 @@ class AndroidUserDataExportFileRepository @Inject constructor(
         directory.listFiles()?.forEach { file ->
             file.delete()
         }
-    }
-
-    private fun sanitizeFileName(fileName: String): String {
-        val sanitized = fileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-        return sanitized.ifBlank { "kipu_export.dat" }
     }
 
     companion object {

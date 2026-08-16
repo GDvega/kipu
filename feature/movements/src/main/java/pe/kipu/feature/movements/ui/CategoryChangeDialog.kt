@@ -1,6 +1,7 @@
 package pe.kipu.feature.movements.ui
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
@@ -22,11 +24,12 @@ fun CategoryChangeDialog(
     movement: Movement,
     categories: List<Category>,
     currentCategoryName: String?,
+    isProcessing: Boolean,
     onCategorySelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isProcessing) onDismiss() },
         title = {
             Text(text = "Cambiar categoría")
         },
@@ -45,7 +48,7 @@ fun CategoryChangeDialog(
                         modifier = Modifier.padding(bottom = 12.dp),
                     )
                 }
-                LazyColumn {
+                LazyColumn(modifier = Modifier.selectableGroup()) {
                     items(categories, key = { it.id }) { category ->
                         Text(
                             text = category.name,
@@ -57,7 +60,12 @@ fun CategoryChangeDialog(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onCategorySelected(category.id) }
+                                .selectable(
+                                    selected = category.id == movement.categoryId,
+                                    enabled = !isProcessing,
+                                    onClick = { onCategorySelected(category.id) },
+                                    role = Role.RadioButton,
+                                )
                                 .padding(vertical = 12.dp),
                         )
                     }
@@ -66,7 +74,11 @@ fun CategoryChangeDialog(
         },
         confirmButton = {},
         dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isProcessing,
+            )
         },
     )
 }

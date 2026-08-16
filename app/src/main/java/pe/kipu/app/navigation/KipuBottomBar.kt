@@ -62,7 +62,8 @@ fun KipuBottomBar(
             windowInsets = WindowInsets(0, 0, 0, 0),
         ) {
             KipuDestination.bottomBarDestinations.forEach { destination ->
-                val selected = currentRoute == destination.route
+                val selected = currentRoute == destination.route ||
+                    (destination == KipuDestination.Movements && currentRoute == KipuPlanRoutes.MOVEMENTS_BY_CATEGORY)
                 NavigationBarItem(
                     selected = selected,
                     onClick = {
@@ -88,7 +89,7 @@ fun KipuBottomBar(
                     icon = {
                         Icon(
                             imageVector = destination.icon,
-                            contentDescription = destination.label,
+                            contentDescription = null,
                         )
                     },
                     label = {
@@ -102,8 +103,8 @@ fun KipuBottomBar(
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = colors.primary,
                         selectedTextColor = colors.primary,
-                        unselectedIconColor = colors.onSurfaceVariant.copy(alpha = 0.7f),
-                        unselectedTextColor = colors.onSurfaceVariant.copy(alpha = 0.7f),
+                        unselectedIconColor = colors.onSurfaceVariant,
+                        unselectedTextColor = colors.onSurfaceVariant,
                         indicatorColor = colors.primary.copy(alpha = 0.1f),
                     ),
                 )

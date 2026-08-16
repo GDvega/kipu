@@ -22,12 +22,15 @@ fun DuplicateResolutionDialog(
     pair: MovementDuplicatePair,
     onResolve: (DuplicateResolution) -> Unit,
     modifier: Modifier = Modifier,
+    isProcessing: Boolean = false,
 ) {
     val reasonText = MovementDuplicateTranslator.matchReasonText(pair.matchReasonKey)
     val summary = buildDuplicateSummary(pair)
 
     AlertDialog(
-        onDismissRequest = { onResolve(DuplicateResolution.CANCEL) },
+        onDismissRequest = {
+            if (!isProcessing) onResolve(DuplicateResolution.CANCEL)
+        },
         modifier = modifier,
         title = { Text(text = "Posible duplicado") },
         text = {
@@ -48,6 +51,7 @@ fun DuplicateResolutionDialog(
             KipuDialogConfirmButton(
                 text = "Fusionar",
                 onClick = { onResolve(DuplicateResolution.MERGE) },
+                enabled = !isProcessing,
             )
         },
         dismissButton = {
@@ -58,10 +62,12 @@ fun DuplicateResolutionDialog(
                 KipuDialogDismissButton(
                     text = "No es duplicado",
                     onClick = { onResolve(DuplicateResolution.SAVE_AS_NEW) },
+                    enabled = !isProcessing,
                 )
                 KipuDialogDismissButton(
                     text = "Cancelar",
                     onClick = { onResolve(DuplicateResolution.CANCEL) },
+                    enabled = !isProcessing,
                 )
             }
         },

@@ -52,4 +52,25 @@ class FixedExpenseBreakdownCalculatorTest {
         assertTrue(result is DomainResult.Ok)
         assertEquals("1310", (result as DomainResult.Ok).value.amount.stripTrailingZeros().toPlainString())
     }
+
+    @Test
+    fun sumPresetParts_addsAllSeparatedFieldsCorrectly() {
+        val custom = listOf(
+            PlanWizardLineItem(id = "1", label = "Netflix", amountText = "50"),
+        )
+        val result = FixedExpenseBreakdownCalculator.sumPresetParts(
+            electricityText = "120",
+            waterText = "50",
+            internetText = "80",
+            rentText = "800",
+            phoneText = "40",
+            debtsText = "200",
+            educationText = "300",
+            customLines = custom,
+        )
+
+        assertTrue(result is DomainResult.Ok)
+        assertEquals("1640", (result as DomainResult.Ok).value.amount.stripTrailingZeros().toPlainString())
+    }
 }
+

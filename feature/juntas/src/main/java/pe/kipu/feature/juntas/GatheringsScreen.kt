@@ -1,11 +1,16 @@
 package pe.kipu.feature.juntas
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,14 +19,21 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
@@ -50,15 +62,11 @@ import pe.kipu.core.designsystem.component.KipuPenOutlinedTextField
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
 import pe.kipu.core.designsystem.component.KipuScreenLoadingState
 import pe.kipu.core.designsystem.component.KipuSubScreenScaffold
-import pe.kipu.core.designsystem.component.KipuSecondaryButton
 import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
-import pe.kipu.core.designsystem.theme.KipuIncome
 import pe.kipu.core.domain.model.GatheringSummary
 import pe.kipu.core.domain.model.Movement
-import pe.kipu.core.domain.model.ParticipantSettlement
 import pe.kipu.core.domain.util.MovementDisplayLabels
 import pe.kipu.feature.juntas.presentation.GatheringDialogMode
-import pe.kipu.feature.juntas.presentation.GatheringCurrencyFormatter
 import pe.kipu.feature.juntas.presentation.GatheringsUiState
 import pe.kipu.feature.juntas.presentation.GatheringsViewModel
 
@@ -96,6 +104,15 @@ fun GatheringsScreen(
             }
 
             is GatheringsUiState.Content -> {
+                state.deleteTarget?.let { target ->
+                    GatheringDeleteConfirmDialog(
+                        gatheringName = target.gathering.name,
+                        isDeleting = state.isDeleting,
+                        errorMessage = state.deleteErrorMessage,
+                        onConfirm = viewModel::onConfirmDelete,
+                        onDismiss = viewModel::onDismissDelete,
+                    )
+                }
                 val participants = when (val mode = state.dialogMode) {
                     is GatheringDialogMode.RecordExpense ->
                         state.summaries.firstOrNull { it.gathering.id == mode.gatheringId }
@@ -155,6 +172,7 @@ fun GatheringsScreen(
                     KipuEmptyState(
                         title = "Sin cuentas",
                         message = "Registra salidas, cenas o paseos para repartir gastos después.",
+                        icon = null,
                         actionLabel = "Nueva cuenta",
                         onAction = viewModel::onCreateClick,
                     )
@@ -178,7 +196,7 @@ fun GatheringsScreen(
                                     onEdit = { viewModel.onEditClick(summary) },
                                     onRecordExpense = { viewModel.onRecordExpenseClick(summary.gathering.id) },
                                     onLinkMovement = { viewModel.onLinkMovementClick(summary.gathering.id) },
-                                    onDelete = { viewModel.onDeleteGathering(summary.gathering.id) },
+                                    onDelete = { viewModel.onDeleteClick(summary) },
                                 )
                             }
                         }
@@ -197,6 +215,43 @@ fun GatheringsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun GatheringDeleteConfirmDialog(
+    gatheringName: String,
+    isDeleting: Boolean,
+    errorMessage: String?,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isDeleting) onDismiss() },
+        title = { Text(text = "Eliminar cuenta compartida") },
+        text = {
+            Column {
+                Text(
+                    text = "¿Eliminar \"$gatheringName\"? También se borrarán todos sus gastos compartidos. Esta acción no se puede deshacer.",
+                )
+                errorMessage?.let { message -> GatheringFormErrorText(message) }
+            }
+        },
+        confirmButton = {
+            KipuDialogConfirmButton(
+                text = if (isDeleting) "Eliminando..." else "Eliminar",
+                onClick = onConfirm,
+                enabled = !isDeleting,
+                destructive = true,
+            )
+        },
+        dismissButton = {
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isDeleting,
+            )
+        },
+    )
 }
 
 @Composable
@@ -241,12 +296,22 @@ private fun GatheringCard(
                         Text(text = "+${gathering.participantNames.size - 4}", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.CenterVertically))
                     }
                 }
+                Text(
+                    text = if (gathering.participantNames.size == 1) {
+                        "1 participante"
+                    } else {
+                        "${gathering.participantNames.size} participantes"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
             Box {
                 IconButton(onClick = { expandedMenu = true }) {
                     Icon(
                         imageVector = Icons.Filled.MoreVert,
-                        contentDescription = "Opciones"
+                        contentDescription = "Opciones de ${gathering.name}",
                     )
                 }
                 DropdownMenu(
@@ -312,7 +377,11 @@ private fun GatheringCard(
                         Text(
                             text = formatPenAmountForDisplay(settlement.balanceAmount.amount),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (settlement.balanceDirection == pe.kipu.core.domain.model.SettlementDirection.OWES) MaterialTheme.colorScheme.error else KipuIncome,
+                            color = if (settlement.balanceDirection == pe.kipu.core.domain.model.SettlementDirection.OWES) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
                         )
                     }
                 }
@@ -341,11 +410,24 @@ private fun GatheringFormDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val currentIsSaving = rememberUpdatedState(isSaving)
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = remember {
+            { target -> target != SheetValue.Hidden || !currentIsSaving.value }
+        },
+    )
     androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(text = title, style = MaterialTheme.typography.titleLarge)
@@ -354,6 +436,7 @@ private fun GatheringFormDialog(
                 onValueChange = onNameChanged,
                 label = { Text("Nombre") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving,
                 singleLine = true,
             )
             OutlinedTextField(
@@ -362,10 +445,11 @@ private fun GatheringFormDialog(
                 label = { Text("Participantes") },
                 placeholder = { Text("Uno por línea o separados por coma") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
+                minLines = 1,
+                enabled = !isSaving,
             )
             errorMessage?.let { message ->
-                Text(text = message, color = MaterialTheme.colorScheme.error)
+                GatheringFormErrorText(message)
             }
             KipuPrimaryButton(
                 text = if (isSaving) "Guardando..." else "Guardar",
@@ -393,11 +477,23 @@ private fun RecordExpenseDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val currentIsSaving = rememberUpdatedState(isSaving)
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        confirmValueChange = remember {
+            { target -> target != SheetValue.Hidden || !currentIsSaving.value }
+        },
+    )
     androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(text = "Registrar gasto", style = MaterialTheme.typography.titleLarge)
@@ -405,21 +501,24 @@ private fun RecordExpenseDialog(
                 value = amount,
                 onValueChange = onAmountChanged,
                 label = "Monto",
+                enabled = !isSaving,
             )
             ParticipantPicker(
                 participants = participants,
                 selected = paidBy,
                 onSelected = onPaidByChanged,
+                enabled = !isSaving,
             )
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChanged,
                 label = { Text("Descripción (opcional)") },
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving,
                 singleLine = true,
             )
             errorMessage?.let { message ->
-                Text(text = message, color = MaterialTheme.colorScheme.error)
+                GatheringFormErrorText(message)
             }
             KipuPrimaryButton(
                 text = if (isSaving) "Guardando..." else "Guardar",
@@ -434,7 +533,7 @@ private fun RecordExpenseDialog(
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun LinkMovementDialog(
+fun LinkMovementDialog(
     movements: List<Movement>,
     selectedMovementId: String?,
     paidBy: String,
@@ -446,11 +545,23 @@ private fun LinkMovementDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val currentIsSaving = rememberUpdatedState(isSaving)
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        confirmValueChange = remember {
+            { target -> target != SheetValue.Hidden || !currentIsSaving.value }
+        },
+    )
     androidx.compose.material3.ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(text = "Vincular movimiento", style = MaterialTheme.typography.titleLarge)
@@ -460,21 +571,31 @@ private fun LinkMovementDialog(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
-                movements.take(8).forEach { movement ->
-                    MovementOptionRow(
-                        movement = movement,
-                        selected = movement.id == selectedMovementId,
-                        onClick = { onMovementSelected(movement.id) },
-                    )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                        .selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(items = movements, key = { movement -> movement.id }) { movement ->
+                        MovementOptionRow(
+                            movement = movement,
+                            selected = movement.id == selectedMovementId,
+                            onClick = { onMovementSelected(movement.id) },
+                            enabled = !isSaving,
+                        )
+                    }
                 }
             }
             ParticipantPicker(
                 participants = participants,
                 selected = paidBy,
                 onSelected = onPaidByChanged,
+                enabled = !isSaving,
             )
             errorMessage?.let { message ->
-                Text(text = message, color = MaterialTheme.colorScheme.error)
+                GatheringFormErrorText(message)
             }
             KipuPrimaryButton(
                 text = if (isSaving) "Vinculando..." else "Vincular",
@@ -492,10 +613,12 @@ private fun MovementOptionRow(
     movement: Movement,
     selected: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
     RowWithRadio(
         selected = selected,
         onClick = onClick,
+        enabled = enabled,
         label = "${MovementDisplayLabels.displayTitle(movement.counterpartyName, movement.description)} · " +
             formatPenAmountForDisplay(movement.amount.amount),
     )
@@ -506,14 +629,18 @@ private fun ParticipantPicker(
     participants: List<String>,
     selected: String,
     onSelected: (String) -> Unit,
+    enabled: Boolean,
 ) {
     Text(text = "¿Quién pagó?", style = MaterialTheme.typography.labelLarge)
-    participants.forEach { participant ->
-        RowWithRadio(
-            selected = participant.equals(selected, ignoreCase = true),
-            onClick = { onSelected(participant) },
-            label = participant,
-        )
+    Column(modifier = Modifier.selectableGroup()) {
+        participants.forEach { participant ->
+            RowWithRadio(
+                selected = participant.equals(selected, ignoreCase = true),
+                onClick = { onSelected(participant) },
+                label = participant,
+                enabled = enabled,
+            )
+        }
     }
 }
 
@@ -522,15 +649,42 @@ private fun RowWithRadio(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
+    enabled: Boolean,
 ) {
     androidx.compose.foundation.layout.Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                onClick = onClick,
+                role = Role.RadioButton,
+            )
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            enabled = enabled,
+        )
+        Text(
+            text = label,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+        )
     }
+}
+
+@Composable
+private fun GatheringFormErrorText(message: String) {
+    Text(
+        text = message,
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.semantics {
+            error(message)
+            liveRegion = LiveRegionMode.Polite
+        },
+    )
 }

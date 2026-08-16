@@ -4,12 +4,12 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.core.graphics.scale
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import pe.kipu.core.domain.model.OcrImage
@@ -22,7 +22,7 @@ class AndroidReceiptImageLoader @Inject constructor(
 
     override suspend fun load(contentUri: String): Result<OcrImage> = withContext(Dispatchers.IO) {
         runCatching {
-            val uri = Uri.parse(contentUri)
+            val uri = contentUri.toUri()
             val bounds = decodeBounds(uri)
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                 error("Invalid receipt image")
@@ -36,7 +36,7 @@ class AndroidReceiptImageLoader @Inject constructor(
             while (jpegBytes.size > OcrImage.MAX_BYTES && scaleAttempts < MAX_SCALE_ATTEMPTS) {
                 val scaledWidth = (bitmap.width * SCALE_FACTOR).toInt().coerceAtLeast(1)
                 val scaledHeight = (bitmap.height * SCALE_FACTOR).toInt().coerceAtLeast(1)
-                bitmap = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+                bitmap = bitmap.scale(scaledWidth, scaledHeight, true)
                 jpegBytes = bitmap.toJpegBytes()
                 scaleAttempts++
             }
@@ -77,17 +77,14 @@ class AndroidReceiptImageLoader @Inject constructor(
         private const val MAX_DECODE_DIMENSION = 2048
 
         internal fun calculateInSampleSize(bounds: BitmapFactory.Options, maxDimension: Int): Int {
+            require(maxDimension > 0) { "maxDimension must be positive" }
             val height = bounds.outHeight
             val width = bounds.outWidth
             var inSampleSize = 1
-            if (height > maxDimension || width > maxDimension) {
-                val halfHeight = height / 2
-                val halfWidth = width / 2
-                while (halfHeight / inSampleSize >= maxDimension && halfWidth / inSampleSize >= maxDimension) {
-                    inSampleSize *= 2
-                }
+            while (height / inSampleSize > maxDimension || width / inSampleSize > maxDimension) {
+                inSampleSize *= 2
             }
-            return max(1, inSampleSize)
+            return inSampleSize
         }
     }
 

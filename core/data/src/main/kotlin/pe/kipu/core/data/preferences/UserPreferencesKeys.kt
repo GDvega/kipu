@@ -12,9 +12,10 @@ object UserPreferencesKeys {
     val PENDING_PLAN_WIZARD = booleanPreferencesKey("pending_plan_wizard")
     val WIDGET_DAILY_AVAILABLE_TEXT = stringPreferencesKey("widget_daily_available_text")
     val WIDGET_IS_OVER_BUDGET = booleanPreferencesKey("widget_is_over_budget")
+    val WIDGET_DAILY_AVAILABLE_UPDATED_AT_MILLIS = longPreferencesKey("widget_daily_available_updated_at_millis")
     val ANT_SPENDING_WEEKLY_LIMIT_CENTS = longPreferencesKey("ant_spending_weekly_limit_cents")
     val ANT_SPENDING_ALERT_ENABLED = booleanPreferencesKey("ant_spending_alert_enabled")
     val ANT_SPENDING_ALERT_PERCENT = intPreferencesKey("ant_spending_alert_percent")
     val ANT_SPENDING_TRACKED_CATEGORIES = stringPreferencesKey("ant_spending_tracked_categories")
-    val AUTO_APPROVE_NOTIFICATIONS = booleanPreferencesKey("auto_approve_notifications")
+    val BUDGET_CYCLE = stringPreferencesKey("budget_cycle")
 }

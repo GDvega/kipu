@@ -40,23 +40,24 @@ object ReceiptDateTimeParser {
 
     fun parse(text: String): Instant? {
         SPANISH_DATE_TIME.find(text)?.let { match ->
-            val day = match.groupValues[1].toInt()
+            val day = match.groupValues[1].toIntOrNull() ?: return null
             val month = MONTH_NUMBERS[match.groupValues[2].lowercase().take(3)] ?: return null
-            val year = match.groupValues[3].toInt()
+            val year = match.groupValues[3].toIntOrNull() ?: return null
+            val rawHour = match.groupValues[4].toIntOrNull() ?: return null
+            val minute = match.groupValues[5].toIntOrNull() ?: return null
             val hour = to24Hour(
-                hour = match.groupValues[4].toInt(),
+                hour = rawHour,
                 amPm = match.groupValues[6],
             )
-            val minute = match.groupValues[5].toInt()
             return toInstant(year, month, day, hour, minute)
         }
 
         SLASH_DATE_TIME.find(text)?.let { match ->
-            val day = match.groupValues[1].toInt()
-            val month = match.groupValues[2].toInt()
-            val year = match.groupValues[3].toInt()
-            val hour = match.groupValues[4].toInt()
-            val minute = match.groupValues[5].toInt()
+            val day = match.groupValues[1].toIntOrNull() ?: return null
+            val month = match.groupValues[2].toIntOrNull() ?: return null
+            val year = match.groupValues[3].toIntOrNull() ?: return null
+            val hour = match.groupValues[4].toIntOrNull() ?: return null
+            val minute = match.groupValues[5].toIntOrNull() ?: return null
             return toInstant(year, month, day, hour, minute)
         }
 
@@ -78,5 +79,12 @@ object ReceiptDateTimeParser {
         day: Int,
         hour: Int,
         minute: Int,
-    ): Instant = ZonedDateTime.of(year, month, day, hour, minute, 0, 0, PERU_ZONE).toInstant()
+    ): Instant? = runCatching {
+        if (year !in 2000..2100) return null
+        if (month !in 1..12) return null
+        if (day !in 1..31) return null
+        if (hour !in 0..23) return null
+        if (minute !in 0..59) return null
+        ZonedDateTime.of(year, month, day, hour, minute, 0, 0, PERU_ZONE).toInstant()
+    }.getOrNull()
 }

@@ -1,6 +1,8 @@
 package pe.kipu.feature.plan.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +12,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Savings
@@ -27,17 +30,25 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Thunderstorm
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+
+
+
+
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuAlertCard
 import pe.kipu.core.designsystem.component.KipuAlertTone
@@ -57,6 +68,7 @@ import pe.kipu.core.designsystem.component.KipuSelectionCard
 import pe.kipu.core.designsystem.component.KipuTextLink
 import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
 import pe.kipu.core.domain.model.DomainResult
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
@@ -75,8 +87,11 @@ import pe.kipu.core.domain.plan.currency
 import pe.kipu.core.domain.plan.label
 import pe.kipu.core.domain.plan.subtitle
 import pe.kipu.core.domain.plan.title
+import pe.kipu.core.domain.usecase.EstimateMonthlyIncomeUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
+import pe.kipu.feature.plan.presentation.estimateMonthlyIncome
 import pe.kipu.feature.plan.presentation.PlanWizardStep
+import pe.kipu.feature.plan.presentation.PlanWizardCycleText
 import pe.kipu.feature.plan.presentation.PlanWizardUiState
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -133,14 +148,19 @@ fun IncomeStepContent(
             }
         }
 
-        IncomeProfile.entries.forEach { profile ->
-            KipuSelectionCard(
-                title = profile.title(),
-                subtitle = profile.subtitle(),
-                selected = state.incomeProfile == profile,
-                onClick = { onProfileSelected(profile) },
-                leading = { IncomeProfileIcon(profile) },
-            )
+        Column(
+            modifier = Modifier.selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            IncomeProfile.entries.forEach { profile ->
+                KipuSelectionCard(
+                    title = profile.title(),
+                    subtitle = profile.subtitle(),
+                    selected = state.incomeProfile == profile,
+                    onClick = { onProfileSelected(profile) },
+                    leading = { IncomeProfileIcon(profile) },
+                )
+            }
         }
 
         when (state.incomeProfile) {
@@ -259,28 +279,38 @@ fun IncomeStepContent(
 
 @Composable
 private fun IncomeProfileIcon(profile: IncomeProfile) {
-    val (icon, tint) = when (profile) {
-        IncomeProfile.FIXED -> Icons.Default.Work to MaterialTheme.colorScheme.primary
-        IncomeProfile.VARIABLE -> Icons.AutoMirrored.Filled.TrendingUp to MaterialTheme.colorScheme.tertiary
-        IncomeProfile.APPROXIMATE -> Icons.AutoMirrored.Filled.HelpOutline to MaterialTheme.colorScheme.secondary
+    val icon = when (profile) {
+        IncomeProfile.FIXED -> Icons.Default.Work
+        IncomeProfile.VARIABLE -> Icons.Default.Bolt
+        IncomeProfile.APPROXIMATE -> Icons.Default.Home
+    }
+    val tint = when (profile) {
+        IncomeProfile.FIXED -> MaterialTheme.colorScheme.primary
+        IncomeProfile.VARIABLE -> MaterialTheme.colorScheme.tertiary
+        IncomeProfile.APPROXIMATE -> MaterialTheme.colorScheme.secondary
     }
     IconBadge(icon = icon, tint = tint)
 }
 
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FixedExpensesStepContent(
-    educationText: String,
+    electricityText: String,
+    waterText: String,
+    internetText: String,
     rentText: String,
-    utilitiesText: String,
     phoneText: String,
     debtsText: String,
+    educationText: String,
     customExpenseLines: List<PlanWizardLineItem>,
-    onEducationChanged: (String) -> Unit,
+    onElectricityChanged: (String) -> Unit,
+    onWaterChanged: (String) -> Unit,
+    onInternetChanged: (String) -> Unit,
     onRentChanged: (String) -> Unit,
-    onUtilitiesChanged: (String) -> Unit,
     onPhoneChanged: (String) -> Unit,
     onDebtsChanged: (String) -> Unit,
+    onEducationChanged: (String) -> Unit,
     onCustomLineChanged: (String, String, String) -> Unit,
     onAddCustomExpenseLine: () -> Unit,
     onRemoveCustomExpenseLine: (String) -> Unit,
@@ -288,55 +318,42 @@ fun FixedExpensesStepContent(
     onSkip: () -> Unit,
 ) {
     val totalText = FixedExpenseBreakdownCalculator.formatTotal(
-        educationText, rentText, utilitiesText, phoneText, debtsText, customExpenseLines,
+        electricityText = electricityText,
+        waterText = waterText,
+        internetText = internetText,
+        rentText = rentText,
+        phoneText = phoneText,
+        debtsText = debtsText,
+        educationText = educationText,
+        customLines = customExpenseLines,
     )
+    val subscriptionSuggestions = FixedExpenseQuickCategories.SUBSCRIPTION_SUGGESTIONS
 
     KipuCard(style = KipuCardStyle.Large) {
         Text(
-            text = "Sugerencias",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        FixedExpenseRow(Icons.Default.School, "Universidad / instituto", educationText, onEducationChanged)
-        FixedExpenseRow(Icons.Default.Home, "Alquiler / casa", rentText, onRentChanged)
-        FixedExpenseRow(Icons.Default.Thunderstorm, "Luz, agua, internet", utilitiesText, onUtilitiesChanged)
-        FixedExpenseRow(Icons.Default.PhoneAndroid, "Celular", phoneText, onPhoneChanged)
-        FixedExpenseRow(Icons.Default.Handshake, "Préstamo / deuda", debtsText, onDebtsChanged)
-    }
-
-    KipuCard(
-        modifier = Modifier.padding(top = KipuLayout.sectionSpacing),
-        style = KipuCardStyle.Large,
-    ) {
-        Text(
-            text = "Tus otros gastos fijos",
+            text = "Pagos sí o sí (gastos fijos del mes)",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Streaming, gym u otros pagos mensuales. Se crearán como categorías en Kipu.",
+            text = "Servicios y pagos obligatorios que se descuentan de tu ingreso mensual.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FixedExpenseQuickCategories.SUBSCRIPTION_SUGGESTIONS.forEach { label ->
-                KipuFilterChip(
-                    text = label,
-                    selected = customExpenseLines.any { it.label.equals(label, ignoreCase = true) },
-                    onClick = { onQuickExpenseSelected(label) },
-                )
-            }
-        }
+        FixedExpenseRow(Icons.Default.Bolt, "Luz", electricityText, onElectricityChanged)
+        FixedExpenseRow(Icons.Default.WaterDrop, "Agua", waterText, onWaterChanged)
+        FixedExpenseRow(Icons.Default.Wifi, "Internet", internetText, onInternetChanged)
+        FixedExpenseRow(Icons.Default.Home, "Alquiler / casa", rentText, onRentChanged)
+        FixedExpenseRow(Icons.Default.PhoneAndroid, "Celular", phoneText, onPhoneChanged)
+        FixedExpenseRow(Icons.Default.Handshake, "Préstamos y deudas", debtsText, onDebtsChanged)
+        FixedExpenseRow(Icons.Default.School, "Universidad / educación", educationText, onEducationChanged)
+
         customExpenseLines.forEach { line ->
             WizardLineItemRow(
                 label = line.label,
                 amountText = line.amountText,
-                labelPlaceholder = "Nombre (ej. Gimnasio)",
+                labelPlaceholder = "Nombre (ej. Netflix, Gimnasio)",
                 onLabelChanged = { onCustomLineChanged(line.id, it, line.amountText) },
                 onAmountChanged = { onCustomLineChanged(line.id, line.label, it) },
                 onRemove = { onRemoveCustomExpenseLine(line.id) },
@@ -344,18 +361,43 @@ fun FixedExpensesStepContent(
             )
         }
         KipuSecondaryButton(
-            text = "+ Agregar gasto",
+            text = "+ Agregar otro gasto fijo",
             onClick = onAddCustomExpenseLine,
             modifier = Modifier.padding(top = 12.dp),
             fillWidth = true,
         )
+
+        val availableSuggestions = subscriptionSuggestions.filterNot { suggestion ->
+            customExpenseLines.any { it.label.equals(suggestion, ignoreCase = true) }
+        }
+
+        if (availableSuggestions.isNotEmpty()) {
+            Text(
+                text = "Suscripciones o pagos recurrentes",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                availableSuggestions.forEach { suggestion ->
+                    KipuFilterChip(
+                        text = "+ $suggestion",
+                        selected = false,
+                        onClick = { onQuickExpenseSelected(suggestion) },
+                    )
+                }
+            }
+        }
     }
 
     KipuCard(
         modifier = Modifier.padding(top = KipuLayout.sectionSpacing),
         style = KipuCardStyle.Large,
     ) {
-        Text(text = "Total gastos fijos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(text = "Total pagos sí o sí", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(
             text = if (totalText.isNotBlank()) "S/ $totalText" else "S/ 0",
             style = MaterialTheme.typography.headlineMedium,
@@ -364,7 +406,7 @@ fun FixedExpensesStepContent(
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            text = "Se restarán de tu ingreso mensual",
+            text = "Se descontarán mensualmente de tu ingreso neto",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -372,12 +414,13 @@ fun FixedExpensesStepContent(
     }
 
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         KipuTextLink(text = "No tengo gastos fijos", onClick = onSkip)
     }
 }
+
 
 @Composable
 private fun FixedExpenseRow(
@@ -475,10 +518,12 @@ fun EnvelopesStepContent(
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+                val cyclePresets = PlanEnvelopeTemplates.presetsForCycle(template, budgetCycle)
                 KipuAmountPresetRow(
-                    presets = template.presetAmounts,
+                    presets = cyclePresets,
                     selectedAmount = selectedAmount,
                     onPresetSelected = { onPresetSelected(template.envelopeId, it) },
+                    modifier = Modifier.selectableGroup(),
                     onCustomize = { onCustomize(template.envelopeId) },
                 )
                 if (customizingEnvelopeId == template.envelopeId) {
@@ -486,6 +531,24 @@ fun EnvelopesStepContent(
                         value = limitText,
                         onValueChange = { onLimitChanged(template.envelopeId, it) },
                         label = "Monto personalizado $periodLabel",
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                if (selectedAmount != null && selectedAmount.signum() > 0) {
+                    val monthlyEquivalent = when (budgetCycle) {
+                        pe.kipu.core.domain.model.BudgetCycle.DAILY -> selectedAmount.multiply(BigDecimal("30"))
+                        pe.kipu.core.domain.model.BudgetCycle.WEEKLY -> selectedAmount.multiply(BigDecimal("4"))
+                        pe.kipu.core.domain.model.BudgetCycle.MONTHLY -> selectedAmount
+                    }
+                    Text(
+                        text = when (budgetCycle) {
+                            pe.kipu.core.domain.model.BudgetCycle.DAILY -> "S/ ${selectedAmount.stripTrailingZeros().toPlainString()} al día · equivale a S/ ${monthlyEquivalent.stripTrailingZeros().toPlainString()} al mes"
+                            pe.kipu.core.domain.model.BudgetCycle.WEEKLY -> "S/ ${selectedAmount.stripTrailingZeros().toPlainString()} por semana · equivale a S/ ${monthlyEquivalent.stripTrailingZeros().toPlainString()} al mes"
+                            pe.kipu.core.domain.model.BudgetCycle.MONTHLY -> "S/ ${selectedAmount.stripTrailingZeros().toPlainString()} al mes"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
@@ -515,7 +578,7 @@ fun EnvelopesStepContent(
         }
 
         KipuSecondaryButton(
-            text = "+ Agregar gasto de la semana",
+            text = "+ Agregar sobre",
             onClick = onAddCustomEnvelope,
             fillWidth = true,
         )
@@ -525,6 +588,7 @@ fun EnvelopesStepContent(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AntSpendingStepContent(
+    budgetCycle: BudgetCycle,
     categories: List<Category>,
     limitText: String,
     selectedCategoryIds: Set<String>,
@@ -539,123 +603,158 @@ fun AntSpendingStepContent(
     onAlertToggled: (Boolean) -> Unit,
 ) {
     val antSuggestions = AntSpendingQuickCategories.SUGGESTIONS
-    val defaultAntLimit = PlanEnvelopeTemplates.ANT_SPENDING_PRESETS[1]
+    val antPresets = PlanEnvelopeTemplates.antSpendingPresetsForCycle(budgetCycle)
+    val defaultAntLimit = antPresets[1]
     val limitAmount = limitText.toBigDecimalOrNull() ?: defaultAntLimit
     val alertAt80 = limitAmount.multiply(BigDecimal("0.8")).setScale(0, RoundingMode.HALF_UP)
-
-    KipuCard(style = KipuCardStyle.Large) {
-        Text(
-            text = "¿Qué gastos pequeños se te escapan más?",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        FlowRow(
-            modifier = Modifier.padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            categories.forEach { category ->
-                KipuFilterChip(
-                    text = category.name,
-                    selected = category.id in selectedCategoryIds,
-                    onClick = { onCategoryToggled(category.id) },
-                )
-            }
-        }
-        Text(
-            text = "Sugerencias",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        FlowRow(
-            modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            antSuggestions.forEach { suggestion ->
-                KipuFilterChip(
-                    text = suggestion,
-                    selected = categories.any {
-                        it.name.equals(suggestion, ignoreCase = true) && it.id in selectedCategoryIds
-                    },
-                    onClick = { onQuickAntCategorySelected(suggestion) },
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            KipuPenOutlinedTextField(
-                value = pendingCategoryName,
-                onValueChange = onPendingCategoryNameChanged,
-                label = "Otra categoría",
-                showPrefix = false,
-                keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
-                modifier = Modifier.weight(1f),
-            )
-            KipuSecondaryButton(
-                text = "Agregar",
-                onClick = onAddAntCategory,
-            )
-        }
+    val (minVal, maxVal, steps) = when (budgetCycle) {
+        BudgetCycle.DAILY -> Triple(2f, 50f, 24)
+        BudgetCycle.WEEKLY -> Triple(10f, 100f, 18)
+        BudgetCycle.MONTHLY -> Triple(40f, 400f, 18)
     }
 
-    KipuCard(modifier = Modifier.padding(top = KipuLayout.sectionSpacing), style = KipuCardStyle.Large) {
-        Text(text = "Límite semanal de gastos hormiga", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(
-            text = "S/ ${limitAmount.stripTrailingZeros().toPlainString()}",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp),
-        )
-        Slider(
-            value = limitAmount.toFloat().coerceIn(10f, 100f),
-            onValueChange = { onLimitChanged(it.toBigDecimal().setScale(0, RoundingMode.HALF_UP).toPlainString()) },
-            valueRange = 10f..100f,
-            steps = 18,
-        )
-        KipuAmountPresetRow(
-            presets = PlanEnvelopeTemplates.ANT_SPENDING_PRESETS,
-            selectedAmount = limitAmount,
-            onPresetSelected = onPresetSelected,
-        )
-        KipuAlertCard(tone = KipuAlertTone.Info, modifier = Modifier.padding(top = 12.dp)) {
+    Column {
+        KipuCard(style = KipuCardStyle.Large) {
+            Text(
+                text = "¿Qué son los gastos hormiga?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Son pequeños consumos diarios (cafecito, gaseosa, snacks, antojitos de paso, taxi por apuro, propinas, comisiones) que parecen no importar, pero al sumarlos a fin de mes representan una fuga importante de dinero.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+            )
+            Text(
+                text = "Elige qué gastos pequeños se te escapan más:",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            FlowRow(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                categories.forEach { category ->
+                    KipuFilterChip(
+                        text = category.name,
+                        selected = category.id in selectedCategoryIds,
+                        onClick = { onCategoryToggled(category.id) },
+                    )
+                }
+            }
+            Text(
+                text = "Sugerencias frecuentes",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            FlowRow(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                antSuggestions.forEach { suggestion ->
+                    KipuFilterChip(
+                        text = suggestion,
+                        selected = categories.any {
+                            it.name.equals(suggestion, ignoreCase = true) && it.id in selectedCategoryIds
+                        },
+                        onClick = { onQuickAntCategorySelected(suggestion) },
+                    )
+                }
+            }
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "ALERTA ANTI-HORMIGA", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                KipuPenOutlinedTextField(
+                    value = pendingCategoryName,
+                    onValueChange = onPendingCategoryNameChanged,
+                    label = "Otra categoría",
+                    showPrefix = false,
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                    modifier = Modifier.weight(1f),
+                )
+                KipuSecondaryButton(
+                    text = "Agregar",
+                    onClick = onAddAntCategory,
+                )
+            }
+        }
+
+        KipuCard(modifier = Modifier.padding(top = KipuLayout.sectionSpacing), style = KipuCardStyle.Large) {
+            Text(
+                text = PlanWizardCycleText.antSpendingLimitTitle(budgetCycle),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "S/ ${limitAmount.stripTrailingZeros().toPlainString()}",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            Slider(
+                value = limitAmount.toFloat().coerceIn(minVal, maxVal),
+                onValueChange = { onLimitChanged(it.toBigDecimal().setScale(0, RoundingMode.HALF_UP).toPlainString()) },
+                valueRange = minVal..maxVal,
+                steps = steps,
+            )
+            KipuAmountPresetRow(
+                presets = antPresets,
+                selectedAmount = limitAmount,
+                onPresetSelected = onPresetSelected,
+                modifier = Modifier.selectableGroup(),
+            )
+            KipuAlertCard(tone = KipuAlertTone.Info, modifier = Modifier.padding(top = 12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .toggleable(
+                            value = alertEnabled,
+                            role = Role.Switch,
+                            onValueChange = onAlertToggled,
+                        ),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "ALERTA ANTI-HORMIGA", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Avisarme al 80%",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                    Switch(
+                        checked = alertEnabled,
+                        onCheckedChange = null,
+                    )
+                }
+                if (alertEnabled) {
                     Text(
-                        text = "Avisarme al 80%",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        text = "Cuando lleves S/ ${alertAt80.toPlainString()} en gastos pequeños",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                } else {
+                    Text(
+                        text = "Puedes activarla cuando quieras desde el wizard o perfil.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                Switch(checked = alertEnabled, onCheckedChange = onAlertToggled)
-            }
-            if (alertEnabled) {
-                Text(
-                    text = "Cuando lleves S/ ${alertAt80.toPlainString()} en gastos pequeños",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            } else {
-                Text(
-                    text = "Puedes activarla cuando quieras desde el wizard o perfil.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
             }
         }
     }
@@ -748,7 +847,14 @@ fun GoalStepContent(
 
         KipuCard(style = KipuCardStyle.Large) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .toggleable(
+                        value = state.hasSocialDebt,
+                        role = Role.Switch,
+                        onValueChange = onSocialDebtToggled,
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -767,7 +873,7 @@ fun GoalStepContent(
                 }
                 Switch(
                     checked = state.hasSocialDebt,
-                    onCheckedChange = onSocialDebtToggled,
+                    onCheckedChange = null,
                 )
             }
 
@@ -826,7 +932,7 @@ fun PlanSummaryContent(
             )
             KipuAmountText(amount = daily.amount, type = AmountType.INCOME, modifier = Modifier.padding(top = 8.dp))
             Text(
-                text = "Sin descuadrarte de tu presupuesto semanal",
+                text = PlanWizardCycleText.budgetDescription(state.budgetCycle),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -835,10 +941,14 @@ fun PlanSummaryContent(
     }
 
     KipuCard(style = KipuCardStyle.Large, modifier = Modifier.padding(bottom = KipuLayout.sectionSpacing)) {
-        Text(text = "Tus sobres semanales", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            text = PlanWizardCycleText.envelopeTitle(state.budgetCycle),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(modifier = Modifier.height(12.dp))
         displayBudgets.forEach { budget ->
-            EnvelopeSummaryRow(budget)
+            EnvelopeSummaryRow(budget, state.budgetCycle)
         }
         if (!state.goalSkipped && state.suggestedGoalWeekly != null) {
             val goalCurrency = state.goalType.currency()
@@ -869,7 +979,11 @@ fun PlanSummaryContent(
             SummaryRow("Ingreso estimado", formatPenAmountForDisplay(income))
             SummaryRow("Gastos fijos", "- ${formatPenAmountForDisplay(fixedTotal)}", isExpense = true)
             state.monthlyEnvelopeTotal?.let { envelopes ->
-                SummaryRow("Sobres semanales", "- ${formatPenAmountForDisplay(envelopes.amount)}", isExpense = true)
+                SummaryRow(
+                    "Sobres (equivalente mensual)",
+                    "- ${formatPenAmountForDisplay(envelopes.amount)}",
+                    isExpense = true,
+                )
             }
             state.monthlyExtraAvailable?.let { extra ->
                 val isNegative = extra.signum() < 0
@@ -886,7 +1000,9 @@ fun PlanSummaryContent(
         KipuCard(style = KipuCardStyle.Large) {
             Text(text = "Opciones para ajustar tu plan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
-            AdjustmentAction("Reducir sobres semanales") { onNavigateToStep(PlanWizardStep.Envelopes) }
+            AdjustmentAction(PlanWizardCycleText.reduceEnvelopesAction(state.budgetCycle)) {
+                onNavigateToStep(PlanWizardStep.Envelopes)
+            }
             AdjustmentAction("Bajar meta semanal") { onNavigateToStep(PlanWizardStep.Goal) }
             AdjustmentAction("Revisar gastos fijos") { onNavigateToStep(PlanWizardStep.FixedExpenses) }
             AdjustmentAction("Usar ingreso conservador") { onNavigateToStep(PlanWizardStep.Income) }
@@ -895,7 +1011,10 @@ fun PlanSummaryContent(
 }
 
 @Composable
-private fun EnvelopeSummaryRow(budget: EnvelopeBudgetState) {
+private fun EnvelopeSummaryRow(
+    budget: EnvelopeBudgetState,
+    budgetCycle: BudgetCycle,
+) {
     val icon = when {
         budget.name.contains("Comida", ignoreCase = true) -> Icons.Default.Fastfood
         budget.name.contains("Transporte", ignoreCase = true) -> Icons.Default.DirectionsCar
@@ -914,7 +1033,8 @@ private fun EnvelopeSummaryRow(budget: EnvelopeBudgetState) {
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(text = budget.name, fontWeight = FontWeight.Bold)
             Text(
-                text = "${formatPenAmountForDisplay(budget.weeklyLimit.amount)} por semana",
+                text = "${formatPenAmountForDisplay(budget.weeklyLimit.amount)} " +
+                    PlanWizardCycleText.envelopeLimitSuffix(budgetCycle),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -940,12 +1060,21 @@ private fun SummaryRow(label: String, value: String, isExpense: Boolean = false)
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             text = value,
+            modifier = Modifier.padding(start = 8.dp),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = if (isExpense) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+            textAlign = TextAlign.End,
         )
     }
 }
@@ -968,28 +1097,26 @@ private fun IconBadge(icon: ImageVector, tint: androidx.compose.ui.graphics.Colo
     }
 }
 
-internal fun parseIncomeDisplay(state: PlanWizardUiState.Content): BigDecimal? {
-    val text = when (state.incomeProfile) {
-        IncomeProfile.FIXED -> state.fixedBaseText
-        IncomeProfile.VARIABLE -> state.normalWeekText
-        IncomeProfile.APPROXIMATE -> state.approximateIncomeText
-    }
-    return when (val parsed = MoneyInputParser.parsePen(text)) {
-        is DomainResult.Ok -> parsed.value.amount
+private val monthlyIncomeEstimator = EstimateMonthlyIncomeUseCase()
+
+internal fun parseIncomeDisplay(state: PlanWizardUiState.Content): BigDecimal? =
+    when (val result = monthlyIncomeEstimator.estimateMonthlyIncome(state)) {
+        is DomainResult.Ok -> result.value.amount
         is DomainResult.Err -> null
     }
-}
 
 internal fun parseFixedDisplay(state: PlanWizardUiState.Content): BigDecimal? {
     if (state.skipFixedExpenses) return BigDecimal.ZERO
     return when (
         val result = FixedExpenseBreakdownCalculator.sumAll(
             presetParts = listOf(
-                state.educationText,
+                state.electricityText,
+                state.waterText,
+                state.internetText,
                 state.rentText,
-                state.utilitiesText,
                 state.phoneText,
                 state.debtsText,
+                state.educationText,
             ),
             customLines = state.customExpenseLines,
         )
@@ -998,6 +1125,7 @@ internal fun parseFixedDisplay(state: PlanWizardUiState.Content): BigDecimal? {
         is DomainResult.Err -> null
     }
 }
+
 
 @Composable
 private fun WizardLineItemRow(

@@ -9,6 +9,7 @@ import pe.kipu.core.domain.repository.DuplicateDismissalRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.GatheringRepository
+import pe.kipu.core.domain.repository.GatheringExpenseRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.TimeProvider
@@ -20,6 +21,7 @@ class BuildUserDataSnapshotUseCase @Inject constructor(
     private val commitmentRepository: CommitmentRepository,
     private val financialPlanRepository: FinancialPlanRepository,
     private val gatheringRepository: GatheringRepository,
+    private val gatheringExpenseRepository: GatheringExpenseRepository,
     private val duplicateDismissalRepository: DuplicateDismissalRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val timeProvider: TimeProvider,
@@ -32,6 +34,7 @@ class BuildUserDataSnapshotUseCase @Inject constructor(
         commitments = commitmentRepository.observeCommitments().first(),
         financialPlans = financialPlanRepository.observePlans().first(),
         gatherings = gatheringRepository.observeGatherings().first(),
+        gatheringExpenses = gatheringExpenseRepository.observeExpensesByGathering().first().values.flatten(),
         dismissedDuplicatePairKeys = duplicateDismissalRepository.observeDismissedPairKeys().first(),
         preferences = userPreferencesRepository.observePreferences().first(),
     )

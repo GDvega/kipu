@@ -65,6 +65,28 @@ class CalculateWeeklyEnvelopeBalanceUseCaseTest {
         assertEquals(money("100"), summary.unallocated)
     }
 
+    @Test
+    fun monthlyPlan_comparesLimitsAgainstFullMonthlyIncome() {
+        // Ciclo MENSUAL: los límites ya son mensuales, así que se comparan contra el ingreso
+        // mensual COMPLETO (no ingreso/4). Con semanal fijo esto marcaría OVER_ALLOCATED falso.
+        val plan = FinancialPlan(
+            id = "plan-1",
+            estimatedMonthlyIncome = money("800"),
+            fixedExpenses = Money.ZERO,
+            budgetCycle = pe.kipu.core.domain.model.BudgetCycle.MONTHLY,
+        )
+        val budgets = listOf(
+            envelopeBudget(weeklyLimit = "500"),
+            envelopeBudget(weeklyLimit = "300"),
+        )
+
+        val summary = useCase(plan = plan, budgets = budgets)
+
+        assertEquals(WeeklyEnvelopeBalanceStatus.BALANCED, summary.status)
+        assertEquals(money("800"), summary.weeklyIncome)
+        assertEquals(money("800"), summary.allocated)
+    }
+
     private fun planWithMonthlyIncome(amount: String): FinancialPlan =
         FinancialPlan(
             id = "plan-1",

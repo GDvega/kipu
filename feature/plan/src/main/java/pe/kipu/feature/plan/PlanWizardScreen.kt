@@ -1,5 +1,6 @@
 package pe.kipu.feature.plan
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -23,10 +25,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kipu.core.designsystem.component.KipuErrorState
@@ -39,6 +44,7 @@ import pe.kipu.core.designsystem.component.KipuWizardProgressDots
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.feature.plan.presentation.PLAN_WIZARD_TOTAL_STEPS
 import pe.kipu.feature.plan.presentation.PlanWizardStep
+import pe.kipu.feature.plan.presentation.PlanWizardCycleText
 import pe.kipu.feature.plan.presentation.PlanWizardUiState
 import pe.kipu.feature.plan.presentation.PlanWizardViewModel
 import pe.kipu.feature.plan.presentation.stepIndex
@@ -58,8 +64,6 @@ fun PlanWizardScreen(
     viewModel: PlanWizardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val haptic = LocalHapticFeedback.current
-
     when (val state = uiState) {
         PlanWizardUiState.Loading -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -78,15 +82,23 @@ fun PlanWizardScreen(
         }
 
         is PlanWizardUiState.Content -> {
+            BackHandler(enabled = state.isSaving) {}
+            val contentScrollState = rememberScrollState()
+            val isCompactHeight = LocalConfiguration.current.screenHeightDp < 480
+            LaunchedEffect(state.step) {
+                contentScrollState.scrollTo(0)
+            }
             val handleBack = {
-                if (state.step == PlanWizardStep.Income) {
-                    if (state.isEditingExistingPlan) {
-                        onBack()
+                if (!state.isSaving) {
+                    if (state.step == PlanWizardStep.Income) {
+                        if (state.isEditingExistingPlan) {
+                            onBack()
+                        } else {
+                            onCancelNewPlan()
+                        }
                     } else {
-                        onCancelNewPlan()
+                        viewModel.onBack()
                     }
-                } else {
-                    viewModel.onBack()
                 }
             }
 
@@ -98,15 +110,17 @@ fun PlanWizardScreen(
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = wizardSubtitle(state.step),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(
-                            horizontal = KipuLayout.screenHorizontalPadding,
-                            vertical = 8.dp,
-                        ),
-                    )
+                    if (!isCompactHeight) {
+                        Text(
+                            text = wizardSubtitle(state.step, state.budgetCycle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(
+                                horizontal = KipuLayout.screenHorizontalPadding,
+                                vertical = 8.dp,
+                            ),
+                        )
+                    }
 
                     KipuWizardProgressDots(
                         currentStep = state.step.stepIndex(),
@@ -120,7 +134,11 @@ fun PlanWizardScreen(
                             .fillMaxWidth(),
                     )
 
-                    if (state.step != PlanWizardStep.Income && state.step != PlanWizardStep.Summary) {
+                    if (
+                        !isCompactHeight &&
+                        state.step != PlanWizardStep.Income &&
+                        state.step != PlanWizardStep.Summary
+                    ) {
                         WizardBalanceStickyBanner(
                             state = state,
                             modifier = Modifier.padding(horizontal = KipuLayout.screenHorizontalPadding).padding(bottom = KipuLayout.sectionSpacing)
@@ -131,7 +149,7 @@ fun PlanWizardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .verticalScroll(rememberScrollState())
+                            .verticalScroll(contentScrollState)
                             .padding(horizontal = KipuLayout.screenHorizontalPadding)
                     ) {
                         AnimatedContent(
@@ -161,7 +179,7 @@ fun PlanWizardScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 24.dp) // Espacio para que no choque con los botones inferiores
+                                    .padding(bottom = 80.dp) // Espacio generoso para que no choque con los botones inferiores
                             ) {
                                 when (targetStep) {
                                     PlanWizardStep.Income -> IncomeStepContent(
@@ -182,23 +200,28 @@ fun PlanWizardScreen(
                                     )
 
                                     PlanWizardStep.FixedExpenses -> FixedExpensesStepContent(
-                                        educationText = state.educationText,
+                                        electricityText = state.electricityText,
+                                        waterText = state.waterText,
+                                        internetText = state.internetText,
                                         rentText = state.rentText,
-                                        utilitiesText = state.utilitiesText,
                                         phoneText = state.phoneText,
                                         debtsText = state.debtsText,
+                                        educationText = state.educationText,
                                         customExpenseLines = state.customExpenseLines,
-                                        onEducationChanged = viewModel::onEducationChanged,
+                                        onElectricityChanged = viewModel::onElectricityChanged,
+                                        onWaterChanged = viewModel::onWaterChanged,
+                                        onInternetChanged = viewModel::onInternetChanged,
                                         onRentChanged = viewModel::onRentChanged,
-                                        onUtilitiesChanged = viewModel::onUtilitiesChanged,
                                         onPhoneChanged = viewModel::onPhoneChanged,
                                         onDebtsChanged = viewModel::onDebtsChanged,
+                                        onEducationChanged = viewModel::onEducationChanged,
                                         onCustomLineChanged = viewModel::onCustomExpenseLineChanged,
                                         onAddCustomExpenseLine = viewModel::onAddCustomExpenseLine,
                                         onRemoveCustomExpenseLine = viewModel::onRemoveCustomExpenseLine,
                                         onQuickExpenseSelected = viewModel::onQuickExpenseSelected,
                                         onSkip = viewModel::onSkipFixedExpenses,
                                     )
+
 
                                     PlanWizardStep.Envelopes -> EnvelopesStepContent(
                                         budgetCycle = state.budgetCycle,
@@ -215,6 +238,7 @@ fun PlanWizardScreen(
                                     )
 
                                     PlanWizardStep.AntSpending -> AntSpendingStepContent(
+                                        budgetCycle = state.budgetCycle,
                                         categories = state.categories,
                                         limitText = state.antSpendingLimitText,
                                         selectedCategoryIds = state.antSpendingCategories,
@@ -248,15 +272,6 @@ fun PlanWizardScreen(
                                     )
                                 }
 
-                                state.errorMessage?.let { message ->
-                                    Text(
-                                        text = message,
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(top = 12.dp),
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
                             }
                         }
                     }
@@ -267,23 +282,47 @@ fun PlanWizardScreen(
                             .padding(horizontal = KipuLayout.screenHorizontalPadding)
                             .padding(bottom = KipuLayout.screenHorizontalPadding)
                     ) {
-                        if (state.step != PlanWizardStep.Income && state.step != PlanWizardStep.Summary) {
-                            KipuSecondaryButton(
-                                text = "Atrás",
-                                onClick = handleBack,
-                                modifier = Modifier.fillMaxWidth(),
+                        state.errorMessage?.let { message ->
+                            Text(
+                                text = message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                                    .semantics {
+                                        liveRegion = LiveRegionMode.Polite
+                                        error(message)
+                                    },
+                                textAlign = TextAlign.Center,
                             )
                         }
 
                         if (state.step != PlanWizardStep.Summary) {
-                            KipuPrimaryButton(
-                                text = "Continuar →",
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    viewModel.onContinue()
-                                },
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
+                            if (state.step != PlanWizardStep.Income) {
+                                androidx.compose.foundation.layout.Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    KipuSecondaryButton(
+                                        text = "Atrás",
+                                        onClick = handleBack,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    KipuPrimaryButton(
+                                        text = "Continuar →",
+                                        onClick = viewModel::onContinue,
+                                        modifier = Modifier.weight(1.5f),
+                                    )
+                                }
+                            } else {
+                                KipuPrimaryButton(
+                                    text = "Continuar →",
+                                    onClick = viewModel::onContinue,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         } else {
                             KipuPrimaryButton(
                                 text = when {
@@ -291,12 +330,9 @@ fun PlanWizardScreen(
                                     state.isEditingExistingPlan -> "✓ Guardar mi plan"
                                     else -> "✓ Crear mi plan"
                                 },
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    viewModel.onFinish(onFinished)
-                                },
+                                onClick = { viewModel.onFinish(onFinished) },
                                 enabled = !state.isSaving && state.validation !is FinancialPlanValidationResult.Invalid,
-                                modifier = Modifier.padding(top = 24.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                             if (state.validation is FinancialPlanValidationResult.Invalid) {
                                 Text(
@@ -310,6 +346,7 @@ fun PlanWizardScreen(
                             KipuSecondaryButton(
                                 text = "Ajustar montos",
                                 onClick = { viewModel.onNavigateToStep(PlanWizardStep.Income) },
+                                enabled = !state.isSaving,
                                 modifier = Modifier.padding(top = 12.dp),
                                 fillWidth = true,
                             )
@@ -321,6 +358,7 @@ fun PlanWizardScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun WizardBalanceStickyBanner(
     state: PlanWizardUiState.Content,
@@ -328,15 +366,16 @@ private fun WizardBalanceStickyBanner(
 ) {
     val income = pe.kipu.feature.plan.ui.parseIncomeDisplay(state) ?: java.math.BigDecimal.ZERO
     val free = state.monthlyExtraAvailable ?: income
-    val assigned = income - free
+    val assigned = income.subtract(free).max(java.math.BigDecimal.ZERO)
 
     val isNegative = free.signum() < 0
     val isWarning = !isNegative && free <= income.multiply(java.math.BigDecimal("0.15"))
     val freeColor = when {
         isNegative -> MaterialTheme.colorScheme.error
-        isWarning -> pe.kipu.core.designsystem.theme.KipuAmber
+        isWarning -> MaterialTheme.colorScheme.secondary
         else -> MaterialTheme.colorScheme.primary
     }
+    val freeLabel = if (isNegative) "Déficit mes" else "Libre mes"
 
     // Progress fraction: how much of income is still free (0f-1f)
     val fraction = if (income.signum() > 0) {
@@ -352,10 +391,11 @@ private fun WizardBalanceStickyBanner(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
         ) {
-            androidx.compose.foundation.layout.Row(
+            androidx.compose.foundation.layout.FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                verticalAlignment = androidx.compose.ui.Alignment.Bottom
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                itemVerticalAlignment = androidx.compose.ui.Alignment.Bottom,
             ) {
                 // Ingreso
                 Column {
@@ -373,7 +413,7 @@ private fun WizardBalanceStickyBanner(
                 // Asignado — centered
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                     Text(
-                        "Asignado",
+                        "Asignado mes",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -386,7 +426,7 @@ private fun WizardBalanceStickyBanner(
                 // Libre — right, colored
                 Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
                     Text(
-                        "Libre",
+                        freeLabel,
                         style = MaterialTheme.typography.labelSmall,
                         color = freeColor,
                     )
@@ -428,11 +468,14 @@ private fun wizardTitle(step: PlanWizardStep): String = when (step) {
     PlanWizardStep.Summary -> "Tu plan está listo"
 }
 
-private fun wizardSubtitle(step: PlanWizardStep): String = when (step) {
+private fun wizardSubtitle(
+    step: PlanWizardStep,
+    budgetCycle: pe.kipu.core.domain.model.BudgetCycle,
+): String = when (step) {
     PlanWizardStep.Income -> "No te preocupes si no es exacto. Kipu se adapta a lo que tú le digas."
     PlanWizardStep.FixedExpenses -> "¿Cuánto se te va en lo fijo? Si no sabes el monto exacto, pon un aproximado."
     PlanWizardStep.Envelopes -> "¿En qué gastas tu plata del día a día? Ponle un tope a cada cosa."
-    PlanWizardStep.AntSpending -> "El cafecito, la gaseosa, el snack... ¿cuánto se te escapa por semana?"
+    PlanWizardStep.AntSpending -> PlanWizardCycleText.antSpendingSubtitle(budgetCycle)
     PlanWizardStep.Goal -> "¿Estás juntando para algo? Kipu te dice cuánto guardar por semana."
     PlanWizardStep.Summary -> "¡Listo! Así queda tu plan. Puedes cambiarlo cuando quieras."
 }

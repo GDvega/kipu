@@ -16,6 +16,18 @@
 local.properties
 .kotlin/
 
+# Local IDE state from nested/module projects
+/app/.idea/
+
+# Local build and Logcat captures
+*.log
+**/build_log.txt
+/logcat_*.txt
+
+# Local AI-assistant settings (may contain credentials or machine-specific permissions)
+.claude/settings.json
+.claude/settings.local.json
+
 # Release signing (never commit secrets)
 keystore.properties
 *.jks

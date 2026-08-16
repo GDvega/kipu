@@ -5,8 +5,18 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import pe.kipu.feature.movements.ui.ManualMovementFormState
 
 class ManualMovementValidationTest {
+
+    @Test
+    fun initialFormHidesAmountErrorAndCannotSaveUntilAmountIsValid() {
+        val initial = ManualMovementFormState(categoryId = "food")
+
+        assertNull(initial.amountErrorMessage)
+        assertFalse(initial.canSave)
+        assertTrue(initial.copy(amountText = "25.50").canSave)
+    }
 
     @Test
     fun emptyAmountShowsRequiredMessage() {
@@ -36,8 +46,23 @@ class ManualMovementValidationTest {
     }
 
     @Test
-    fun validAmountHasNoError() {
-        assertNull(ManualMovementAmountValidator.errorMessage("25.50"))
-        assertTrue(ManualMovementAmountValidator.isValid("25.50"))
+    fun applyPresetWhenEmptySetsExactAmount() {
+        assertEquals(
+            "10",
+            ManualMovementAmountValidator.applyPreset("", java.math.BigDecimal("10")),
+        )
+    }
+
+    @Test
+    fun applyPresetWithExistingAmountAddsCorrectly() {
+        assertEquals(
+            "35",
+            ManualMovementAmountValidator.applyPreset("25", java.math.BigDecimal("10")),
+        )
+        assertEquals(
+            "17.50",
+            ManualMovementAmountValidator.applyPreset("12.50", java.math.BigDecimal("5")),
+        )
     }
 }
+

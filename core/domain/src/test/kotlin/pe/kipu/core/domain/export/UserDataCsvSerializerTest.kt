@@ -71,6 +71,7 @@ class UserDataCsvSerializerTest {
         commitments = emptyList(),
         financialPlans = emptyList(),
         gatherings = emptyList(),
+        gatheringExpenses = emptyList(),
         dismissedDuplicatePairKeys = emptySet(),
         preferences = UserPreferences(themeMode = ThemeMode.SYSTEM),
     )

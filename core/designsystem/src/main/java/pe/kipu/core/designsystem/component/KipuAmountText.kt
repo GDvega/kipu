@@ -6,9 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import pe.kipu.core.designsystem.theme.KipuExpense
-import pe.kipu.core.designsystem.theme.KipuIncome
-import pe.kipu.core.designsystem.theme.KipuPrimary
 import pe.kipu.core.designsystem.theme.KipuTheme
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -53,8 +50,8 @@ fun KipuAmountText(
     modifier: Modifier = Modifier,
 ) {
     val color = when (type) {
-        AmountType.INCOME -> KipuIncome
-        AmountType.EXPENSE -> KipuExpense
+        AmountType.INCOME -> MaterialTheme.colorScheme.primary
+        AmountType.EXPENSE -> MaterialTheme.colorScheme.error
         AmountType.NEUTRAL -> MaterialTheme.colorScheme.onSurface
     }
 
@@ -69,7 +66,7 @@ fun KipuAmountText(
         modifier = modifier,
         style = typography,
         fontWeight = if (type == AmountType.INCOME) FontWeight.W800 else FontWeight.SemiBold,
-        color = if (type == AmountType.INCOME) MaterialTheme.colorScheme.primary else color,
+        color = color,
     )
 }
 
@@ -85,7 +82,7 @@ fun formatPenAmountForDisplay(amount: BigDecimal, showSign: Boolean = false): St
     val normalized = amount.setScale(2, RoundingMode.HALF_UP)
     val prefix = when {
         showSign && normalized.signum() > 0 -> "+"
-        showSign && normalized.signum() < 0 -> "-"
+        normalized.signum() < 0 -> "-"
         else -> ""
     }
     val absolute = normalized.abs()

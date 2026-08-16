@@ -24,7 +24,6 @@ import pe.kipu.core.domain.model.EnvelopeBudgetStatus
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
-import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.plan.CommitmentIds
 import pe.kipu.core.domain.plan.FixedExpenseBreakdownCalculator
 import pe.kipu.core.domain.plan.GoalType
@@ -41,7 +40,6 @@ import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
-import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.time.CycleRangeCalculator
 import pe.kipu.core.domain.usecase.CreateCategoryUseCase
@@ -59,22 +57,19 @@ import pe.kipu.core.domain.util.MoneyInputParser
 class PlanWizardViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val financialPlanRepository: FinancialPlanRepository,
-    private val commitmentRepository: CommitmentRepository,
+    private val commitmentRepository: pe.kipu.core.domain.repository.CommitmentRepository,
     private val categoryRepository: CategoryRepository,
-    private val envelopeRepository: EnvelopeRepository,
-    private val userPreferencesRepository: UserPreferencesRepository,
     private val observeEnvelopeBudgets: ObserveEnvelopeBudgetsUseCase,
-    private val saveFinancialPlan: SaveFinancialPlanUseCase,
-    private val saveCommitment: SaveCommitmentUseCase,
     private val validateFinancialPlan: ValidateFinancialPlanUseCase,
     private val calculateCycleAvailable: CalculateCycleAvailableUseCase,
-    private val estimateMonthlyIncome: EstimateMonthlyIncomeUseCase,
-    private val createCategory: CreateCategoryUseCase,
-    private val createEnvelope: pe.kipu.core.domain.usecase.CreateEnvelopeUseCase,
-    private val calculateGoalWeeklyContribution: CalculateGoalWeeklyContributionUseCase,
+    private val createCategory: pe.kipu.core.domain.usecase.CreateCategoryUseCase,
+    private val calculateGoalWeeklyContribution: pe.kipu.core.domain.usecase.CalculateGoalWeeklyContributionUseCase,
     private val cycleRangeCalculator: CycleRangeCalculator,
     private val timeProvider: TimeProvider,
+    private val planWizardSaver: PlanWizardSaver,
+    private val fixedExpenseReminderScheduler: pe.kipu.core.domain.notification.FixedExpenseReminderScheduler,
 ) : ViewModel() {
+
 
     private val startStep = planWizardStepFromRoute(savedStateHandle.get<String>("startStep"))
 
@@ -103,16 +98,15 @@ class PlanWizardViewModel @Inject constructor(
     private suspend fun loadInitialState() {
         _uiState.value = PlanWizardUiState.Loading
         try {
-            val preferences = userPreferencesRepository.observePreferences()
-                .firstWithTimeout(default = UserPreferences())
             val existingPlan = financialPlanRepository.getById(FinancialPlanIds.PRIMARY)
             val allBudgets = observeEnvelopeBudgets().firstWithTimeout(default = emptyList())
             val wizardBudgets = allBudgets.filter { it.envelopeId in wizardEnvelopeIds }
+            val customEnvelopeLines = PlanWizardStateLoader.customEnvelopeDefaults(existingPlan, allBudgets)
 
             val incomeDefaults = PlanWizardStateLoader.incomeDefaults(existingPlan)
             val incomeProfileDefaults = PlanWizardStateLoader.incomeProfileDefaults(existingPlan)
             val fixedDefaults = PlanWizardStateLoader.fixedExpenseDefaults(existingPlan)
-            val defaultLimits = buildDefaultEnvelopeLimits(wizardBudgets, preferences)
+            val defaultLimits = buildDefaultEnvelopeLimits(wizardBudgets, existingPlan)
             val emergency = commitmentRepository.getById(CommitmentIds.EMERGENCY_FUND)
             val goalDefaults = PlanWizardStateLoader.goalDefaults(emergency)
             val socialDebt = commitmentRepository.observeCommitments()
@@ -121,22 +115,26 @@ class PlanWizardViewModel @Inject constructor(
                     it.type == CommitmentType.SOCIAL_DEBT &&
                         it.id != CommitmentIds.DEMO_SOCIAL_DEBT
                 }
-            val antLimitFromPrefs = preferences.antSpendingWeeklyLimitCents?.let { cents ->
-                BigDecimal.valueOf(cents).movePointLeft(2).stripTrailingZeros().toPlainString()
-            }
+            val antLimitFromPlan = existingPlan?.antSpendingLimit
+                ?.amount
+                ?.stripTrailingZeros()
+                ?.toPlainString()
             val categories = categoryRepository.observeCategories()
                 .firstWithTimeout(default = emptyList())
 
             val fixedExpenseFields = FixedExpenseFields(
                 skipFixedExpenses = fixedDefaults.skipFixedExpenses,
-                educationText = fixedDefaults.educationText,
+                electricityText = fixedDefaults.electricityText,
+                waterText = fixedDefaults.waterText,
+                internetText = fixedDefaults.internetText,
                 rentText = fixedDefaults.rentText,
-                utilitiesText = fixedDefaults.utilitiesText,
                 phoneText = fixedDefaults.phoneText,
                 debtsText = fixedDefaults.debtsText,
+                educationText = fixedDefaults.educationText,
             )
 
-            val initialAntCategories = preferences.antSpendingTrackedCategories
+            val initialAntCategories = existingPlan?.antSpendingTrackedCategoryIds
+                .orEmpty()
                 .filter { it.startsWith("category-") }
                 .toSet()
 
@@ -147,41 +145,42 @@ class PlanWizardViewModel @Inject constructor(
                 payFrequency = incomeProfileDefaults.payFrequency,
                 budgetCycle = existingPlan?.budgetCycle ?: pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
                 fixedBaseText = incomeDefaults.fixedBaseText,
+                secondQuincenaText = incomeDefaults.secondQuincenaText,
+                extraIncomeText = incomeDefaults.extraIncomeText,
                 initialBalanceText = incomeDefaults.initialBalanceText,
                 approximateIncomeText = incomeDefaults.approximateIncomeText,
-                lowWeekText = "",
-                normalWeekText = "",
-                goodWeekText = "",
+                lowWeekText = incomeDefaults.lowWeekText,
+                normalWeekText = incomeDefaults.normalWeekText,
+                goodWeekText = incomeDefaults.goodWeekText,
                 skipFixedExpenses = fixedExpenseFields.skipFixedExpenses,
-                educationText = fixedExpenseFields.educationText,
+                electricityText = fixedExpenseFields.electricityText,
+                waterText = fixedExpenseFields.waterText,
+                internetText = fixedExpenseFields.internetText,
                 rentText = fixedExpenseFields.rentText,
-                utilitiesText = fixedExpenseFields.utilitiesText,
                 phoneText = fixedExpenseFields.phoneText,
                 debtsText = fixedExpenseFields.debtsText,
+                educationText = fixedExpenseFields.educationText,
                 envelopeLimits = defaultLimits,
-                antSpendingLimitText = antLimitFromPrefs
-                    ?: defaultLimits[PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID]
-                    ?: "",
+                antSpendingLimitText = antLimitFromPlan
+                    ?: defaultLimits[PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID].orEmpty(),
                 antSpendingCategories = initialAntCategories,
-                antSpendingAlertEnabled = preferences.antSpendingAlertEnabled,
+                antSpendingAlertEnabled = existingPlan?.antSpendingAlertEnabled ?: true,
                 categories = categories,
+                goalType = goalDefaults.goalType,
                 goalName = goalDefaults.goalName,
                 goalTargetText = goalDefaults.goalTargetText,
                 goalCurrentText = goalDefaults.goalCurrentText,
+                goalMonthsText = goalDefaults.goalMonthsText,
                 goalSkipped = goalDefaults.goalSkipped,
                 hasSocialDebt = socialDebt != null && !socialDebt.isSettled,
                 socialDebtCounterparty = socialDebt?.counterpartyName.orEmpty(),
                 socialDebtAmountText = socialDebt?.currentAmount?.amount?.stripTrailingZeros()?.toPlainString().orEmpty(),
                 budgets = wizardBudgets,
+                customEnvelopeLines = customEnvelopeLines,
             )
+
             viewModelScope.launch {
                 runCatching {
-                    val migratedAntCategories = migrateAntSpendingCategoryIds(
-                        stored = preferences.antSpendingTrackedCategories,
-                    )
-                    if (migratedAntCategories != initialAntCategories) {
-                        updateContent { it.copy(antSpendingCategories = migratedAntCategories) }
-                    }
                     val refreshedCategories = categoryRepository.observeCategories()
                         .firstWithTimeout(default = categories)
                     if (refreshedCategories != categories) {
@@ -198,6 +197,7 @@ class PlanWizardViewModel @Inject constructor(
 
     fun onIncomeProfileSelected(profile: IncomeProfile) {
         updateContent { it.copy(incomeProfile = profile, errorMessage = null) }
+        scheduleSummaryRefresh()
     }
 
     fun onFixedBaseChanged(value: String) = updateContent { it.copy(fixedBaseText = value, errorMessage = null) }.also { scheduleSummaryRefresh() }
@@ -238,9 +238,12 @@ class PlanWizardViewModel @Inject constructor(
         scheduleSummaryRefresh()
     }
 
-    fun onLowWeekChanged(value: String) = updateContent { it.copy(lowWeekText = value, errorMessage = null) }
-    fun onNormalWeekChanged(value: String) = updateContent { it.copy(normalWeekText = value, errorMessage = null) }
-    fun onGoodWeekChanged(value: String) = updateContent { it.copy(goodWeekText = value, errorMessage = null) }
+    fun onLowWeekChanged(value: String) =
+        updateContent { it.copy(lowWeekText = value, errorMessage = null) }.also { scheduleSummaryRefresh() }
+    fun onNormalWeekChanged(value: String) =
+        updateContent { it.copy(normalWeekText = value, errorMessage = null) }.also { scheduleSummaryRefresh() }
+    fun onGoodWeekChanged(value: String) =
+        updateContent { it.copy(goodWeekText = value, errorMessage = null) }.also { scheduleSummaryRefresh() }
     fun onApproximateIncomeChanged(value: String) {
         updateContent { it.copy(approximateIncomeText = value, errorMessage = null) }
         scheduleSummaryRefresh()
@@ -251,16 +254,20 @@ class PlanWizardViewModel @Inject constructor(
         scheduleSummaryRefresh()
     }
 
-    fun onEducationChanged(value: String) {
-        updateContent { it.copy(educationText = value, errorMessage = null) }
+    fun onElectricityChanged(value: String) {
+        updateContent { it.copy(electricityText = value, errorMessage = null) }
+        scheduleSummaryRefresh()
+    }
+    fun onWaterChanged(value: String) {
+        updateContent { it.copy(waterText = value, errorMessage = null) }
+        scheduleSummaryRefresh()
+    }
+    fun onInternetChanged(value: String) {
+        updateContent { it.copy(internetText = value, errorMessage = null) }
         scheduleSummaryRefresh()
     }
     fun onRentChanged(value: String) {
         updateContent { it.copy(rentText = value, errorMessage = null) }
-        scheduleSummaryRefresh()
-    }
-    fun onUtilitiesChanged(value: String) {
-        updateContent { it.copy(utilitiesText = value, errorMessage = null) }
         scheduleSummaryRefresh()
     }
     fun onPhoneChanged(value: String) {
@@ -269,6 +276,10 @@ class PlanWizardViewModel @Inject constructor(
     }
     fun onDebtsChanged(value: String) {
         updateContent { it.copy(debtsText = value, errorMessage = null) }
+        scheduleSummaryRefresh()
+    }
+    fun onEducationChanged(value: String) {
+        updateContent { it.copy(educationText = value, errorMessage = null) }
         scheduleSummaryRefresh()
     }
 
@@ -322,19 +333,22 @@ class PlanWizardViewModel @Inject constructor(
     fun onSkipFixedExpenses() {
         updateContent {
             it.copy(
+                step = PlanWizardStep.Envelopes,
                 skipFixedExpenses = true,
-                educationText = "",
+                electricityText = "",
+                waterText = "",
+                internetText = "",
                 rentText = "",
-                utilitiesText = "",
                 phoneText = "",
                 debtsText = "",
+                educationText = "",
                 customExpenseLines = emptyList(),
                 errorMessage = null,
             )
         }
         scheduleSummaryRefresh()
-        onContinue()
     }
+
 
     fun onEnvelopePresetSelected(envelopeId: String, amount: BigDecimal) {
         updateContent {
@@ -420,15 +434,21 @@ class PlanWizardViewModel @Inject constructor(
 
     fun onGoalTypeSelected(type: GoalType) {
         updateContent {
+            val name = if (type == GoalType.CUSTOM) {
+                if (it.goalName.isBlank() || it.goalName in GoalType.entries.map { g -> g.defaultTitle() }) "" else it.goalName
+            } else {
+                type.defaultTitle()
+            }
             it.copy(
                 goalType = type,
-                goalName = type.defaultTitle(),
+                goalName = name,
                 goalSkipped = false,
                 errorMessage = null,
             )
         }
         refreshGoalSuggestion()
     }
+
 
     fun onGoalNameChanged(value: String) = updateContent { it.copy(goalName = value, errorMessage = null) }
     fun onGoalTargetChanged(value: String) {
@@ -485,6 +505,7 @@ class PlanWizardViewModel @Inject constructor(
             }
             it.copy(approximateIncomeText = text, errorMessage = null)
         }
+        scheduleSummaryRefresh()
         onContinue()
     }
 
@@ -515,12 +536,22 @@ class PlanWizardViewModel @Inject constructor(
         val content = currentContent() ?: return
         when (content.step) {
             PlanWizardStep.Income -> {
-                if (!validateIncome(content)) return
+                val income = planWizardSaver.parseMonthlyIncome(content)
+                if (income == null || income.isZero()) {
+                    updateContent { it.copy(errorMessage = "Ingresa un monto de ingreso válido") }
+                    return
+                }
                 updateContent { it.copy(step = PlanWizardStep.FixedExpenses, errorMessage = null) }
             }
 
             PlanWizardStep.FixedExpenses -> {
-                if (!content.skipFixedExpenses && !validateFixedExpenses(content)) return
+                if (!content.skipFixedExpenses) {
+                    val fixed = planWizardSaver.parseFixedExpenses(content)
+                    if (fixed == null) {
+                        updateContent { it.copy(errorMessage = "Revisa el desglose de gastos fijos") }
+                        return
+                    }
+                }
                 viewModelScope.launch {
                     syncCustomExpenseCategories()
                     updateContent { it.copy(step = PlanWizardStep.Envelopes, errorMessage = null) }
@@ -528,20 +559,50 @@ class PlanWizardViewModel @Inject constructor(
             }
 
             PlanWizardStep.Envelopes -> {
-                if (!validateEnvelopeLimits(content)) return
-                updateContent { it.copy(step = PlanWizardStep.AntSpending, errorMessage = null) }
+                val limitsValidation = planWizardSaver.validateLimits(content.envelopeLimits, content.budgets)
+                if (limitsValidation != null) {
+                    updateContent { it.copy(errorMessage = limitsValidation) }
+                    return
+                }
+                val defaultAntLimit = if (content.antSpendingLimitText.isBlank()) {
+                    PlanEnvelopeTemplates.antSpendingPresetsForCycle(content.budgetCycle)[1].stripTrailingZeros().toPlainString()
+                } else content.antSpendingLimitText
+                updateContent {
+                    it.copy(
+                        step = PlanWizardStep.AntSpending,
+                        antSpendingLimitText = defaultAntLimit,
+                        envelopeLimits = it.envelopeLimits + (PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID to defaultAntLimit),
+                        errorMessage = null,
+                    )
+                }
+                scheduleSummaryRefresh()
             }
 
             PlanWizardStep.AntSpending -> {
-                if (!validateAntSpending(content)) return
+                if (!planWizardSaver.validateAntSpending(content)) {
+                    updateContent { it.copy(errorMessage = "Ingresa un límite válido para gastos hormiga") }
+                    return
+                }
                 updateContent { it.copy(step = PlanWizardStep.Goal, errorMessage = null) }
                 refreshGoalSuggestion()
                 scheduleSummaryRefresh()
             }
 
             PlanWizardStep.Goal -> {
-                if (!content.goalSkipped && !validateGoal(content)) return
-                if (content.hasSocialDebt && !validateSocialDebt(content)) return
+                if (!content.goalSkipped) {
+                    val target = planWizardSaver.parseGoalAmount(content.goalTargetText)
+                    if (target == null || target.isZero()) {
+                        updateContent { it.copy(errorMessage = "Ingresa cuánto necesitas para tu meta") }
+                        return
+                    }
+                }
+                if (content.hasSocialDebt) {
+                    val socialDebtResult = planWizardSaver.validateSocialDebt(content)
+                    if (socialDebtResult != null) {
+                        updateContent { it.copy(errorMessage = socialDebtResult) }
+                        return
+                    }
+                }
                 viewModelScope.launch {
                     refreshSummaryPreview()
                     updateContent { it.copy(step = PlanWizardStep.Summary, errorMessage = null) }
@@ -554,353 +615,45 @@ class PlanWizardViewModel @Inject constructor(
 
     fun onFinish(onFinished: () -> Unit) {
         viewModelScope.launch {
-            if (persistPlan()) {
-                onFinished()
-            }
-        }
-    }
-
-    private suspend fun persistPlan(): Boolean {
-        val content = currentContent() ?: return false
-        if (!validateIncome(content)) return false
-        if (!content.skipFixedExpenses && !validateFixedExpenses(content)) return false
-        if (!validateEnvelopeLimits(content)) return false
-        if (!validateAntSpending(content)) return false
-
-        refreshSummaryPreview()
-        val refreshed = currentContent() ?: return false
-        if (refreshed.validation is FinancialPlanValidationResult.Invalid) {
-            val deficit = refreshed.validation.deficit
-            updateContent {
-                it.copy(
-                    errorMessage = "Tu plan no cuadra. Ajusta montos antes de guardar. " +
-                        "Faltan ${formatPenAmountForDisplay(deficit.amount)} para el mes.",
-                )
-            }
-            return false
-        }
-
-        val income = parseMonthlyIncome(refreshed) ?: return false
-        val fixedExpenses = parseFixedExpenses(refreshed) ?: return false
-        val initialBalance = when (val parsed = MoneyInputParser.parsePen(refreshed.initialBalanceText)) {
-            is DomainResult.Ok -> parsed.value
-            is DomainResult.Err -> Money.ZERO
-        }
-
-        updateContent { it.copy(isSaving = true, errorMessage = null) }
-
-        val wizardLimits = refreshed.envelopeLimits + mapOf(
-            PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID to refreshed.antSpendingLimitText,
-        )
-
-        for ((envelopeId, limitText) in wizardLimits) {
-            when (val limit = MoneyInputParser.parsePen(limitText)) {
-                is DomainResult.Err -> {
-                    updateContent { it.copy(isSaving = false, errorMessage = "Revisa los límites de sobres") }
-                    return false
-                }
-
-                is DomainResult.Ok -> {
-                    if (!saveWizardEnvelopeLimit(envelopeId, limit.value)) return false
-                }
-            }
-        }
-
-        for (line in refreshed.customEnvelopeLines) {
-            val limit = when (val parsed = MoneyInputParser.parsePen(line.amountText)) {
-                is DomainResult.Err -> {
-                    updateContent { it.copy(isSaving = false, errorMessage = "Revisa los límites de sobres") }
-                    return false
-                }
-
-                is DomainResult.Ok -> parsed.value
-            }
-            val category = createCategory(line.label).getOrNull()
-            if (category != null) {
-                createEnvelope(
-                    name = line.label,
-                    categoryId = category.id,
-                    weeklyLimit = limit,
-                ).onFailure {
-                    updateContent { it.copy(isSaving = false, errorMessage = "No pudimos guardar tus sobres") }
-                    return false
-                }
-            }
-        }
-
-        if (!refreshed.goalSkipped) {
-            if (!saveGoal(refreshed)) return false
-        }
-
-        if (!saveSocialDebt(refreshed)) return false
-
-        if (!saveAntSpendingPreferences(refreshed)) return false
-
-        val result = saveFinancialPlan(
-            planId = FinancialPlanIds.PRIMARY,
-            estimatedMonthlyIncome = income,
-            fixedExpenses = fixedExpenses,
-            initialBalance = initialBalance,
-            incomeProfile = refreshed.incomeProfile,
-            payFrequency = refreshed.payFrequency,
-            budgetCycle = refreshed.budgetCycle,
-        )
-
-        return result.fold(
-            onSuccess = { saveResult ->
-                refreshSummaryPreview(saveResult.validation)
-                updateContent { it.copy(isSaving = false, validation = saveResult.validation) }
-                true
-            },
-            onFailure = {
-                updateContent { it.copy(isSaving = false, errorMessage = "No pudimos guardar tu plan") }
-                false
-            },
-        )
-    }
-
-    private suspend fun saveGoal(content: PlanWizardUiState.Content): Boolean {
-        val target = parseGoalAmount(content.goalTargetText)
-        if (target == null || target.isZero()) {
-            updateContent { it.copy(isSaving = false, errorMessage = "Revisa el monto de tu meta") }
-            return false
-        }
-
-        val current = parseGoalAmount(content.goalCurrentText) ?: Money.ZERO
-
-        val months = content.goalMonthsText.toIntOrNull() ?: 5
-        val existing = commitmentRepository.getById(CommitmentIds.EMERGENCY_FUND)
-
-        return saveCommitment(
-            existingId = existing?.id ?: CommitmentIds.EMERGENCY_FUND,
-            type = CommitmentType.SAVINGS_GOAL,
-            title = content.goalName.ifBlank { content.goalType.defaultTitle() },
-            targetAmount = target,
-            currentAmount = current,
-            savingsHorizonMonths = months,
-        ).fold(
-            onSuccess = { true },
-            onFailure = {
-                updateContent { it.copy(isSaving = false, errorMessage = "No pudimos guardar tu meta") }
-                false
-            },
-        )
-    }
-
-    private suspend fun saveSocialDebt(content: PlanWizardUiState.Content): Boolean {
-        if (!content.hasSocialDebt) {
-            val existing = commitmentRepository.getById(CommitmentIds.PRIMARY_SOCIAL_DEBT)
-                ?: commitmentRepository.observeCommitments().firstWithTimeout(emptyList())
-                    .firstOrNull { it.type == CommitmentType.SOCIAL_DEBT }
-            if (existing != null) {
-                return commitmentRepository.save(existing.copy(isSettled = true)).fold(
-                    onSuccess = { true },
-                    onFailure = {
-                        updateContent { it.copy(isSaving = false, errorMessage = "No pudimos actualizar tu deuda social") }
-                        false
-                    },
-                )
-            }
-            return true
-        }
-
-        val amount = when (val parsed = MoneyInputParser.parsePen(content.socialDebtAmountText)) {
-            is DomainResult.Ok -> parsed.value
-            is DomainResult.Err -> {
-                updateContent { it.copy(isSaving = false, errorMessage = "Revisa el monto de tu deuda social") }
-                return false
-            }
-        }
-        if (amount.isZero()) {
-            updateContent { it.copy(isSaving = false, errorMessage = "Ingresa el monto que debes") }
-            return false
-        }
-        val counterparty = content.socialDebtCounterparty.trim()
-        if (counterparty.isEmpty()) {
-            updateContent { it.copy(isSaving = false, errorMessage = "Ingresa a quién le debes") }
-            return false
-        }
-
-        val existing = commitmentRepository.getById(CommitmentIds.PRIMARY_SOCIAL_DEBT)
-            ?: commitmentRepository.observeCommitments().firstWithTimeout(emptyList())
-                .firstOrNull { it.type == CommitmentType.SOCIAL_DEBT }
-
-        return saveCommitment(
-            existingId = existing?.id ?: CommitmentIds.PRIMARY_SOCIAL_DEBT,
-            type = CommitmentType.SOCIAL_DEBT,
-            title = "Deuda con $counterparty",
-            currentAmount = amount,
-            counterpartyName = counterparty,
-        ).fold(
-            onSuccess = { true },
-            onFailure = {
-                updateContent { it.copy(isSaving = false, errorMessage = "No pudimos guardar tu deuda social") }
-                false
-            },
-        )
-    }
-
-    private suspend fun saveAntSpendingPreferences(content: PlanWizardUiState.Content): Boolean {
-        val limitCents = when (val parsed = MoneyInputParser.parsePen(content.antSpendingLimitText)) {
-            is DomainResult.Ok -> parsed.value.amount.movePointRight(2).longValueExact()
-            is DomainResult.Err -> null
-        }
-        return userPreferencesRepository.updatePreferences { prefs ->
-            prefs.copy(
-                antSpendingWeeklyLimitCents = limitCents,
-                antSpendingAlertEnabled = content.antSpendingAlertEnabled,
-                antSpendingAlertPercent = 80,
-                antSpendingTrackedCategories = content.antSpendingCategories,
-            )
-        }.fold(
-            onSuccess = { true },
-            onFailure = {
-                updateContent { it.copy(isSaving = false, errorMessage = "No pudimos guardar tus preferencias") }
-                false
-            },
-        )
-    }
-
-    private fun parseGoalAmount(text: String): Money? {
-        val trimmed = text.trim()
-        if (trimmed.isEmpty()) return Money.ZERO
-        return when (val result = MoneyInputParser.parsePen(trimmed)) {
-            is DomainResult.Ok -> result.value
-            is DomainResult.Err -> null
-        }
-    }
-
-    private fun validateIncome(content: PlanWizardUiState.Content): Boolean {
-        val income = parseMonthlyIncome(content)
-        if (income == null || income.isZero()) {
-            updateContent { it.copy(errorMessage = "Ingresa un monto de ingreso válido") }
-            return false
-        }
-        return true
-    }
-
-    private fun validateFixedExpenses(content: PlanWizardUiState.Content): Boolean {
-        val fixed = parseFixedExpenses(content)
-        if (fixed == null) {
-            updateContent { it.copy(errorMessage = "Revisa el desglose de gastos fijos") }
-            return false
-        }
-        return true
-    }
-
-    private fun validateEnvelopeLimits(content: PlanWizardUiState.Content): Boolean =
-        validateLimits(content.envelopeLimits, content.budgets)
-
-    private fun validateAntSpending(content: PlanWizardUiState.Content): Boolean {
-        when (val parsed = MoneyInputParser.parsePen(content.antSpendingLimitText)) {
-            is DomainResult.Err -> {
-                updateContent { it.copy(errorMessage = "Ingresa un límite válido para gastos hormiga") }
-                return false
-            }
-
-            is DomainResult.Ok -> {
-                if (parsed.value.isZero()) {
-                    updateContent { it.copy(errorMessage = "El límite de gastos hormiga debe ser mayor a cero") }
-                    return false
-                }
-            }
-        }
-        return true
-    }
-
-    private fun validateSocialDebt(content: PlanWizardUiState.Content): Boolean {
-        val counterparty = content.socialDebtCounterparty.trim()
-        if (counterparty.isEmpty()) {
-            updateContent { it.copy(errorMessage = "Ingresa a quién le debes") }
-            return false
-        }
-        when (val parsed = MoneyInputParser.parsePen(content.socialDebtAmountText)) {
-            is DomainResult.Err -> {
-                updateContent { it.copy(errorMessage = "Revisa el monto de tu deuda social") }
-                return false
-            }
-
-            is DomainResult.Ok -> {
-                if (parsed.value.isZero()) {
-                    updateContent { it.copy(errorMessage = "Ingresa el monto que debes") }
-                    return false
-                }
-            }
-        }
-        return true
-    }
-
-    private fun validateGoal(content: PlanWizardUiState.Content): Boolean {
-        val target = parseGoalAmount(content.goalTargetText)
-        if (target == null || target.isZero()) {
-            updateContent { it.copy(errorMessage = "Ingresa cuánto necesitas para tu meta") }
-            return false
-        }
-        return true
-    }
-
-    private fun validateLimits(
-        limits: Map<String, String>,
-        budgets: List<EnvelopeBudgetState>,
-    ): Boolean {
-        for ((envelopeId, limitText) in limits) {
-            val name = budgets.find { it.envelopeId == envelopeId }?.name
-                ?: PlanEnvelopeTemplates.WIZARD_ENVELOPES.find { it.envelopeId == envelopeId }?.name
-                ?: "sobre"
-            when (val parsed = MoneyInputParser.parsePen(limitText)) {
-                is DomainResult.Err -> {
-                    updateContent { it.copy(errorMessage = "Revisa el límite de $name") }
-                    return false
-                }
-
-                is DomainResult.Ok -> {
-                    if (parsed.value.isZero()) {
-                        updateContent { it.copy(errorMessage = "El límite de $name debe ser mayor a cero") }
-                        return false
+            updateContent { it.copy(isSaving = true, errorMessage = null) }
+            refreshSummaryPreview()
+            val content = currentContent() ?: return@launch
+            val saveResult = planWizardSaver.save(content)
+            when (saveResult) {
+                is PlanWizardSaver.Result.Success -> {
+                    val fixedItems = mutableListOf<String>()
+                    if (content.electricityText.isNotBlank()) fixedItems.add("Luz")
+                    if (content.waterText.isNotBlank()) fixedItems.add("Agua")
+                    if (content.internetText.isNotBlank()) fixedItems.add("Internet")
+                    if (content.rentText.isNotBlank()) fixedItems.add("Alquiler")
+                    if (content.phoneText.isNotBlank()) fixedItems.add("Celular")
+                    if (content.debtsText.isNotBlank()) fixedItems.add("Deudas")
+                    if (content.educationText.isNotBlank()) fixedItems.add("Educación")
+                    content.customExpenseLines.forEach { line ->
+                        if (line.amountText.isNotBlank()) fixedItems.add(line.label.ifBlank { "Gasto fijo" })
                     }
+
+                    if (fixedItems.isNotEmpty() && !content.skipFixedExpenses) {
+                        val itemsSummary = "Tienes pagos obligatorios este ciclo: ${fixedItems.joinToString(", ")}"
+                        fixedExpenseReminderScheduler.schedulePaymentReminders(
+                            itemsSummary = itemsSummary,
+                            isBiweekly = content.payFrequency == PayFrequency.BIWEEKLY,
+                        )
+                    } else {
+                        fixedExpenseReminderScheduler.cancelReminders()
+                    }
+
+                    refreshSummaryPreview(saveResult.validation)
+                    updateContent { it.copy(isSaving = false, validation = saveResult.validation) }
+                    onFinished()
+                }
+                is PlanWizardSaver.Result.Error -> {
+                    updateContent { it.copy(isSaving = false, errorMessage = saveResult.message) }
                 }
             }
         }
-        return true
     }
 
-    private fun parseMonthlyIncome(content: PlanWizardUiState.Content): Money? =
-        when (
-            val result = estimateMonthlyIncome.estimate(
-                profile = content.incomeProfile,
-                fixedBaseText = content.fixedBaseText,
-                frequency = content.payFrequency,
-                secondQuincenaText = content.secondQuincenaText,
-                extraIncomeText = content.extraIncomeText,
-                additionalIncomeLines = content.additionalIncomeLines,
-                lowWeekText = content.lowWeekText,
-                normalWeekText = content.normalWeekText,
-                goodWeekText = content.goodWeekText,
-                approximateText = content.approximateIncomeText,
-            )
-        ) {
-            is DomainResult.Ok -> result.value
-            is DomainResult.Err -> null
-        }
-
-    private fun parseFixedExpenses(content: PlanWizardUiState.Content): Money? {
-        if (content.skipFixedExpenses) return Money.ZERO
-        return when (
-            val result = FixedExpenseBreakdownCalculator.sumAll(
-                presetParts = listOf(
-                    content.educationText,
-                    content.rentText,
-                    content.utilitiesText,
-                    content.phoneText,
-                    content.debtsText,
-                ),
-                customLines = content.customExpenseLines,
-            )
-        ) {
-            is DomainResult.Ok -> result.value
-            is DomainResult.Err -> null
-        }
-    }
 
     private fun refreshGoalSuggestion() {
         val content = currentContent() ?: return
@@ -921,8 +674,8 @@ class PlanWizardViewModel @Inject constructor(
     private suspend fun refreshSummaryPreview(validation: FinancialPlanValidationResult? = null) {
         val content = currentContent() ?: return
         val previewBudgets = buildPreviewBudgets(content)
-        val income = parseMonthlyIncome(content)
-        val fixedExpenses = parseFixedExpenses(content)
+        val income = planWizardSaver.parseMonthlyIncome(content)
+        val fixedExpenses = planWizardSaver.parseFixedExpenses(content)
 
         val planBreakdown = if (income != null && fixedExpenses != null) {
             val envelopes = previewBudgets.map { it.toEnvelope() }
@@ -932,6 +685,7 @@ class PlanWizardViewModel @Inject constructor(
                 estimatedMonthlyIncome = income,
                 fixedExpenses = fixedExpenses,
                 envelopeIds = emptyList(),
+                budgetCycle = content.budgetCycle,
             )
             validateFinancialPlan.analyze(plan, envelopes, commitments)
         } else {
@@ -940,14 +694,15 @@ class PlanWizardViewModel @Inject constructor(
 
         val previewValidation = planBreakdown?.validation ?: validation
         val monthlyEnvelope = planBreakdown?.monthlyEnvelopeReserve
-            ?: multiplyWeeklyToMonthly(
+            ?: projectCycleTotalToMonthly(
                 previewBudgets.fold(Money.ZERO) { acc, budget -> acc + budget.weeklyLimit },
+                content.budgetCycle,
             )
         val monthlyExtra = planBreakdown?.monthlySurplus
 
         val referenceInstant = timeProvider.now()
-        val cycleRange = cycleRangeCalculator.currentCycleRange(pe.kipu.core.domain.model.BudgetCycle.WEEKLY, referenceInstant)
-        val daily = calculateCycleAvailable(previewBudgets, referenceInstant, cycleRange, pe.kipu.core.domain.model.BudgetCycle.WEEKLY)
+        val cycleRange = cycleRangeCalculator.currentCycleRange(content.budgetCycle, referenceInstant)
+        val daily = calculateCycleAvailable(previewBudgets, referenceInstant, cycleRange, content.budgetCycle)
 
         updateContent {
             it.copy(
@@ -1012,48 +767,53 @@ class PlanWizardViewModel @Inject constructor(
 
     private fun buildPreviewBudgets(content: PlanWizardUiState.Content): List<EnvelopeBudgetState> {
         val antLimit = content.antSpendingLimitText
-        val antBudget = content.budgets.find { it.envelopeId == PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID }
-            ?: EnvelopeBudgetState(
+        val antBudget = if (antLimit.isNotBlank()) {
+            val parsedLimit = when (val parsed = MoneyInputParser.parsePen(antLimit)) {
+                is DomainResult.Ok -> parsed.value
+                is DomainResult.Err -> Money.ZERO
+            }
+            EnvelopeBudgetState(
                 envelopeId = PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID,
                 name = "Gastos hormiga",
                 categoryId = "category-other",
-                weeklyLimit = Money.ZERO,
+                weeklyLimit = parsedLimit,
                 spentAmount = Money.ZERO,
-                remainingAmount = Money.ZERO,
+                remainingAmount = parsedLimit,
                 percentUsed = 0,
                 status = EnvelopeBudgetStatus.OK,
             )
+        } else null
 
-        val storedBudgets = content.budgets.map { budget ->
+        val storedBudgets = content.budgets.mapNotNull { budget ->
             val limitText = when (budget.envelopeId) {
-                PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID -> antLimit
-                else -> content.envelopeLimits[budget.envelopeId] ?: return@map budget
+                PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID -> null
+                else -> content.envelopeLimits[budget.envelopeId]
             }
-            applyLimit(budget, limitText)
+            if (limitText.isNullOrBlank()) null else applyLimit(budget, limitText)
         }
 
         val templateBudgets = PlanEnvelopeTemplates.WIZARD_ENVELOPES
             .filterNot { template -> storedBudgets.any { it.envelopeId == template.envelopeId } }
             .mapNotNull { template ->
-                val limitText = content.envelopeLimits[template.envelopeId] ?: return@mapNotNull null
+                val limitText = content.envelopeLimits[template.envelopeId]
+                if (limitText.isNullOrBlank()) return@mapNotNull null
                 buildTemplateBudgetState(
                     envelopeId = template.envelopeId,
                     name = template.name,
-                    categoryId = categoryIdForWizardEnvelope(template.envelopeId),
+                    categoryId = planWizardSaver.categoryIdForWizardEnvelope(template.envelopeId),
                     limitText = limitText,
                 )
             }
 
-        val antPreview = applyLimit(antBudget, antLimit)
-
-        val customBudgets = content.customEnvelopeLines.map { line ->
+        val customBudgets = content.customEnvelopeLines.mapNotNull { line ->
+            if (line.amountText.isBlank()) return@mapNotNull null
             val limit = when (val parsed = MoneyInputParser.parsePen(line.amountText)) {
                 is DomainResult.Ok -> parsed.value
                 is DomainResult.Err -> Money.ZERO
             }
             EnvelopeBudgetState(
                 envelopeId = line.id,
-                name = line.label,
+                name = line.label.ifBlank { "Personalizado" },
                 categoryId = line.categoryId ?: "category-other",
                 weeklyLimit = limit,
                 spentAmount = Money.ZERO,
@@ -1063,14 +823,8 @@ class PlanWizardViewModel @Inject constructor(
             )
         }
 
-        val envelopeBudgets = storedBudgets + templateBudgets
-        val allPreviews = if (envelopeBudgets.any { it.envelopeId == antPreview.envelopeId }) {
-            envelopeBudgets
-        } else {
-            envelopeBudgets + antPreview
-        }
-
-        return allPreviews + customBudgets
+        val nonAntBudgets = storedBudgets + templateBudgets
+        return (listOfNotNull(antBudget) + nonAntBudgets + customBudgets)
     }
 
     private fun applyLimit(budget: EnvelopeBudgetState, limitText: String): EnvelopeBudgetState =
@@ -1111,42 +865,15 @@ class PlanWizardViewModel @Inject constructor(
         )
     }
 
-    private suspend fun saveWizardEnvelopeLimit(envelopeId: String, limit: Money): Boolean {
-        val existing = envelopeRepository.getById(envelopeId)
-        val envelope = existing?.copy(weeklyLimit = limit)
-            ?: Envelope(
-                id = envelopeId,
-                name = wizardEnvelopeName(envelopeId),
-                weeklyLimit = limit,
-                categoryId = categoryIdForWizardEnvelope(envelopeId),
-            )
-
-        return envelopeRepository.save(envelope).fold(
-            onSuccess = { true },
-            onFailure = {
-                updateContent { content ->
-                    content.copy(isSaving = false, errorMessage = "No pudimos guardar tus sobres")
-                }
-                false
-            },
-        )
-    }
-
-    private fun wizardEnvelopeName(envelopeId: String): String =
-        PlanEnvelopeTemplates.WIZARD_ENVELOPES.firstOrNull { it.envelopeId == envelopeId }?.name
-            ?: "Gastos hormiga"
-
-    private fun categoryIdForWizardEnvelope(envelopeId: String): String = when (envelopeId) {
-        pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds.FOOD -> CategoryIds.FOOD
-        pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds.TRANSPORT -> CategoryIds.TRANSPORT
-        else -> CategoryIds.OTHER
-    }
 
     private fun buildDefaultEnvelopeLimits(
         budgets: List<EnvelopeBudgetState>,
-        preferences: UserPreferences,
+        plan: FinancialPlan?,
     ): Map<String, String> {
         val defaults = mutableMapOf<String, String>()
+        if (plan == null) {
+            return defaults
+        }
         PlanEnvelopeTemplates.WIZARD_ENVELOPES.forEach { template ->
             val existing = budgets.find { it.envelopeId == template.envelopeId }
             if (existing != null) {
@@ -1155,18 +882,24 @@ class PlanWizardViewModel @Inject constructor(
         }
         val antFromBudget = budgets.find { it.envelopeId == PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID }
             ?.weeklyLimit?.amount
-        val antFromPrefs = preferences.antSpendingWeeklyLimitCents?.let { cents ->
-            BigDecimal.valueOf(cents).movePointLeft(2)
-        }
-        val antAmount = antFromPrefs ?: antFromBudget
+        val antAmount = plan.antSpendingLimit?.amount ?: antFromBudget
         if (antAmount != null) {
             defaults[PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID] = antAmount.stripTrailingZeros().toPlainString()
         }
         return defaults
     }
 
-    private fun multiplyWeeklyToMonthly(weekly: Money): Money {
-        val product = weekly.amount.multiply(BigDecimal.valueOf(4))
+    private fun projectCycleTotalToMonthly(
+        cycleTotal: Money,
+        cycle: pe.kipu.core.domain.model.BudgetCycle,
+    ): Money {
+        val factor = when (cycle) {
+            pe.kipu.core.domain.model.BudgetCycle.DAILY -> 30L
+            pe.kipu.core.domain.model.BudgetCycle.WEEKLY -> 4L
+            pe.kipu.core.domain.model.BudgetCycle.MONTHLY -> 1L
+        }
+        if (factor == 1L) return cycleTotal
+        val product = cycleTotal.amount.multiply(BigDecimal.valueOf(factor))
         return when (val result = Money.of(product)) {
             is DomainResult.Ok -> result.value
             is DomainResult.Err -> Money.ZERO
@@ -1188,12 +921,15 @@ class PlanWizardViewModel @Inject constructor(
 
     private data class FixedExpenseFields(
         val skipFixedExpenses: Boolean,
-        val educationText: String,
+        val electricityText: String,
+        val waterText: String,
+        val internetText: String,
         val rentText: String,
-        val utilitiesText: String,
         val phoneText: String,
         val debtsText: String,
+        val educationText: String,
     )
+
 
     fun onAddCustomEnvelopeLine() {
         updateContent {
@@ -1227,8 +963,9 @@ class PlanWizardViewModel @Inject constructor(
     }
 
     private fun updateContent(transform: (PlanWizardUiState.Content) -> PlanWizardUiState.Content) {
-        val current = currentContent() ?: return
-        _uiState.update { transform(current) }
+        _uiState.update { current ->
+            (current as? PlanWizardUiState.Content)?.let(transform) ?: current
+        }
     }
 
     private fun newWizardLine(label: String = ""): PlanWizardLineItem =
@@ -1237,26 +974,6 @@ class PlanWizardViewModel @Inject constructor(
             label = label,
             amountText = "",
         )
-
-    private suspend fun migrateAntSpendingCategoryIds(stored: Set<String>): Set<String> {
-        if (stored.isEmpty()) return emptySet()
-        val migrated = mutableSetOf<String>()
-        var needsMigration = false
-        for (value in stored) {
-            if (value.startsWith("category-")) {
-                migrated.add(value)
-            } else {
-                needsMigration = true
-                createCategory(value).onSuccess { migrated.add(it.id) }
-            }
-        }
-        if (needsMigration) {
-            userPreferencesRepository.updatePreferences { prefs ->
-                prefs.copy(antSpendingTrackedCategories = migrated)
-            }
-        }
-        return migrated
-    }
 
     private suspend fun ensureCategoryForExpenseLine(lineId: String, name: String) {
         createCategory(name).onSuccess { category ->

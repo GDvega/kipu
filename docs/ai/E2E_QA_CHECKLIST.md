@@ -1,6 +1,6 @@
 # E2E QA — Kipu MVP
 
-> Checklist y suite automatizada post-Fase 16. Última revisión: jun 2026.
+> Checklist y suite automatizada post-Fase 16. Última revisión: 13 ago 2026.
 
 ## Suite automatizada (instrumented)
 
@@ -20,29 +20,40 @@ adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do slee
 ### Comando (dispositivo físico arm64)
 
 ```bash
-export ANDROID_SERIAL=<serial>   # ej. ZT322PDDPK (Moto G24)
+export ANDROID_SERIAL=<serial-del-dispositivo>
 ./gradlew :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
 ```
 
-### Última ejecución automatizada (22 jun 2026 — Redmi 23129RA5FL, serial `340e501b`)
+### Última ejecución automatizada (13 ago 2026 — Moto G24, Android 14)
 
 | Módulo | Resultado |
 |--------|-----------|
-| `:core:data` | **11/11 PASS** vía `adb shell am instrument` |
-| `:app` | **3/15 PASS** — solo `ReceiptShareIntentParserTest`; tests Compose/UI se cuelgan en MIUI |
+| `:app` | **43/43 PASS** |
+| `:core:data` | **24/24 PASS** |
 
-**Dispositivo:** Android 15, MIUI. Instalación manual OK (`adb install -r`); Gradle `connectedDebugAndroidTest` falla con `INSTALL_FAILED_USER_RESTRICTED` (activar **Instalar vía USB** en Opciones de desarrollador).
-
-**Workaround ejecutado:**
+**Comando ejecutado sin descargar ni actualizar dependencias:**
 ```bash
-export ANDROID_SERIAL=340e501b
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb install -r core/data/build/outputs/apk/androidTest/debug/data-debug-androidTest.apk
-adb shell am instrument -w pe.kipu.core.data.test/androidx.test.runner.AndroidJUnitRunner
+./gradlew --offline --no-daemon --max-workers=1 -Pksp.incremental=false :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
 ```
 
-**Pendiente:** tests UI `:app` (Compose/MainActivity) — bloqueados en MIUI; mantener pantalla encendida y desactivar optimización de batería para Kipu durante E2E.
+El dispositivo mantuvo `font_scale=1.3`. La regresión focalizada de `KipuNavigationE2ETest`, `MediumAccessibilitySemanticsTest` y `PlanWizardE2ETest` terminó **9/9 PASS**. La suite completa incluyó `ReceiptCaptureUriFactoryInstrumentedTest` y `ReceiptReviewViewModelErrorInstrumentedTest`; el parser de share verificó que solo acepta URI `content`.
+
+Esto no valida C1–C3 con Yape/Plin ni un share externo en inicio frío/cálido, tampoco cámara física ni la locución audible con TalkBack: siguen en el checklist manual.
+
+### Ejecución anterior (11 ago 2026 — Moto G24, Android 14)
+
+| Módulo | Resultado |
+|--------|-----------|
+| `:app` | **38/38 PASS** |
+| `:core:data` | **24/24 PASS** |
+
+**Comando ejecutado sin descargar ni actualizar dependencias:**
+```bash
+./gradlew --offline --no-daemon --max-workers=1 -Pksp.incremental=false :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest
+```
+
+El dispositivo mantuvo `font_scale=1.3`. La suite UI no tuvo fallos ni pruebas omitidas.
+`PlanWizardE2ETest` deja un plan sintético con ingreso `5200` en el paquete debug; usar una instalación dedicada a pruebas.
 
 ### Ejecución anterior (20 jun 2026 — remediación auditoría, post-fix)
 
@@ -51,7 +62,7 @@ adb shell am instrument -w pe.kipu.core.data.test/androidx.test.runner.AndroidJU
 | `:app` | **12/12 PASS** (incl. `PrivacyPolicyScreenTest`) |
 | `:core:data` | **5/5 PASS** |
 
-Incluye wizard de plan (4 pasos), navegación, crear junta, share intent, duplicados, migraciones y wipe instrumentado.
+En esa versión incluía wizard de plan de 4 pasos, navegación, crear junta, share intent, duplicados, migraciones y wipe instrumentado.
 
 ### Cobertura automatizada
 
@@ -61,13 +72,24 @@ Incluye wizard de plan (4 pasos), navegación, crear junta, share intent, duplic
 | `:app` | `KipuNavigationE2ETest` | Bottom bar: Inicio → Movimientos → Sobres → Compromisos → Perfil |
 | `:app` | `KipuNavigationE2ETest` | Perfil → Ver juntas |
 | `:app` | `KipuNavigationE2ETest` | Crear junta (nombre + participantes) |
-| `:app` | `PlanWizardE2ETest` | Sobres → Ingresos → wizard 4 pasos → guardar |
+| `:app` | `PlanWizardE2ETest` | Onboarding → wizard 6 pasos → guardar → reabrir → editar `5000→5200` → reabrir |
 | `:app` | `KipuNavigationE2ETest` | Perfil → Política de privacidad |
 | `:app` | `DuplicateResolutionDialogTest` | Diálogo duplicados en español |
 | `:app` | `PendingNotificationDuplicateDialogTest` | Duplicado notificación — Fusionar / No es duplicado |
 | `:app` | `PrivacyPolicyScreenTest` | Política de privacidad en español |
 | `:app` | `PendingPlanWizardInstrumentedTest` | DataStore `pendingPlanWizard` → navega a wizard ingresos |
-| `:core:data` | `KipuDatabaseMigrationInstrumentedTest` | Migraciones v4→v6, v6→v7, v7→v8, v8→11, v11→v12 |
+| `:app` | `HighControlsSemanticsTest` | Contraste, selección, controles destructivos y speed dial accesible |
+| `:app` | `HighFormsAccessibilityTest` | Error de monto único, visible y anunciado en formulario manual |
+| `:app` | `OnboardingHighRemediationTest` | Reintento real y bloqueo de doble envío en onboarding |
+| `:app` | `GatheringLinkMovementDialogTest` | Scroll y selección de movimientos posteriores al octavo |
+| `:app` | `MediumDialogBehaviorTest` | Sin vibración de éxito prematura y sin cerrar diálogos/sheets durante guardado |
+| `:app` | `MediumAccessibilitySemanticsTest` | Filas anti-hormiga y deuda social como switches etiquetados |
+| `:app` | `MediumProfileAccessibilityTest` | Switch de Perfil y estados éxito/error anunciables |
+| `:app` | `MediumReceiptHomeAccessibilityTest` | Resultado y error accesibles de comprobante, speed dial modal y categorías de navegación |
+| `:app` | `ReceiptCaptureUriFactoryInstrumentedTest` | Solo elimina una captura de cámara creada por Kipu; no borra archivos ajenos ni URI con esquema incorrecto |
+| `:app` | `ReceiptReviewViewModelErrorInstrumentedTest` | Error de carga recuperable, Reintentar sin doble procesamiento y limpieza de la captura propia al liberar la revisión |
+| `:app` | `ReceiptShareIntentParserTest` | Acepta share de imagen únicamente mediante URI `content` |
+| `:core:data` | `KipuDatabaseMigrationInstrumentedTest` | Migraciones hasta Room v16 y recorrido completo a la versión actual |
 | `:core:data` | `RoomUserDataWipeInstrumentedTest` | Wipe Room + re-seed + prefs |
 | `:core:data` | `MovementDaoInstrumentedTest` | DAO movimientos |
 | `:core:domain` (JVM) | `MonitoredPaymentAppsTest` | Package names Yape/Plin verificados |
@@ -101,6 +123,8 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 | C2 | Confirmar gasto | Editar si hace falta → Confirmar | Movimiento en lista Movimientos |
 | C3 | Duplicado | Repetir mismo comprobante | Diálogo "Posible duplicado" |
 
+**Estado:** C1–C3 permanecen sin marcar hasta probar el share externo real, tanto con Kipu cerrado como ya abierto. La cobertura automatizada solo valida el parser y las rutas locales; no sustituye esa comprobación.
+
 ### Juntas (Fase 18)
 
 | # | Caso | Pasos | Esperado |
@@ -125,7 +149,7 @@ Marcar ✅ cuando se verifique en hardware con Yape/Plin instalados.
 |---|------|-------|----------|
 | R1 | Tabs | Recorrer 5 tabs bottom bar | Sin crash; headers correctos |
 | R2 | Sobres → movimientos | Ver movimientos de sobre Comida | Filtro categoría activo |
-| R3 | Wizard plan | Onboarding → Comenzar (usuario nuevo) | Wizard ingresos/gastos/resumen |
+| R3 | Wizard plan | Onboarding → Comenzar (usuario nuevo) | Seis pasos en orden: ingresos, gastos fijos, sobres, hormiga, meta y resumen |
 
 ---
 

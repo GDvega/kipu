@@ -1,17 +1,20 @@
 package pe.kipu.feature.receipts.presentation
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.flow.firstWithTimeout
-import pe.kipu.core.domain.usecase.ProcessReceiptFromUriUseCase
+import pe.kipu.core.domain.usecase.ProcessReceiptImageUseCase
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.ConfirmMovementResult
 import pe.kipu.core.domain.model.DomainResult
@@ -27,14 +30,15 @@ import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.usecase.ConfirmReceiptMovementUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
-import pe.kipu.core.designsystem.component.formatPenAmountForDisplay
+import pe.kipu.feature.receipts.ReceiptCaptureUriFactory
 import pe.kipu.feature.receipts.navigation.ReceiptRoutes
 
 @HiltViewModel
 class ReceiptReviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val appContext: Context,
     private val receiptImageLoader: ReceiptImageLoader,
-    private val processReceiptFromUri: ProcessReceiptFromUriUseCase,
+    private val processReceiptImage: ProcessReceiptImageUseCase,
     private val confirmReceiptMovement: ConfirmReceiptMovementUseCase,
     private val categoryRepository: CategoryRepository,
     private val timeProvider: TimeProvider,
@@ -70,32 +74,44 @@ class ReceiptReviewViewModel @Inject constructor(
     }
 
     fun retryProcess() {
+        if (_uiState.value !is ReceiptReviewUiState.Error) return
+        _uiState.value = ReceiptReviewUiState.Loading
         viewModelScope.launch {
             loadAndProcess()
         }
     }
 
     fun onAmountChanged(value: String) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
         amountText = value
         publishReady(isSaving = false, errorMessage = null, duplicatePending = null)
     }
 
     fun onCounterpartyChanged(value: String) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
         counterpartyText = value
         publishReady(isSaving = false, errorMessage = null, duplicatePending = null)
     }
 
     fun onMessageChanged(value: String) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
         messageText = value
         publishReady(isSaving = false, errorMessage = null, duplicatePending = null)
     }
 
     fun onOperationReferenceChanged(value: String) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
         operationReferenceText = value
         publishReady(isSaving = false, errorMessage = null, duplicatePending = null)
     }
 
     fun onCategorySelected(categoryId: String) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
         selectedCategoryId = categoryId
         if (categoryId != baseSuggestion?.categoryId) {
             categorySuggestionReason = null
@@ -104,70 +120,87 @@ class ReceiptReviewViewModel @Inject constructor(
     }
 
     fun onConfirm() {
-        viewModelScope.launch {
-            publishReady(isSaving = true, errorMessage = null, duplicatePending = null)
-            when (val buildResult = buildSuggestion()) {
-                is DomainResult.Err -> {
-                    publishReady(
-                        isSaving = false,
-                        errorMessage = buildResult.error.message,
-                        duplicatePending = null,
-                    )
-                }
-
-                is DomainResult.Ok -> confirmSuggestion(buildResult.value)
-            }
-        }
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending != null) return
+        publishReady(isSaving = true, errorMessage = null, duplicatePending = null)
+        launchConfirmation()
     }
 
     fun onResolveDuplicate(resolution: DuplicateResolution) {
+        val current = _uiState.value as? ReceiptReviewUiState.Ready ?: return
+        if (current.isSaving || current.duplicatePending == null) return
         if (resolution == DuplicateResolution.CANCEL) {
             publishReady(isSaving = false, errorMessage = null, duplicatePending = null)
             return
         }
-        viewModelScope.launch {
-            publishReady(isSaving = true, errorMessage = null, duplicatePending = null)
-            when (val buildResult = buildSuggestion()) {
-                is DomainResult.Err -> {
-                    publishReady(
-                        isSaving = false,
-                        errorMessage = buildResult.error.message,
-                        duplicatePending = null,
-                    )
-                }
+        publishReady(isSaving = true, errorMessage = null, duplicatePending = null)
+        launchConfirmation(resolution)
+    }
 
-                is DomainResult.Ok -> confirmSuggestion(buildResult.value, resolution)
+    override fun onCleared() {
+        ReceiptCaptureUriFactory.deleteIfOwnedCapture(appContext, contentUri)
+        super.onCleared()
+    }
+
+    private fun launchConfirmation(resolution: DuplicateResolution? = null) {
+        viewModelScope.launch {
+            try {
+                when (val buildResult = buildSuggestion()) {
+                    is DomainResult.Err -> {
+                        publishReady(
+                            isSaving = false,
+                            errorMessage = buildResult.error.message,
+                            duplicatePending = null,
+                        )
+                    }
+
+                    is DomainResult.Ok -> confirmSuggestion(buildResult.value, resolution)
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Exception) {
+                publishReady(
+                    isSaving = false,
+                    errorMessage = "No pudimos completar la acción. Intenta de nuevo.",
+                    duplicatePending = null,
+                )
             }
         }
     }
 
     private suspend fun loadAndProcess() {
-        val imageResult = receiptImageLoader.load(contentUri)
-        val image = imageResult.getOrElse {
-            _uiState.value = ReceiptReviewUiState.Error("No pudimos abrir el comprobante")
-            return
-        }
+        try {
+            val imageResult = receiptImageLoader.load(contentUri)
+            val image = imageResult.getOrElse {
+                _uiState.value = ReceiptReviewUiState.Error("No pudimos abrir el comprobante")
+                return
+            }
 
-        previewBytes = image.bytes.copyOf()
-        _uiState.value = ReceiptReviewUiState.Processing(previewBytes = previewBytes)
+            previewBytes = image.bytes.copyOf()
+            _uiState.value = ReceiptReviewUiState.Processing(previewBytes = previewBytes)
 
-        val categories = categoryRepository.observeCategories().firstWithTimeout(emptyList())
-        this.categories = categories
-        val parseResult = processReceiptFromUri(contentUri)
+            val categories = categoryRepository.observeCategories().firstWithTimeout(emptyList())
+            this.categories = categories
+            val parseResult = processReceiptImage(image)
 
-        when (parseResult) {
-            is ReceiptParseResult.Success -> applySuggestion(parseResult.suggestion, categories, warning = null)
-            ReceiptParseResult.UnsupportedChannel -> applySuggestion(
-                suggestion = null,
-                categories = categories,
-                warning = "No reconocimos Yape ni Plin. Completa los datos manualmente.",
-            )
+            when (parseResult) {
+                is ReceiptParseResult.Success -> applySuggestion(parseResult.suggestion, categories, warning = null)
+                ReceiptParseResult.UnsupportedChannel -> applySuggestion(
+                    suggestion = null,
+                    categories = categories,
+                    warning = "No reconocimos Yape ni Plin. Completa los datos manualmente.",
+                )
 
-            is ReceiptParseResult.Failure -> applySuggestion(
-                suggestion = null,
-                categories = categories,
-                warning = "No pudimos leer el comprobante. Revisa los campos antes de guardar.",
-            )
+                is ReceiptParseResult.Failure -> applySuggestion(
+                    suggestion = null,
+                    categories = categories,
+                    warning = "No pudimos leer el comprobante. Revisa los campos antes de guardar.",
+                )
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            _uiState.value = ReceiptReviewUiState.Error("No pudimos procesar el comprobante")
         }
     }
 
@@ -179,7 +212,7 @@ class ReceiptReviewViewModel @Inject constructor(
         baseSuggestion = suggestion
         parseWarning = warning
         confidence = suggestion?.confidence
-        amountText = suggestion?.amount?.amount?.let(::formatPenAmountForDisplay) ?: ""
+        amountText = suggestion?.amount?.amount?.let { it.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() } ?: ""
         counterpartyText = suggestion?.counterpartyName.orEmpty()
         messageText = suggestion?.message.orEmpty()
         operationReferenceText = suggestion?.operationReference.orEmpty()

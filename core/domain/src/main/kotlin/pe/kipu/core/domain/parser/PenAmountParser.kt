@@ -9,7 +9,7 @@ import pe.kipu.core.domain.model.Money
  */
 object PenAmountParser {
     private val AMOUNT_PATTERN = Regex(
-        """(?i)S/\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)(?:\.([0-9]{1,2}))?""",
+        """(?i)S/\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.([0-9]{1,2}))?""",
     )
 
     fun parse(text: String): Money? {

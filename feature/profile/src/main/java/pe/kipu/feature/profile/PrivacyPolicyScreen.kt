@@ -48,7 +48,7 @@ fun PrivacyPolicyScreen(
                 )
             }
             Text(
-                text = "Última actualización: junio 2026",
+                text = "Última actualización: 13 de agosto de 2026",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 24.dp, bottom = 32.dp),
@@ -73,7 +73,10 @@ private val privacySections = listOf(
         title = "Qué guardamos",
         body = "Movimientos, categorías, sobres, metas, cuentas compartidas y preferencias que tú registras " +
             "o confirmas. Si compartes un comprobante, la imagen se procesa en el dispositivo " +
-            "con OCR local; no la enviamos a la nube por defecto.",
+            "con OCR local; no la enviamos a la nube por defecto. Una foto tomada desde Kipu usa " +
+            "caché temporal durante captura y revisión y se descarta al cancelar, salir o terminar " +
+            "el flujo. Si la app se interrumpe antes, la caché puede permanecer temporalmente hasta " +
+            "que Android la limpie o elimines tus datos locales.",
     ),
     PrivacySection(
         title = "Notificaciones (opcional)",
@@ -82,8 +85,16 @@ private val privacySections = listOf(
             "Puedes desactivar esta función cuando quieras.",
     ),
     PrivacySection(
+        title = "Métricas técnicas de ML Kit",
+        body = "El OCR procesa la imagen y el texto dentro de tu celular: esos datos financieros " +
+            "no se envían a Google. El SDK de ML Kit sí envía a Google métricas técnicas, como " +
+            "información del dispositivo y la app, identificadores de instalación, rendimiento, " +
+            "configuración, eventos y errores. Google las usa para diagnóstico y analítica, las " +
+            "cifra durante el envío y declara que no las comparte con terceros.",
+    ),
+    PrivacySection(
         title = "Exportar y eliminar",
-        body = "En Perfil puedes exportar una copia JSON o CSV de tus datos, o eliminar " +
+        body = "En Perfil puedes exportar todos tus datos en JSON o tus movimientos en CSV, o eliminar " +
             "todo con confirmación doble. Las exportaciones que compartes con otras apps " +
             "quedan bajo tu responsabilidad.",
     ),

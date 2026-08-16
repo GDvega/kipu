@@ -31,10 +31,10 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 | Package / `applicationId` `pe.kipu.app` | ✅ Activo |
 | Hilt + KSP (DI) | ✅ Activo |
 | `core/domain` (JVM puro + parsers/UseCases financieros) | ✅ Activo |
-| `core/data` (Room v12 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
+| `core/data` (Room v16 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
 | ViewModels + UiState por feature | ✅ Activo |
 | DataStore (preferencias usuario) | ✅ Activo |
-| Room (`kipu.db` v12 — movimientos, categorías, sobres, compromisos, plan + `incomeProfile`/`payFrequency`) | ✅ Activo |
+| Room (`kipu.db` v16 — movimientos, categorías, sobres, compromisos, plan + configuración de gasto hormiga) | ✅ Activo |
 | UseCases presupuesto semanal (sobres) | ✅ Activo |
 | Disponible diario + gastos hormiga (Home insights) | ✅ Activo |
 | Duplicados con confirmación humana | ✅ Activo |
@@ -87,7 +87,7 @@ kipu/
 │   │   ├── ocr/                  → ReceiptOcrEngine (interface)
 │   │   └── category/             → CategoryIds, YapeMessageCategoryRules
 │   └── data/
-│       ├── local/                → Room v2: movements, categories, envelopes
+│       ├── local/                → Room v16: movements, categories, envelopes, plan
 │       ├── repository/           → RoomMovement/Category/EnvelopeRepository
 │       ├── ocr/                  → MlKitReceiptOcrEngine
 │       └── di/                   → DatabaseModule, OcrModule, DataStoreModule, TimeModule
@@ -208,6 +208,19 @@ Aplicar **ECC Engineering System** en todo encargo de código:
 | 6. Cierre | Ejecutar verificación; reportar con contrato LISTO/NO LISTO. |
 
 Resumen de integración: `docs/ai/ECC_INTEGRATION.md` (si existe).
+
+### 8.1 Ponytail — simplicidad obligatoria
+
+En todo encargo de código, aplicar la skill **Ponytail** en nivel `full` cuando esté disponible. Si no está instalada, aplicar estas reglas directamente después de comprender el flujo real:
+
+1. Omitir trabajo especulativo (YAGNI).
+2. Reutilizar primero código y patrones existentes.
+3. Preferir stdlib, APIs nativas y dependencias ya instaladas, en ese orden.
+4. No crear abstracciones de una sola implementación, configuración sin uso actual ni scaffolding "para después".
+5. Corregir la causa raíz en el punto compartido más pequeño; preferir borrar o simplificar antes que añadir.
+6. Toda lógica no trivial conserva una comprobación ejecutable; cuando TDD sea obligatorio, prevalece RED → GREEN → REFACTOR.
+
+Ponytail no permite simplificar seguridad, validación de entradas, prevención de pérdida de datos, accesibilidad, reglas de arquitectura ni requisitos explícitos. El contrato de salida ECC de Kipu sigue siendo obligatorio.
 
 ---
 

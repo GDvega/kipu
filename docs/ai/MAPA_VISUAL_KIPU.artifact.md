@@ -20,6 +20,7 @@ graph TD
         F6[":feature:plan"]
         F7[":feature:receipts"]
         F8[":feature:juntas"]
+        F9[":feature:onboarding"]
     end
 
     subgraph Núcleo (Core)
@@ -28,14 +29,12 @@ graph TD
         C3[":core:designsystem"]
     end
 
-    A --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8
+    A --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9
     A --> C1 & C2 & C3
 
-    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 --> C1
-    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 --> C3
+    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 --> C1
+    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 --> C3
 
-    F7 --> C2
-    F3 --> F2
     C2 --> C1
 ```
 
@@ -63,7 +62,7 @@ stateDiagram-v2
     Envelopes --> PlanWizard: "Ajustar límites"
 ```
 
-## 3. Modelo de Datos (Room v12)
+## 3. Modelo de Datos (Room v16)
 Relación entre las entidades principales de la base de datos.
 
 ```mermaid

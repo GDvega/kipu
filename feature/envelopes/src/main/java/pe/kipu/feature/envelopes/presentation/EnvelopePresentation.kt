@@ -17,7 +17,7 @@ import pe.kipu.core.designsystem.theme.KipuPurpleDim
 import pe.kipu.core.designsystem.theme.KipuRed
 import pe.kipu.core.designsystem.theme.KipuRedDim
 import pe.kipu.core.domain.model.EnvelopeBudgetState
-import pe.kipu.core.domain.model.EnvelopeBudgetStatus
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 data class EnvelopeVisualStyle(
     val iconBackground: Color,
@@ -40,14 +40,11 @@ fun EnvelopeBudgetState.visualStyle(): EnvelopeVisualStyle = when (categoryId) {
 
 fun EnvelopeBudgetState.percentLabel(): String = "${percentUsed.coerceAtLeast(0)}%"
 
-fun EnvelopeBudgetState.percentToneColor(): Color = when {
-    status == EnvelopeBudgetStatus.EXCEEDED || percentUsed >= 100 -> KipuRed
-    status == EnvelopeBudgetStatus.ADJUSTED || percentUsed >= 75 -> KipuAmber
-    else -> KipuPrimary
-}
-
-fun daysRemainingInCycle(cycle: BudgetCycle): Int {
-    val today = LocalDate.now()
+fun daysRemainingInCycle(
+    cycle: BudgetCycle,
+    referenceDate: LocalDate = LocalDate.now(CycleRangeCalculator.PERU_ZONE),
+): Int {
+    val today = referenceDate
     val endOfCycle = when (cycle) {
         BudgetCycle.WEEKLY -> today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
         BudgetCycle.MONTHLY -> today.with(TemporalAdjusters.lastDayOfMonth())
@@ -56,8 +53,11 @@ fun daysRemainingInCycle(cycle: BudgetCycle): Int {
     return (endOfCycle.toEpochDay() - today.toEpochDay()).toInt().coerceAtLeast(0)
 }
 
-fun daysRemainingLabel(cycle: BudgetCycle): String {
-    val days = daysRemainingInCycle(cycle)
+fun daysRemainingLabel(
+    cycle: BudgetCycle,
+    referenceDate: LocalDate = LocalDate.now(CycleRangeCalculator.PERU_ZONE),
+): String {
+    val days = daysRemainingInCycle(cycle, referenceDate)
     return when (days) {
         0 -> "Hoy"
         1 -> "1 día restante"

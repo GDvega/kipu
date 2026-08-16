@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import pe.kipu.core.data.di.ApplicationScope
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.repository.UserPreferencesRepository
@@ -46,36 +45,38 @@ class DataStoreUserPreferencesRepository @Inject constructor(
     override suspend fun updatePreferences(
         transform: (UserPreferences) -> UserPreferences,
     ): Result<Unit> {
+        val previous = preferencesState.value
         val updated = transform(preferencesState.value)
         preferencesState.value = updated
         pendingDiskWrite = updated
-        return persistToDisk(updated)
+        val diskResult = persistToDisk(updated)
+        if (diskResult.isFailure) {
+            pendingDiskWrite = null
+            preferencesState.value = previous
+        }
+        return diskResult
     }
 
-    override suspend fun clear(): Result<Unit> = runCatching {
+    override suspend fun clear(): Result<Unit> {
+        val previous = preferencesState.value
         pendingDiskWrite = UserPreferences()
-        dataStore.edit { preferences -> preferences.clear() }
-        preferencesState.value = UserPreferences()
+        val diskResult = runCatching {
+            dataStore.edit { preferences -> preferences.clear() }
+            Unit
+        }
+        if (diskResult.isSuccess) {
+            preferencesState.value = UserPreferences()
+        } else {
+            preferencesState.value = previous
+        }
         pendingDiskWrite = null
+        return diskResult
     }
 
     private suspend fun persistToDisk(preferences: UserPreferences): Result<Unit> {
-        val diskResult = runCatching {
-            withTimeout(DISK_WRITE_TIMEOUT_MS) {
-                dataStore.edit { prefs -> prefs.applyUserPreferences(preferences) }
-            }
+        return runCatching {
+            dataStore.edit { prefs -> prefs.applyUserPreferences(preferences) }
+            Unit
         }
-        if (diskResult.isFailure) {
-            applicationScope.launch {
-                runCatching {
-                    dataStore.edit { prefs -> prefs.applyUserPreferences(preferences) }
-                }
-            }
-        }
-        return Result.success(Unit)
-    }
-
-    private companion object {
-        const val DISK_WRITE_TIMEOUT_MS: Long = 5_000L
     }
 }

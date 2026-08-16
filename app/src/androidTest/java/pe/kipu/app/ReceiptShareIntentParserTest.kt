@@ -50,6 +50,16 @@ class ReceiptShareIntentParserTest {
         assertNull(ReceiptShareIntentParser.extractImageUri(intent))
     }
 
+    @Test
+    fun returnsNullForNonContentUri() {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse("file:///tmp/receipt.jpg"))
+        }
+
+        assertNull(ReceiptShareIntentParser.extractImageUri(intent))
+    }
+
     private companion object {
         val MINIMAL_JPEG: ByteArray = byteArrayOf(
             0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte(),

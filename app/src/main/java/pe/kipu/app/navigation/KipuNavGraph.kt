@@ -20,8 +20,6 @@ import pe.kipu.feature.plan.PlanWizardScreen
 import pe.kipu.feature.profile.ProfileScreen
 import pe.kipu.feature.profile.PrivacyPolicyScreen
 import pe.kipu.feature.profile.navigation.ProfileRoutes
-import pe.kipu.feature.juntas.GatheringsScreen
-import pe.kipu.feature.juntas.navigation.GatheringRoutes
 import pe.kipu.feature.receipts.ReceiptReviewScreen
 import pe.kipu.feature.receipts.ReceiptsScreen
 import pe.kipu.feature.receipts.navigation.ReceiptRoutes
@@ -46,6 +44,7 @@ fun KipuNavGraph(
     ) {
         composable(KipuDestination.Home.route) {
             HomeScreen(
+                speedDialModalBottomPadding = KipuBottomBarHeight + KipuBottomBarBottomGap,
                 onRegisterReceipt = {
                     navController.navigate(ReceiptRoutes.HUB)
                 },
@@ -102,9 +101,6 @@ fun KipuNavGraph(
         }
         composable(KipuDestination.Profile.route) {
             ProfileScreen(
-                onNavigateToGatherings = {
-                    navController.navigate(GatheringRoutes.LIST)
-                },
                 onNavigateToPrivacyPolicy = {
                     navController.navigate(ProfileRoutes.PRIVACY)
                 },
@@ -127,11 +123,7 @@ fun KipuNavGraph(
                 onCancelNewPlan = onCancelNewPlan,
             )
         }
-        composable(GatheringRoutes.LIST) {
-            GatheringsScreen(
-                onBack = { navController.popBackStack() },
-            )
-        }
+
         composable(ReceiptRoutes.HUB) {
             ReceiptsScreen(
                 onReviewReceipt = { contentUri ->

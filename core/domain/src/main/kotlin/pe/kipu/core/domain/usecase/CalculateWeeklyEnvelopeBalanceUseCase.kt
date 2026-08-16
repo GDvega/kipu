@@ -2,6 +2,7 @@ package pe.kipu.core.domain.usecase
 
 import java.math.BigDecimal
 import javax.inject.Inject
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.model.FinancialPlan
@@ -28,8 +29,10 @@ class CalculateWeeklyEnvelopeBalanceUseCase @Inject constructor() {
             )
         }
 
-        val weeklyIncome = divideMonthlyToWeekly(plan.estimatedMonthlyIncome)
-        val delta = weeklyIncome.amount.subtract(allocated.amount)
+        // `weeklyIncome` es en realidad el ingreso del ciclo del plan (deuda de naming):
+        // los límites del sobre se expresan por ciclo, así que el ingreso se prorratea al mismo ciclo.
+        val cycleIncome = prorateMonthlyIncome(plan.estimatedMonthlyIncome, plan.budgetCycle)
+        val delta = cycleIncome.amount.subtract(allocated.amount)
         val unallocated = when (val result = Money.of(delta.abs())) {
             is DomainResult.Ok -> result.value
             is DomainResult.Err -> Money.ZERO
@@ -42,20 +45,26 @@ class CalculateWeeklyEnvelopeBalanceUseCase @Inject constructor() {
         }
 
         return WeeklyEnvelopeBalanceSummary(
-            weeklyIncome = weeklyIncome,
+            weeklyIncome = cycleIncome,
             allocated = allocated,
             unallocated = unallocated,
             status = status,
         )
     }
 
-    private fun divideMonthlyToWeekly(monthly: Money): Money {
-        val weekly = monthly.amount.divide(
-            BigDecimal.valueOf(WEEKS_PER_MONTH),
+    private fun prorateMonthlyIncome(monthly: Money, cycle: BudgetCycle): Money {
+        val divisor = when (cycle) {
+            BudgetCycle.DAILY -> DAYS_PER_MONTH
+            BudgetCycle.WEEKLY -> WEEKS_PER_MONTH
+            BudgetCycle.MONTHLY -> 1L
+        }
+        if (divisor == 1L) return monthly
+        val prorated = monthly.amount.divide(
+            BigDecimal.valueOf(divisor),
             MONEY_SCALE,
             java.math.RoundingMode.HALF_UP,
         )
-        return when (val result = Money.of(weekly)) {
+        return when (val result = Money.of(prorated)) {
             is DomainResult.Ok -> result.value
             is DomainResult.Err -> Money.ZERO
         }
@@ -63,6 +72,7 @@ class CalculateWeeklyEnvelopeBalanceUseCase @Inject constructor() {
 
     private companion object {
         const val WEEKS_PER_MONTH: Long = 4L
+        const val DAYS_PER_MONTH: Long = 30L
         const val MONEY_SCALE: Int = 2
     }
 }

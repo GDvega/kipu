@@ -24,6 +24,7 @@ fun EnvelopeAdjustLimitDialog(
     budget: EnvelopeBudgetState,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
+    isSaving: Boolean = false,
     errorMessage: String? = null,
 ) {
     var amountText by rememberSaveable(budget.envelopeId) {
@@ -31,7 +32,7 @@ fun EnvelopeAdjustLimitDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         title = { Text("Ajustar presupuesto") },
         text = {
             Column {
@@ -50,25 +51,24 @@ fun EnvelopeAdjustLimitDialog(
                     value = amountText,
                     onValueChange = { amountText = it },
                     label = "Nuevo límite semanal",
+                    errorText = errorMessage,
+                    enabled = !isSaving,
                 )
-                errorMessage?.let { message ->
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                }
             }
         },
         confirmButton = {
             KipuDialogConfirmButton(
-                text = "Guardar",
+                text = if (isSaving) "Guardando..." else "Guardar",
                 onClick = { onSave(amountText) },
+                enabled = !isSaving,
             )
         },
         dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isSaving,
+            )
         },
     )
 }

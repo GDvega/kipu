@@ -5,7 +5,6 @@ import javax.inject.Singleton
 import java.math.BigDecimal
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.GatheringExpenseDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -28,7 +27,6 @@ class RoomGatheringExpenseRepository @Inject constructor(
                     row.gatheringId to Money.of(BigDecimal.valueOf(row.totalCents, 2)).getOrError()
                 }
             }
-            .withImmediateDefault(emptyMap())
 
     override fun observeExpensesByGathering(): Flow<Map<EntityId, List<GatheringExpense>>> =
         gatheringExpenseDao.observeAll()
@@ -37,17 +35,14 @@ class RoomGatheringExpenseRepository @Inject constructor(
                     .map { it.toDomain() }
                     .groupBy { expense -> expense.gatheringId }
             }
-            .withImmediateDefault(emptyMap())
 
     override fun observeLinkedMovementIds(): Flow<Set<EntityId>> =
         gatheringExpenseDao.observeLinkedMovementIds()
             .map { ids -> ids.toSet() }
-            .withImmediateDefault(emptySet())
 
     override fun observeActiveGatheringLinkedMovementIds(): Flow<Set<EntityId>> =
         gatheringExpenseDao.observeActiveGatheringLinkedMovementIds()
             .map { ids -> ids.toSet() }
-            .withImmediateDefault(emptySet())
 
     override suspend fun isMovementLinked(movementId: EntityId): Boolean =
         gatheringExpenseDao.isMovementLinked(movementId)

@@ -50,10 +50,44 @@ class GetEnvelopeRecentMovementsUseCaseTest {
         val result = useCase(
             categoryId = CategoryIds.FOOD,
             movements = listOf(inWeekRecent, inWeekOlder, otherCategory, pending),
+            cycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
             limit = 3,
         )
 
         assertEquals(listOf("m1", "m2"), result.map { it.id })
+    }
+
+    @Test
+    fun `monthly cycle includes expenses from earlier in the month`() {
+        val inWeek = movement(
+            id = "m1",
+            categoryId = CategoryIds.FOOD,
+            recordedAt = Instant.parse("2026-06-16T10:00:00Z"),
+        )
+        // 2026-06-03 está en el mes pero fuera de la semana del 15-21.
+        val earlierInMonth = movement(
+            id = "m2",
+            categoryId = CategoryIds.FOOD,
+            recordedAt = Instant.parse("2026-06-03T10:00:00Z"),
+        )
+        val useCase = GetEnvelopeRecentMovementsUseCase(
+            cycleRangeCalculator = CycleRangeCalculator(FixedTimeProvider(reference)),
+            timeProvider = FixedTimeProvider(reference),
+        )
+
+        val weekly = useCase(
+            categoryId = CategoryIds.FOOD,
+            movements = listOf(inWeek, earlierInMonth),
+            cycle = pe.kipu.core.domain.model.BudgetCycle.WEEKLY,
+        )
+        val monthly = useCase(
+            categoryId = CategoryIds.FOOD,
+            movements = listOf(inWeek, earlierInMonth),
+            cycle = pe.kipu.core.domain.model.BudgetCycle.MONTHLY,
+        )
+
+        assertEquals(listOf("m1"), weekly.map { it.id })
+        assertEquals(listOf("m1", "m2"), monthly.map { it.id })
     }
 
     private fun movement(

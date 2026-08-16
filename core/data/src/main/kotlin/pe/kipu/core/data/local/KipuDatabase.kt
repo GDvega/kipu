@@ -30,8 +30,8 @@ import pe.kipu.core.data.local.entity.MovementEntity
         GatheringEntity::class,
         GatheringExpenseEntity::class,
     ],
-    version = 15,
-    exportSchema = false,
+    version = 16,
+    exportSchema = true,
 )
 abstract class KipuDatabase : RoomDatabase() {
     abstract fun movementDao(): MovementDao

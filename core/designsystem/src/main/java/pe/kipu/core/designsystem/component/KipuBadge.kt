@@ -7,19 +7,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import pe.kipu.core.designsystem.theme.KipuAmber
-import pe.kipu.core.designsystem.theme.KipuAmberDim
-import pe.kipu.core.designsystem.theme.KipuBlue
-import pe.kipu.core.designsystem.theme.KipuBlueDim
-import pe.kipu.core.designsystem.theme.KipuPrimary
-import pe.kipu.core.designsystem.theme.KipuPrimaryDim
-import pe.kipu.core.designsystem.theme.KipuPurple
-import pe.kipu.core.designsystem.theme.KipuPurpleDim
-import pe.kipu.core.designsystem.theme.KipuRed
-import pe.kipu.core.designsystem.theme.KipuRedDim
 
 enum class KipuBadgeTone {
     Primary,
@@ -36,13 +25,7 @@ fun KipuBadge(
     tone: KipuBadgeTone,
     modifier: Modifier = Modifier,
 ) {
-    val (background, foreground) = when (tone) {
-        KipuBadgeTone.Primary -> KipuPrimaryDim to KipuPrimary
-        KipuBadgeTone.Warning -> KipuAmberDim to KipuAmber
-        KipuBadgeTone.Critical -> KipuRedDim to KipuRed
-        KipuBadgeTone.Info -> KipuBlueDim to KipuBlue
-        KipuBadgeTone.Purple -> KipuPurpleDim to KipuPurple
-    }
+    val (background, foreground) = tone.colors()
 
     Text(
         text = text,
@@ -62,13 +45,7 @@ fun KipuCompactBadge(
     tone: KipuBadgeTone,
     modifier: Modifier = Modifier,
 ) {
-    val (background, foreground) = when (tone) {
-        KipuBadgeTone.Primary -> KipuPrimaryDim to KipuPrimary
-        KipuBadgeTone.Warning -> KipuAmberDim to KipuAmber
-        KipuBadgeTone.Critical -> KipuRedDim to KipuRed
-        KipuBadgeTone.Info -> KipuBlueDim to KipuBlue
-        KipuBadgeTone.Purple -> KipuPurpleDim to KipuPurple
-    }
+    val (background, foreground) = tone.colors()
 
     Text(
         text = text.uppercase(),
@@ -79,4 +56,18 @@ fun KipuCompactBadge(
         fontWeight = FontWeight.Bold,
         color = foreground,
     )
+}
+
+@Composable
+private fun KipuBadgeTone.colors() = when (this) {
+    KipuBadgeTone.Primary -> MaterialTheme.colorScheme.primaryContainer to
+        MaterialTheme.colorScheme.onPrimaryContainer
+    KipuBadgeTone.Warning -> MaterialTheme.colorScheme.secondaryContainer to
+        MaterialTheme.colorScheme.onSecondaryContainer
+    KipuBadgeTone.Critical -> MaterialTheme.colorScheme.errorContainer to
+        MaterialTheme.colorScheme.onErrorContainer
+    KipuBadgeTone.Info -> MaterialTheme.colorScheme.surfaceVariant to
+        MaterialTheme.colorScheme.onSurfaceVariant
+    KipuBadgeTone.Purple -> MaterialTheme.colorScheme.tertiaryContainer to
+        MaterialTheme.colorScheme.onTertiaryContainer
 }

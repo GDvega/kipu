@@ -39,7 +39,7 @@ Criterio: todos PASS + checklist manual E2E (N1–N5, C1–C3, J1–J4, E1–E3)
 ./gradlew assembleRelease
 ```
 
-Firmar con keystore de producción — ver `INTERNAL_TESTING.md` y `keystore.properties.example`.
+Firmar con keystore de producción — ver `INTERNAL_TESTING.md` y `keystore.properties.example`. La tarea release falla intencionalmente si falta la configuración de firma; nunca usar debug signing como reemplazo.
 
 ---
 
@@ -101,18 +101,19 @@ Respuestas sugeridas para el formulario (revisar contra build actual):
 
 | Pregunta | Respuesta |
 |----------|-----------|
-| ¿Recopila o comparte datos? | Sí, recopila (no comparte con terceros publicitarios) |
-| ¿Cifrado en tránsito? | No aplica al flujo principal (sin backend propio en MVP) |
+| ¿Recopila o comparte datos? | Sí: ML Kit recopila métricas técnicas para diagnóstico y analítica; Google declara que no las comparte con terceros |
+| ¿Cifrado en tránsito? | Sí para las métricas recopiladas por ML Kit (HTTPS) |
 | ¿El usuario puede pedir eliminación? | Sí — Perfil → Eliminar todos mis datos |
-| Datos financieros | Montos, categorías, descripciones — **opcional**, ingresados por el usuario o sugeridos localmente |
-| Datos de app | Preferencias, configuración |
+| Datos financieros | No se recopilan fuera del dispositivo; imagen, texto y resultado OCR permanecen locales |
+| Datos recopilados por ML Kit | Información del dispositivo/app, identificadores por instalación, rendimiento, configuración, tamaños, eventos y errores |
+| Finalidad | Diagnóstico y analítica de uso del SDK |
 | ¿Datos vendidos? | No |
-| ¿Solo procesamiento en dispositivo? | Sí para el núcleo de la app |
+| ¿Solo procesamiento en dispositivo? | Sí para datos financieros y OCR; no para las métricas técnicas de ML Kit |
 
 Permisos declarados:
 
 - **Notification listener** — opcional; explicar en descripción y política
-- **Sin INTERNET obligatorio** para flujo principal (verificar manifest si hay dependencias con red)
+- **INTERNET** — presente de forma transitiva por ML Kit/DataTransport para métricas técnicas; el flujo financiero principal sigue funcionando localmente
 
 ---
 

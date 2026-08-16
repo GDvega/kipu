@@ -12,6 +12,14 @@ sealed interface ProfileEvent {
     data object DataWiped : ProfileEvent
 }
 
+sealed interface ProfileStatus {
+    val message: String
+
+    data class Success(override val message: String) : ProfileStatus
+
+    data class Error(override val message: String) : ProfileStatus
+}
+
 sealed interface ProfileUiState {
     data object Loading : ProfileUiState
 
@@ -19,7 +27,6 @@ sealed interface ProfileUiState {
         val appVersionLabel: String = "Kipu 1.0",
         val themeMode: ThemeMode = ThemeMode.SYSTEM,
         val notificationsEnabled: Boolean = false,
-        val autoApproveHighConfidenceNotifications: Boolean = false,
         val notificationAccessGranted: Boolean = false,
         val showNotificationAccessDialog: Boolean = false,
         val onboardingCompleted: Boolean = false,
@@ -29,7 +36,7 @@ sealed interface ProfileUiState {
         val showWipeFinalConfirmDialog: Boolean = false,
         val isExporting: Boolean = false,
         val isWiping: Boolean = false,
-        val statusMessage: String? = null,
+        val status: ProfileStatus? = null,
     ) : ProfileUiState
 
     data class Error(val message: String) : ProfileUiState

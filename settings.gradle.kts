@@ -35,4 +35,4 @@ include(":feature:profile")
 include(":feature:onboarding")
 include(":feature:plan")
 include(":feature:receipts")
-include(":feature:juntas")
+

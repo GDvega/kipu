@@ -39,6 +39,8 @@ Leer junto con `AGENTS.md`, `PROJECT_STATE.md` y los checklists en `docs/ai/`.
 
 **Skill metodológica:** ECC Engineering System (`ecc-engineering-system`) — ciclo, riesgo, verificación, contrato de salida.
 
+**Skill de simplicidad (código):** Ponytail (`ponytail`) en nivel `full` — YAGNI, reutilización y cambio mínimo después de investigar el flujo real. Si no está disponible, aplicar `AGENTS.md` sección 8.1 directamente.
+
 **Resumen ECC en Kipu:** `docs/ai/ECC_INTEGRATION.md`.
 
 ---
@@ -58,6 +60,12 @@ Aplica ECC Engineering System:
 - Cambio mínimo, sin refactors oportunistas.
 - Verifica con comandos reales; no afirmes "listo" sin evidencia.
 - Reporta al final: Cambio / Evidencia / Riesgos / Comprobaciones no ejecutadas / Estado LISTO o NO LISTO.
+
+Aplica Ponytail `full` después de investigar:
+- Omite necesidades especulativas y reutiliza lo existente.
+- Prefiere stdlib, plataforma y dependencias instaladas antes de código nuevo.
+- No añadas abstracciones o dependencias sin una necesidad actual demostrada.
+- No simplifiques seguridad, validación, accesibilidad, arquitectura ni TDD.
 
 Para Android/Kotlin sigue: dominio libre de Android, lógica fuera de Composables, sin `!!`, sin `GlobalScope`.
 
@@ -198,7 +206,7 @@ Frases cortas para dirigir la sesión sin reescribir la plantilla completa:
 
 ```markdown
 # Skill obligatoria
-Aplica ECC Engineering System. Reporta LISTO/NO LISTO.
+Aplica ECC Engineering System y Ponytail `full`. Reporta LISTO/NO LISTO.
 
 # Contexto
 Kipu Fase 2. `core/designsystem` existe con KipuTheme y KipuTopBar.

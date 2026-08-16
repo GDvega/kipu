@@ -7,6 +7,28 @@ import pe.kipu.core.domain.util.MoneyInputParser
 
 object FixedExpenseBreakdownCalculator {
 
+    fun sumPresetParts(
+        electricityText: String,
+        waterText: String,
+        internetText: String,
+        rentText: String,
+        phoneText: String,
+        debtsText: String,
+        educationText: String,
+        customLines: List<PlanWizardLineItem> = emptyList(),
+    ): DomainResult<Money> = sumAll(
+        presetParts = listOf(
+            electricityText,
+            waterText,
+            internetText,
+            rentText,
+            phoneText,
+            debtsText,
+            educationText,
+        ),
+        customLines = customLines,
+    )
+
     fun sumParts(
         educationText: String,
         rentText: String,
@@ -42,6 +64,31 @@ object FixedExpenseBreakdownCalculator {
     }
 
     fun formatTotal(
+        electricityText: String,
+        waterText: String,
+        internetText: String,
+        rentText: String,
+        phoneText: String,
+        debtsText: String,
+        educationText: String,
+        customLines: List<PlanWizardLineItem> = emptyList(),
+    ): String = when (
+        val result = sumPresetParts(
+            electricityText = electricityText,
+            waterText = waterText,
+            internetText = internetText,
+            rentText = rentText,
+            phoneText = phoneText,
+            debtsText = debtsText,
+            educationText = educationText,
+            customLines = customLines,
+        )
+    ) {
+        is DomainResult.Ok -> result.value.amount.stripTrailingZeros().toPlainString()
+        is DomainResult.Err -> ""
+    }
+
+    fun formatTotal(
         educationText: String,
         rentText: String,
         utilitiesText: String,
@@ -66,3 +113,4 @@ object FixedExpenseBreakdownCalculator {
         return MoneyInputParser.parsePen(trimmed)
     }
 }
+

@@ -14,6 +14,7 @@ data class PlanSetup(
     val plan: FinancialPlan,
     val categories: List<Category>,
     val envelopes: List<Envelope>,
+    val envelopeIdsToDelete: Set<EntityId> = emptySet(),
     val commitmentsToSave: List<Commitment>,
     val commitmentIdsToSettle: Set<EntityId>,
 )

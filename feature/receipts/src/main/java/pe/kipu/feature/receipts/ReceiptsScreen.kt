@@ -36,6 +36,8 @@ fun ReceiptsScreen(
     val cameraLauncher = rememberLauncherForActivityResult(TakePicture()) { success ->
         if (success) {
             onReviewReceipt(captureUri.toString())
+        } else {
+            ReceiptCaptureUriFactory.deleteIfOwnedCapture(context, captureUri.toString())
         }
     }
 

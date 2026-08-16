@@ -4,7 +4,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import pe.kipu.core.data.flow.withImmediateDefault
 import pe.kipu.core.data.local.dao.MovementDao
 import pe.kipu.core.data.mapper.toDomain
 import pe.kipu.core.data.mapper.toEntity
@@ -21,7 +20,6 @@ class RoomMovementRepository @Inject constructor(
     override fun observeMovements(): Flow<List<Movement>> =
         movementDao.observeAll()
             .map { entities -> entities.map { it.toDomain() } }
-            .withImmediateDefault(emptyList())
 
     override suspend fun getById(id: EntityId): Movement? =
         movementDao.getById(id)?.toDomain()

@@ -3,13 +3,20 @@ package pe.kipu.feature.commitments.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
@@ -47,12 +54,18 @@ fun CommitmentFormDialog(
         CommitmentType.PENDING_PAYMENT,
     )
     val typeLabels = listOf("Meta", "Deuda social", "Pago pendiente")
+    val targetAmountError = formState.errorMessage.takeIf { it == "Meta inválida" }
+    val currentAmountError = formState.errorMessage.takeIf { it == "Monto inválido" }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!formState.isSaving) onDismiss() },
         title = { Text(text = if (isEdit) "Editar compromiso" else "Nuevo compromiso") },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+            ) {
                 Text(
                     text = "Tipo",
                     style = MaterialTheme.typography.labelLarge,
@@ -63,6 +76,7 @@ fun CommitmentFormDialog(
                     selectedIndex = types.indexOf(formState.type).coerceAtLeast(0),
                     onSelected = { index -> onTypeSelected(types[index]) },
                     contentPadding = PaddingValues(0.dp),
+                    enabled = !formState.isSaving,
                 )
                 OutlinedTextField(
                     value = formState.title,
@@ -71,6 +85,7 @@ fun CommitmentFormDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp),
+                    enabled = !formState.isSaving,
                     singleLine = true,
                 )
                 when (formState.type) {
@@ -80,12 +95,16 @@ fun CommitmentFormDialog(
                             onValueChange = onTargetAmountChanged,
                             label = "Meta total",
                             modifier = Modifier.padding(top = 12.dp),
+                            errorText = targetAmountError,
+                            enabled = !formState.isSaving,
                         )
                         KipuPenOutlinedTextField(
                             value = formState.currentAmountText,
                             onValueChange = onCurrentAmountChanged,
                             label = "Ya ahorrado (opcional)",
                             modifier = Modifier.padding(top = 8.dp),
+                            errorText = currentAmountError,
+                            enabled = !formState.isSaving,
                         )
                     }
 
@@ -97,6 +116,7 @@ fun CommitmentFormDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 12.dp),
+                            enabled = !formState.isSaving,
                             singleLine = true,
                         )
                         KipuPenOutlinedTextField(
@@ -104,6 +124,8 @@ fun CommitmentFormDialog(
                             onValueChange = onCurrentAmountChanged,
                             label = "Monto pendiente",
                             modifier = Modifier.padding(top = 8.dp),
+                            errorText = currentAmountError,
+                            enabled = !formState.isSaving,
                         )
                     }
 
@@ -113,15 +135,24 @@ fun CommitmentFormDialog(
                             onValueChange = onCurrentAmountChanged,
                             label = "Monto a pagar",
                             modifier = Modifier.padding(top = 12.dp),
+                            errorText = currentAmountError,
+                            enabled = !formState.isSaving,
                         )
                     }
                 }
-                formState.errorMessage?.let { message ->
+                formState.errorMessage
+                    ?.takeUnless { it == targetAmountError || it == currentAmountError }
+                    ?.let { message ->
                     Text(
                         text = message,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .semantics {
+                                error(message)
+                                liveRegion = LiveRegionMode.Polite
+                            },
                     )
                 }
             }
@@ -146,18 +177,46 @@ fun CommitmentFormDialog(
 @Composable
 fun CommitmentDeleteConfirmDialog(
     title: String,
+    isDeleting: Boolean,
+    errorMessage: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isDeleting) onDismiss() },
         title = { Text(text = "Eliminar compromiso") },
-        text = { Text(text = "¿Eliminar \"$title\"? Esta acción no se puede deshacer.") },
+        text = {
+            Column {
+                Text(text = "¿Eliminar \"$title\"? Esta acción no se puede deshacer.")
+                errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .semantics {
+                                error(message)
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                    )
+                }
+            }
+        },
         confirmButton = {
-            KipuDialogConfirmButton(text = "Eliminar", onClick = onConfirm)
+            KipuDialogConfirmButton(
+                text = if (isDeleting) "Eliminando..." else "Eliminar",
+                onClick = onConfirm,
+                enabled = !isDeleting,
+                destructive = true,
+            )
         },
         dismissButton = {
-            KipuDialogDismissButton(text = "Cancelar", onClick = onDismiss)
+            KipuDialogDismissButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                enabled = !isDeleting,
+            )
         },
     )
 }

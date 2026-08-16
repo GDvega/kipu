@@ -1,7 +1,7 @@
 # Política de privacidad — Kipu
 
-**Última actualización:** 20 de junio de 2026  
-**Aplicación:** Kipu (`pe.kipu.app`)  
+**Última actualización:** 13 de agosto de 2026
+**Aplicación:** Kipu (`pe.kipu.app`)
 **Ámbito:** usuarios en Perú
 
 > Publicar esta URL en Google Play Console (puede ser el archivo en GitHub o una copia en tu sitio web).
@@ -19,7 +19,7 @@ Kipu es una app de finanzas personales. **Tus datos financieros se guardan en tu
 | Movimientos (montos, categorías, fechas, contrapartes) | Registro manual, comprobantes compartidos, notificaciones opcionales | Base de datos local (Room) en el dispositivo |
 | Sobres, compromisos, plan financiero, juntas | Lo ingresas tú en la app | Base de datos local |
 | Preferencias (tema, flags de notificaciones, onboarding) | Configuración en Perfil | DataStore local |
-| Imágenes de comprobantes | Solo mientras revisas un comprobante (OCR) | Memoria/cache temporal del dispositivo; no se suben por defecto |
+| Imágenes de comprobantes | Comprobante compartido/elegido o foto tomada desde Kipu | Las imágenes compartidas o elegidas se leen desde su app de origen. Las fotos tomadas desde Kipu usan caché temporal durante captura y revisión; no se suben por defecto |
 | Exportaciones JSON/CSV | Acción explícita tuya | Archivo local que **tú** compartes con otras apps |
 
 Kipu **no recopila** nombre legal, DNI, número de cuenta bancaria ni contraseñas de Yape, Plin o bancos.
@@ -33,6 +33,14 @@ Si lo activas en Perfil, Kipu puede leer **solo notificaciones de ingresos** de 
 ### Compartir comprobantes
 
 Cuando compartes una imagen desde Yape/Plin hacia Kipu, la imagen se procesa **en el dispositivo** con OCR local (ML Kit). No enviamos la imagen a servicios de IA generativa ni a nube propia por defecto.
+
+Las fotos tomadas desde Kipu se guardan temporalmente en la caché de la app durante la captura y revisión. Se eliminan al cancelar, salir o terminar el flujo. Si la app se interrumpe antes, la caché puede permanecer temporalmente hasta que Android la limpie o elimines tus datos locales. Esto no elimina imágenes compartidas o elegidas, que siguen perteneciendo a su app de origen.
+
+### Métricas técnicas de ML Kit
+
+ML Kit procesa la imagen, el texto reconocido y el resultado del OCR completamente en el dispositivo; esos datos financieros no se envían a Google. El SDK sí recopila y envía a Google información técnica del dispositivo y la aplicación, identificadores por instalación, métricas de rendimiento, configuración de la API, tamaños de entrada/salida, versión de la función, eventos y códigos de error para diagnóstico y analítica de uso. Google declara que cifra estos datos en tránsito mediante HTTPS y no los transfiere a terceros.
+
+Fuentes oficiales: [privacidad de ML Kit](https://developers.google.com/ml-kit/terms) y [divulgación de datos de ML Kit para Android](https://developers.google.com/ml-kit/android-data-disclosure).
 
 ## 4. Cómo usamos tus datos
 
@@ -50,7 +58,7 @@ La base de datos financiera y preferencias sensibles están **excluidas** de la 
 
 En Perfil puedes:
 
-- **Exportar** todos tus datos (JSON o CSV).
+- **Exportar** todos tus datos en JSON; el CSV contiene solo movimientos para uso en hojas de cálculo.
 - **Eliminar** todos tus datos locales con confirmación doble.
 
 Tras eliminar, la app vuelve al onboarding inicial.

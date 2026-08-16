@@ -41,6 +41,6 @@ private fun centsToMoney(cents: Long): Money {
     val value = BigDecimal.valueOf(cents).movePointLeft(2)
     return when (val result = Money.of(value)) {
         is DomainResult.Ok -> result.value
-        is DomainResult.Err -> error("Invalid stored commitment amount cents: $cents")
+        is DomainResult.Err -> error("Invalid stored commitment amount cents")
     }
 }

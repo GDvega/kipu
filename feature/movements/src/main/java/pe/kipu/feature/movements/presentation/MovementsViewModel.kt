@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -64,14 +64,12 @@ class MovementsViewModel @Inject constructor(
     private val categoryFilterId = MutableStateFlow<String?>(null)
     private val categoryChangeTarget = MutableStateFlow<Movement?>(null)
     private val goalLinkTarget = MutableStateFlow<Movement?>(null)
-    private val showAddOptionsDialog = MutableStateFlow(false)
     private val manualMovementForm = MutableStateFlow<ManualMovementFormState?>(null)
+    private val isActionInProgress = MutableStateFlow(false)
     private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     
     private val _events = MutableSharedFlow<MovementsEvent>()
     val events = _events.asSharedFlow()
-
-    private var knownAutoApprovedIds = mutableSetOf<String>()
 
     private val _uiState = MutableStateFlow<MovementsUiState>(MovementsUiState.Loading)
     val uiState: StateFlow<MovementsUiState> = _uiState.asStateFlow()
@@ -125,10 +123,9 @@ class MovementsViewModel @Inject constructor(
             combine(categoryChangeTarget, goalLinkTarget) { changeTarget, linkTarget ->
                 changeTarget to linkTarget
             },
-            combine(showAddOptionsDialog, manualMovementForm) { showAdd, manualForm ->
-                showAdd to manualForm
-            }
-        ) { data, (categoryId, pending, pendingConfirm), (changeTarget, linkTarget), (showAdd, manualForm) ->
+            manualMovementForm,
+            isActionInProgress,
+        ) { data, (categoryId, pending, pendingConfirm), (changeTarget, linkTarget), manualForm, actionInProgress ->
             MovementsUiState.Content(
                 movements = data.movements,
                 categories = data.categories,
@@ -143,24 +140,10 @@ class MovementsViewModel @Inject constructor(
                 categoryChangeTarget = changeTarget,
                 goalLinkTarget = linkTarget,
                 savingsGoals = data.savingsGoals,
-                showAddOptionsDialog = showAdd,
                 manualMovementForm = manualForm,
+                isActionInProgress = actionInProgress,
             ) as MovementsUiState
-        }.onEach { state ->
-            if (state is MovementsUiState.Content) {
-                val autoApproved = state.movements.filter { 
-                    it.source == pe.kipu.core.domain.model.MovementSource.NOTIFICATION && 
-                    it.status == pe.kipu.core.domain.model.MovementStatus.CONFIRMED && 
-                    !it.operationNumber.isNullOrBlank() 
-                }
-                val newIds = autoApproved.map { it.id }.toSet() - knownAutoApprovedIds
-                if (newIds.isNotEmpty() && knownAutoApprovedIds.isNotEmpty()) {
-                    _events.emit(MovementsEvent.ShowSnackbar("${newIds.size} movimientos auto-registrados"))
-                }
-                knownAutoApprovedIds.addAll(newIds)
-            }
-        }
-            .onStart { emit(MovementsUiState.Loading) }
+        }.onStart { emit(MovementsUiState.Loading) }
             .catch {
                 emit(MovementsUiState.Error("No pudimos cargar tus movimientos"))
             }
@@ -183,14 +166,32 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onDismissCategoryChange() {
+        if (isActionInProgress.value) return
         categoryChangeTarget.value = null
     }
 
     fun onCategorySelected(categoryId: String) {
         val movement = categoryChangeTarget.value ?: return
+        if (!beginAction()) return
         viewModelScope.launch {
-            updateMovementCategory(movement.id, categoryId)
-            categoryChangeTarget.value = null
+            try {
+                updateMovementCategory(movement.id, categoryId)
+                    .onSuccess {
+                        if (categoryChangeTarget.value?.id == movement.id) {
+                            categoryChangeTarget.value = null
+                        }
+                    }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        _events.emit(MovementsEvent.ShowSnackbar("No pudimos cambiar la categoría"))
+                    }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos cambiar la categoría"))
+            } finally {
+                endAction()
+            }
         }
     }
 
@@ -199,14 +200,32 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onDismissGoalLink() {
+        if (isActionInProgress.value) return
         goalLinkTarget.value = null
     }
 
     fun onGoalSelected(commitmentId: String?) {
         val movement = goalLinkTarget.value ?: return
+        if (!beginAction()) return
         viewModelScope.launch {
-            linkMovementToCommitment(movement.id, commitmentId)
-            goalLinkTarget.value = null
+            try {
+                linkMovementToCommitment(movement.id, commitmentId)
+                    .onSuccess {
+                        if (goalLinkTarget.value?.id == movement.id) {
+                            goalLinkTarget.value = null
+                        }
+                    }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        _events.emit(MovementsEvent.ShowSnackbar("No pudimos vincular la meta"))
+                    }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos vincular la meta"))
+            } finally {
+                endAction()
+            }
         }
     }
 
@@ -215,68 +234,138 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onDismissDuplicateDialog() {
+        if (isActionInProgress.value) return
         pendingResolution.value = null
     }
 
     fun onResolveDuplicate(resolution: DuplicateResolution) {
         val pair = pendingResolution.value ?: return
-        viewModelScope.launch {
-            resolveDuplicateMovement(pair, resolution)
-            if (resolution == DuplicateResolution.SAVE_AS_NEW) {
-                dismissDuplicatePair(pair)
-            }
+        if (isActionInProgress.value) return
+        if (resolution == DuplicateResolution.CANCEL) {
             pendingResolution.value = null
+            return
+        }
+        if (!beginAction()) return
+        viewModelScope.launch {
+            try {
+                val resolveResult = resolveDuplicateMovement(pair, resolution)
+                val result = if (
+                    resolveResult.isSuccess && resolution == DuplicateResolution.SAVE_AS_NEW
+                ) {
+                    dismissDuplicatePair(pair)
+                } else {
+                    resolveResult
+                }
+                result
+                    .onSuccess {
+                        if (pendingResolution.value == pair) {
+                            pendingResolution.value = null
+                        }
+                    }
+                    .onFailure { error ->
+                        if (error is CancellationException) throw error
+                        _events.emit(MovementsEvent.ShowSnackbar("No pudimos resolver el duplicado"))
+                    }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos resolver el duplicado"))
+            } finally {
+                endAction()
+            }
         }
     }
 
     fun onConfirmPendingNotification(movementId: String) {
+        if (!beginAction()) return
         viewModelScope.launch {
-            when (val result = confirmPendingNotificationMovement(movementId)) {
-                is ConfirmMovementResult.Saved -> {
-                    pendingNotificationConfirm.value = null
-                }
+            try {
+                when (val result = confirmPendingNotificationMovement(movementId)) {
+                    is ConfirmMovementResult.Saved -> {
+                        pendingNotificationConfirm.value = null
+                    }
 
-                is ConfirmMovementResult.DuplicatePending -> {
-                    pendingNotificationConfirm.value = PendingNotificationConfirmState(
-                        movementId = movementId,
-                        duplicateMatches = result.matches,
-                    )
-                }
+                    is ConfirmMovementResult.DuplicatePending -> {
+                        pendingNotificationConfirm.value = PendingNotificationConfirmState(
+                            movementId = movementId,
+                            duplicateMatches = result.matches,
+                        )
+                    }
 
-                ConfirmMovementResult.Cancelled -> Unit
+                    ConfirmMovementResult.Cancelled -> {
+                        _events.emit(MovementsEvent.ShowSnackbar("No pudimos confirmar el movimiento"))
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos confirmar el movimiento"))
+            } finally {
+                endAction()
             }
         }
     }
 
     fun onDismissPendingNotification(movementId: String) {
+        if (!beginAction()) return
         viewModelScope.launch {
-            dismissPendingNotificationMovement(movementId)
+            try {
+                if (!dismissPendingNotificationMovement(movementId)) {
+                    _events.emit(MovementsEvent.ShowSnackbar("No pudimos descartar el movimiento"))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos descartar el movimiento"))
+            } finally {
+                endAction()
+            }
         }
     }
 
     fun onResolvePendingNotificationDuplicate(resolution: DuplicateResolution) {
         val state = pendingNotificationConfirm.value ?: return
+        if (isActionInProgress.value) return
         if (resolution == DuplicateResolution.CANCEL) {
             pendingNotificationConfirm.value = null
             return
         }
+        if (!beginAction()) return
         viewModelScope.launch {
-            confirmPendingNotificationMovement(state.movementId, resolution)
-            pendingNotificationConfirm.value = null
+            try {
+                when (val result = confirmPendingNotificationMovement(state.movementId, resolution)) {
+                    is ConfirmMovementResult.Saved -> pendingNotificationConfirm.value = null
+                    ConfirmMovementResult.Cancelled -> {
+                        if (resolution == DuplicateResolution.MERGE) {
+                            pendingNotificationConfirm.value = null
+                        } else {
+                            _events.emit(MovementsEvent.ShowSnackbar("No pudimos resolver el duplicado"))
+                        }
+                    }
+
+                    is ConfirmMovementResult.DuplicatePending -> {
+                        pendingNotificationConfirm.value = state.copy(
+                            duplicateMatches = result.matches,
+                        )
+                        _events.emit(MovementsEvent.ShowSnackbar("No pudimos resolver el duplicado"))
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _events.emit(MovementsEvent.ShowSnackbar("No pudimos resolver el duplicado"))
+            } finally {
+                endAction()
+            }
         }
     }
 
     fun onAddMovementClick() {
-        showAddOptionsDialog.value = true
+        onRegisterManualClicked(PaymentChannel.CASH)
     }
 
-    fun onDismissAddOptions() {
-        showAddOptionsDialog.value = false
-    }
-
-    fun onRegisterManualClicked(defaultChannel: PaymentChannel) {
+    fun onRegisterManualClicked(defaultChannel: PaymentChannel = PaymentChannel.CASH) {
         val defaultCategoryId = currentContent()?.categories?.firstOrNull()?.id
-        showAddOptionsDialog.value = false
         manualMovementForm.value = ManualMovementFormState(
             channel = defaultChannel,
             categoryId = defaultCategoryId,
@@ -284,18 +373,22 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onDismissManualMovement() {
+        if (manualMovementForm.value?.isSaving == true) return
         manualMovementForm.value = null
     }
 
     fun onManualMovementTypeSelected(type: MovementType) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update { it?.copy(movementType = type, errorMessage = null) }
     }
 
     fun onManualChannelSelected(option: ManualMovementChannelOption) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update { it?.copy(channel = option.channel, errorMessage = null) }
     }
 
     fun onManualAmountChanged(value: String) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update {
             it?.copy(
                 amountText = value,
@@ -306,19 +399,23 @@ class MovementsViewModel @Inject constructor(
     }
 
     fun onManualCategorySelected(categoryId: String) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update { it?.copy(categoryId = categoryId, errorMessage = null) }
     }
 
     fun onManualDescriptionChanged(value: String) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update { it?.copy(description = value) }
     }
 
     fun onManualCounterpartyChanged(value: String) {
+        if (manualMovementForm.value?.isSaving != false) return
         manualMovementForm.update { it?.copy(counterpartyName = value) }
     }
 
     fun onSaveManualMovement() {
         val form = manualMovementForm.value ?: return
+        if (form.isSaving) return
         val categoryId = form.categoryId
         if (categoryId.isNullOrBlank()) {
             manualMovementForm.update { it?.copy(errorMessage = "Elige una categoría") }
@@ -343,29 +440,51 @@ class MovementsViewModel @Inject constructor(
             return
         }
 
+        manualMovementForm.value = form.copy(isSaving = true, errorMessage = null)
         viewModelScope.launch {
-            manualMovementForm.update { it?.copy(isSaving = true, errorMessage = null) }
-            createManualMovement(
-                type = form.movementType,
-                amount = amount,
-                categoryId = categoryId,
-                channel = form.channel,
-                description = form.description,
-                counterpartyName = form.counterpartyName,
-            ).fold(
-                onSuccess = {
-                    manualMovementForm.value = null
-                },
-                onFailure = {
-                    manualMovementForm.update {
-                        it?.copy(
-                            isSaving = false,
-                            errorMessage = "No pudimos guardar el movimiento",
-                        )
-                    }
-                },
+            try {
+                createManualMovement(
+                    type = form.movementType,
+                    amount = amount,
+                    categoryId = categoryId,
+                    channel = form.channel,
+                    description = form.description,
+                    counterpartyName = form.counterpartyName,
+                ).fold(
+                    onSuccess = {
+                        manualMovementForm.value = null
+                    },
+                    onFailure = { error ->
+                        if (error is CancellationException) throw error
+                        showManualSaveError()
+                    },
+                )
+            } catch (error: CancellationException) {
+                manualMovementForm.update { it?.copy(isSaving = false) }
+                throw error
+            } catch (_: Exception) {
+                showManualSaveError()
+            }
+        }
+    }
+
+    private fun showManualSaveError() {
+        manualMovementForm.update {
+            it?.copy(
+                isSaving = false,
+                errorMessage = "No pudimos guardar el movimiento",
             )
         }
+    }
+
+    private fun beginAction(): Boolean {
+        if (isActionInProgress.value) return false
+        isActionInProgress.value = true
+        return true
+    }
+
+    private fun endAction() {
+        isActionInProgress.value = false
     }
 
     private fun currentContent(): MovementsUiState.Content? = _uiState.value as? MovementsUiState.Content

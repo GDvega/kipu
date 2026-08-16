@@ -6,6 +6,7 @@ import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Gathering
+import pe.kipu.core.domain.model.GatheringExpense
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.UserPreferences
 
@@ -21,6 +22,7 @@ class UserDataJsonSerializer @Inject constructor() {
         append("\"commitments\":").append(serializeCommitments(snapshot.commitments)).append(',')
         append("\"financialPlans\":").append(serializeFinancialPlans(snapshot.financialPlans)).append(',')
         append("\"gatherings\":").append(serializeGatherings(snapshot.gatherings)).append(',')
+        append("\"gatheringExpenses\":").append(serializeGatheringExpenses(snapshot.gatheringExpenses)).append(',')
         append("\"dismissedDuplicatePairKeys\":").append(serializeStringSet(snapshot.dismissedDuplicatePairKeys)).append(',')
         append("\"preferences\":").append(serializePreferences(snapshot.preferences))
         append('}')
@@ -105,7 +107,14 @@ class UserDataJsonSerializer @Inject constructor() {
             append("\"estimatedMonthlyIncome\":").append(JsonEscaper.string(plan.estimatedMonthlyIncome.amount.toPlainString())).append(',')
             append("\"fixedExpenses\":").append(JsonEscaper.string(plan.fixedExpenses.amount.toPlainString())).append(',')
             append("\"initialBalance\":").append(JsonEscaper.string(plan.initialBalance.amount.toPlainString())).append(',')
-            append("\"envelopeIds\":").append(serializeStringList(plan.envelopeIds))
+            append("\"envelopeIds\":").append(serializeStringList(plan.envelopeIds)).append(',')
+            append("\"incomeProfile\":").append(JsonEscaper.string(plan.incomeProfile.name)).append(',')
+            append("\"payFrequency\":").append(JsonEscaper.string(plan.payFrequency.name)).append(',')
+            append("\"budgetCycle\":").append(JsonEscaper.string(plan.budgetCycle.name)).append(',')
+            append("\"antSpendingLimit\":").append(JsonEscaper.string(plan.antSpendingLimit?.amount?.toPlainString())).append(',')
+            append("\"antSpendingAlertEnabled\":").append(plan.antSpendingAlertEnabled).append(',')
+            append("\"antSpendingAlertPercent\":").append(plan.antSpendingAlertPercent).append(',')
+            append("\"antSpendingTrackedCategoryIds\":").append(serializeStringSet(plan.antSpendingTrackedCategoryIds))
             append('}')
         }
         append(']')
@@ -119,7 +128,25 @@ class UserDataJsonSerializer @Inject constructor() {
             append("\"id\":").append(JsonEscaper.string(gathering.id)).append(',')
             append("\"name\":").append(JsonEscaper.string(gathering.name)).append(',')
             append("\"participantCount\":").append(gathering.participantCount).append(',')
-            append("\"participantNames\":").append(serializeStringList(gathering.participantNames))
+            append("\"participantNames\":").append(serializeStringList(gathering.participantNames)).append(',')
+            append("\"isSettled\":").append(gathering.isSettled)
+            append('}')
+        }
+        append(']')
+    }
+
+    private fun serializeGatheringExpenses(expenses: List<GatheringExpense>): String = buildString {
+        append('[')
+        expenses.forEachIndexed { index, expense ->
+            if (index > 0) append(',')
+            append('{')
+            append("\"id\":").append(JsonEscaper.string(expense.id)).append(',')
+            append("\"gatheringId\":").append(JsonEscaper.string(expense.gatheringId)).append(',')
+            append("\"amount\":").append(JsonEscaper.string(expense.amount.amount.toPlainString())).append(',')
+            append("\"paidByParticipant\":").append(JsonEscaper.string(expense.paidByParticipant)).append(',')
+            append("\"description\":").append(JsonEscaper.string(expense.description)).append(',')
+            append("\"movementId\":").append(JsonEscaper.string(expense.movementId)).append(',')
+            append("\"recordedAt\":").append(JsonEscaper.string(expense.recordedAt.toString()))
             append('}')
         }
         append(']')
@@ -136,7 +163,9 @@ class UserDataJsonSerializer @Inject constructor() {
         append("\"antSpendingAlertPercent\":").append(preferences.antSpendingAlertPercent).append(',')
         append("\"antSpendingTrackedCategories\":").append(serializeStringSet(preferences.antSpendingTrackedCategories)).append(',')
         append("\"widgetDailyAvailableText\":").append(JsonEscaper.string(preferences.widgetDailyAvailableText)).append(',')
-        append("\"widgetIsOverBudget\":").append(preferences.widgetIsOverBudget)
+        append("\"widgetIsOverBudget\":").append(preferences.widgetIsOverBudget).append(',')
+        append("\"widgetDailyAvailableUpdatedAtMillis\":").append(preferences.widgetDailyAvailableUpdatedAtMillis ?: "null").append(',')
+        append("\"budgetCycle\":").append(JsonEscaper.string(preferences.budgetCycle.name))
         append('}')
     }
 

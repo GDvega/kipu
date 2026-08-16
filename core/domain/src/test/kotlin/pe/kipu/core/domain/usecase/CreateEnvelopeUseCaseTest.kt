@@ -13,6 +13,7 @@ import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.plan.FinancialPlanIds
 import pe.kipu.core.domain.repository.CategoryRepository
+import pe.kipu.core.domain.repository.EnvelopePlanRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
@@ -24,10 +25,12 @@ class CreateEnvelopeUseCaseTest {
     private val envelopeRepository = FakeEnvelopeRepository()
     private val categoryRepository = FakeCategoryRepository()
     private val financialPlanRepository = FakeFinancialPlanRepository()
+    private val envelopePlanRepository = FakeEnvelopePlanRepository()
     private val useCase = CreateEnvelopeUseCase(
         envelopeRepository = envelopeRepository,
         categoryRepository = categoryRepository,
         financialPlanRepository = financialPlanRepository,
+        envelopePlanRepository = envelopePlanRepository,
         timeProvider = FixedTimeProvider(now),
     )
 
@@ -44,10 +47,13 @@ class CreateEnvelopeUseCaseTest {
         )
 
         assertTrue(result.isSuccess)
-        assertEquals(1, envelopeRepository.saved.size)
-        assertEquals("envelope-${now.toEpochMilli()}", envelopeRepository.saved.first().id)
+        assertEquals(1, envelopePlanRepository.saves.size)
+        assertEquals("envelope-${now.toEpochMilli()}", envelopePlanRepository.saves.first().first.id)
         assertTrue(
-            financialPlanRepository.saved.last().envelopeIds.contains("envelope-${now.toEpochMilli()}"),
+            envelopePlanRepository.saves.first().second
+                ?.envelopeIds
+                .orEmpty()
+                .contains("envelope-${now.toEpochMilli()}"),
         )
     }
 
@@ -75,7 +81,6 @@ class CreateEnvelopeUseCaseTest {
     }
 
     private class FakeEnvelopeRepository : EnvelopeRepository {
-        val saved = mutableListOf<Envelope>()
         val envelopes = MutableStateFlow<List<Envelope>>(emptyList())
 
         override fun observeEnvelopes() = envelopes
@@ -84,7 +89,6 @@ class CreateEnvelopeUseCaseTest {
             envelopes.value.find { it.id == id }
 
         override suspend fun save(envelope: Envelope): Result<Unit> {
-            saved += envelope
             envelopes.value = envelopes.value.filterNot { it.id == envelope.id } + envelope
             return Result.success(Unit)
         }
@@ -105,7 +109,6 @@ class CreateEnvelopeUseCaseTest {
     }
 
     private class FakeFinancialPlanRepository : FinancialPlanRepository {
-        val saved = mutableListOf<FinancialPlan>()
         private var plan = FinancialPlan(
             id = FinancialPlanIds.PRIMARY,
             estimatedMonthlyIncome = Money.of(BigDecimal("3000.00")).getOrError(),
@@ -119,12 +122,28 @@ class CreateEnvelopeUseCaseTest {
             if (id == plan.id) plan else null
 
         override suspend fun save(plan: FinancialPlan): Result<Unit> {
-            saved += plan
             this.plan = plan
             return Result.success(Unit)
         }
 
         override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
+    }
+
+    private class FakeEnvelopePlanRepository : EnvelopePlanRepository {
+        val saves = mutableListOf<Pair<Envelope, FinancialPlan?>>()
+
+        override suspend fun saveEnvelopeWithPlan(
+            envelope: Envelope,
+            plan: FinancialPlan?,
+        ): Result<Unit> {
+            saves += envelope to plan
+            return Result.success(Unit)
+        }
+
+        override suspend fun deleteEnvelopeWithPlan(
+            envelopeId: String,
+            plan: FinancialPlan?,
+        ): Result<Unit> = Result.success(Unit)
     }
 }
 

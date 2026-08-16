@@ -1,6 +1,7 @@
 package pe.kipu.core.domain.usecase
 
 import javax.inject.Inject
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.EntityId
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementStatus
@@ -15,9 +16,10 @@ class GetEnvelopeRecentMovementsUseCase @Inject constructor(
     operator fun invoke(
         categoryId: EntityId,
         movements: List<Movement>,
+        cycle: BudgetCycle,
         limit: Int = 3,
     ): List<Movement> {
-        val cycleRange = cycleRangeCalculator.currentCycleRange(pe.kipu.core.domain.model.BudgetCycle.WEEKLY, timeProvider.now())
+        val cycleRange = cycleRangeCalculator.currentCycleRange(cycle, timeProvider.now())
         return movements
             .asSequence()
             .filter { movement ->

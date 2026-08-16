@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — Snapshot post-Fase 27 (internal testing Play Store)
 
-Última actualización: **20 junio 2026**.  
+Última actualización: **13 agosto 2026**.
 Este documento es la **fuente de verdad** del estado del repositorio entre fases. Actualizar al cerrar cada fase o bloque de entrega significativo.
 
 > **Para IAs:** leer primero [Trampas conocidas para futuras sesiones](#trampas-conocidas-para-futuras-sesiones-ia), [Navegación extendida](#navegación-extendida-post-fase-14) y [Dependencias entre módulos](#dependencias-actuales). Evitar reintroducir pasos de onboarding eliminados, rutas duplicadas o dependencias circulares feature↔feature.
@@ -52,14 +52,88 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | Fase 24 — Wizard edita plan | ✅ Precarga plan; accesos directos sobres/meta (F14-02) |
 | Fase 25 — MERGE duplicados notificación | ✅ Paridad con diálogo movimientos/comprobantes (F12-06) |
 | Fase 26 — QA Play Store | ✅ Política privacidad in-app + docs release; ECC F14 cerrado |
-| Fase 27 — Internal testing pipeline | ✅ Keystore template, `bundleRelease`, E2E privacidad, GitHub Pages HTML |
-| Verificación reciente | Remediación auditoría jun 2026: Room **v12**, hallazgos AUD-001–020; `./gradlew testDebugUnitTest assembleDebug lintDebug` (ver `AUDIT_REPORT_2026-06-21.md`) |
+| Fase 27 — Internal testing pipeline | ⚠️ Pipeline con guard de firma; AAB firmado y carga humana pendientes |
+| Verificación reciente | 13 ago 2026: `:app` **43/43 PASS** y `:core:data` **24/24 PASS** en Moto G24 (Android 14, fuente 1.3) con Gradle offline; regresión focalizada **9/9 PASS** de navegación, semántica MEDIUM y wizard. El histórico 11 ago (38/38 + 24/24) se conserva abajo |
+
+### Remediación HIGH de interfaz y controles (11 ago 2026)
+
+| Superficie | Estado | Evidencia |
+|------------|--------|-----------|
+| Contraste claro/oscuro | ✅ Corregido | Roles Material 3 explícitos; regresión calcula mínimo 4.66:1 para texto y 3.17:1 para componentes/contornos |
+| Acciones destructivas | ✅ Corregido | Borrado de datos, sobres, compromisos y juntas, además de desvincular meta, usan el rol `error`; doble confirmación de wipe preservada |
+| Chips, tarjetas y radios | ✅ Corregido | Selección nativa `selected`/radio, grupos seleccionables y objetivos táctiles de 48 dp; prueba semántica instrumentada PASS |
+| Speed dial de Inicio | ✅ Corregido | Una acción semántica y objetivo mínimo de 48 dp por opción, scrim sin foco redundante y Back cierra el menú; prueba y smoke físico PASS |
+| Formularios y errores | ✅ Corregido | Contenido desplazable con IME; error asociado al campo con `Error` + `LiveRegion.Polite`; prueba instrumentada y smoke con teclado PASS |
+| Inicio, Sobres y Juntas adaptativos | ✅ Corregido | `FlowRow` evita comprimir/truncar montos; Juntas permite seleccionar movimientos posteriores al octavo; prueba del movimiento 9 PASS |
+| Onboarding | ✅ Corregido | Reintento ejecuta otra vez el caso de uso, bloquea doble envío y el CTA queda sobre la navegación de tres botones |
+| Movimientos | ✅ Corregido | El FAB se oculta en Loading, Error y vacío para no duplicar acciones primarias |
+
+Verificación del bloque: `testDebugUnitTest`, `assembleDebug`, `lintDebug`, 26/26 pruebas instrumentadas de app y 24/24 de core:data PASS. Smoke en Moto G24 con ancho aproximado de 347 dp, fuente 1.3x, teclado real y navegación de tres botones: Inicio, Sobres, onboarding, formulario manual, speed dial y confirmación destructiva sin solapes ni truncado observable. La locución audible con TalkBack permanece como revisión humana; las propiedades semánticas se verifican automáticamente.
+
+### Remediación MEDIUM de interfaz y controles (11 ago 2026)
+
+| Superficie | Estado | Evidencia |
+|------------|--------|-----------|
+| Movimiento manual | ✅ Corregido | El formulario abre sin error prematuro y mantiene Guardar deshabilitado hasta recibir un monto válido; regresión JVM PASS |
+| Acciones asíncronas | ✅ Corregido | Las acciones cubiertas en sobres, compromisos, juntas, movimientos, comprobantes y Perfil rechazan doble envío, cierran solo en éxito y conservan el modal con error o snackbar al fallar |
+| Estado ocupado | ✅ Corregido | Back, toque exterior, transición oculta de bottom sheets y controles editables quedan bloqueados durante la operación; regresiones instrumentadas PASS |
+| Feedback de controles | ✅ Corregido | Se eliminaron vibraciones de éxito antes de validar o persistir; el feedback táctil genérico ya no comunica un resultado falso |
+| Switches y acciones contextuales | ✅ Corregido | Las filas completas exponen etiqueta, rol y estado; duplicados anuncian rol botón y cada junta identifica su menú por nombre |
+| Comprobantes y Perfil | ✅ Corregido | Guardado/fusión permanece visible hasta pulsar Listo; sus fallos y los estados éxito/error de Perfil se anuncian con semántica y color correctos |
+| Speed dial y categorías de Inicio | ✅ Corregido | Menú expandido usa una ventana modal real y Back lo cierra; categorías se anuncian como navegación, no como filtros seleccionables |
+
+Verificación del bloque: `testDebugUnitTest`, `assembleDebug`, `lintDebug`, 38/38 pruebas instrumentadas de app y 24/24 de core:data PASS en Moto G24. Las 12 regresiones MEDIUM focalizadas cubren vibración prematura, cierre durante guardado, switches, estados de Perfil, resultado y error de comprobantes, aislamiento modal del speed dial y semántica de categorías. No se añadieron dependencias ni se borraron datos. La locución audible con TalkBack permanece como comprobación humana; las propiedades semánticas se verifican automáticamente.
+
+### Seguimiento de riesgos de comprobantes y consistencia (13 ago 2026)
+
+| Superficie | Estado | Evidencia de implementación |
+|------------|--------|-----------------------------|
+| Captura temporal | ✅ Instrumentación app | Foto de cámara con UUID en `cache/receipts`; `ReceiptCaptureUriFactoryInstrumentedTest` y `ReceiptReviewViewModelErrorInstrumentedTest` comprueban que solo se borra una captura propia, al cancelar/cerrar o liberar la revisión |
+| Share intent | ⚠️ Cobertura automática parcial | `ReceiptShareIntentParserTest` acepta `ACTION_SEND image/*` únicamente con URI `content`; `MainActivity` consume la URI pendiente en un único `LaunchedEffect`. El share externo en inicio frío/cálido sigue pendiente de prueba humana |
+| Fallo OCR/carga | ✅ Instrumentación app | `ReceiptReviewViewModelErrorInstrumentedTest` verifica que una excepción inesperada expone Error recuperable y que Reintentar no duplica el procesamiento |
+| Privacidad de errores Room | ✅ Verificado JVM | Los mappers ya no interpolan montos ni objetos financieros en `error()`; `SensitiveMapperErrorMessageTest` PASS |
+
+Verificación en dispositivo del 13 ago: `./gradlew --offline --no-daemon --max-workers=1 -Pksp.incremental=false :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest` terminó PASS (`:app` 43/43, `:core:data` 24/24) en Moto G24, Android 14 y fuente 1.3. La ejecución focalizada de `KipuNavigationE2ETest`, `MediumAccessibilitySemanticsTest` y `PlanWizardE2ETest` también terminó 9/9 PASS. No existe purga de capturas huérfanas al iniciar: una captura interrumpida puede permanecer en caché hasta la limpieza de Android o el borrado local, para no perder una captura aún pendiente de una cámara externa. C1–C3 de share real, cámara física y locución audible con TalkBack permanecen como comprobaciones humanas.
+
+### Verificación de viewport compacto (13 ago 2026)
+
+| Superficie | Estado | Evidencia automatizada en Moto G24, fuente 1.3 |
+|------------|--------|-----------------------------------------------|
+| Juntas | ✅ | `KipuNavigationE2ETest` crea una junta y completa sus dos campos en el formulario compacto; incluido en 43/43 y en la focalizada 9/9 |
+| Wizard de plan | ✅ | `PlanWizardE2ETest` recorre los seis pasos, guarda y reabre el plan; incluido en 43/43 y en la focalizada 9/9 |
+| Switches de hormiga y deuda social | ✅ | `MediumAccessibilitySemanticsTest` valida objetivo mínimo, rol y estado en contenido desplazable; incluido en 43/43 y en la focalizada 9/9 |
+
+### Remediación HIGH de auditoría (1 ago 2026)
+
+| Hallazgo | Estado | Evidencia |
+|----------|--------|-----------|
+| H-01 — exportación JSON incompleta | ✅ Corregido | Snapshot v3 incluye gastos de junta y todos los campos persistidos de plan, junta y preferencias; tests JSON/CSV PASS |
+| H-02 — saldo inicial fuera de Efectivo real | ✅ Corregido | `CalculateCashFlowSummaryUseCase` suma saldo inicial + ingresos − gastos; test domain e integración Home PASS |
+| H-03 — edición de junta invalida liquidación | ✅ Corregido | Conserva `isSettled` y rechaza quitar pagadores con gastos; test domain PASS |
+| H-04 — eliminación de junta sin confirmación | ✅ Corregido | Diálogo destructivo explícito antes de ejecutar la cascada Room; compilación feature PASS |
+| H-05 — telemetría ML Kit no divulgada | ✅ Corregido | Política in-app, Markdown, HTML y Data Safety distinguen OCR local de métricas técnicas del SDK |
+| H-06 — AAB release sin firma | ✅ Guardrail implementado / ⏳ firma humana | `preReleaseBuild` falla si falta `keystore.properties`; no se crean ni usan credenciales reales desde IA |
+
+Verificación del bloque:
+
+| Comando | Resultado |
+|---------|-----------|
+| `./gradlew :core:domain:test` | PASS |
+| `./gradlew testDebugUnitTest` | PASS |
+| `./gradlew assembleDebug` | PASS |
+| `./gradlew lintDebug` | PASS |
+| `./gradlew :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest` | PASS tras autorizar ADB — 18 pruebas app + 24 pruebas core:data en Moto G24 |
+| `./gradlew bundleRelease` sin `keystore.properties` | FAIL esperado: el guard de firma bloqueó la generación |
+
+### Auditoría del wizard de plan (1 ago 2026)
+
+Auditoría y remediación incremental en Moto G24 documentadas en `docs/qa/KIPU_PLAN_WIZARD_AUDIT_2026-08-01.md`: **10/10 hallazgos corregidos**. PLAN-H01–H06 cubren scroll, filas adaptativas, conversión mensual única, rehidratación, moneda/horizonte y preset anti-hormiga. PLAN-M01 mantiene el error visible junto a Continuar con semántica `Error` + `LiveRegion.Polite`; PLAN-M02 reemplaza el booleano superficial por un E2E de `MainActivity` que recorre los seis pasos, guarda, reabre, edita `5000→5200` y confirma el round-trip sin borrar Room; PLAN-M03 usa `FlowRow` y PLAN-L01 verifica un control estable de Compromisos. Unitarias, `assembleDebug`, lint y 18/18 app + 24/24 core:data PASS con fuente 1.3x. Auditoría global del wizard: **LISTO**; TalkBack audible y Play Console siguen siendo comprobaciones humanas separadas.
 
 ### Remediación auditoría (21 jun 2026)
 
 | Cambio | Detalle |
 |--------|---------|
-| Room v12 | Columnas `incomeProfile`, `payFrequency` en `financial_plans`; `MIGRATION_11_12` repara `envelopeIds` vacíos (AUD-001, AUD-007) |
+| Room v16 | `MIGRATION_15_16` lleva la configuración de gasto hormiga al plan Room para guardado transaccional; conserva migraciones anteriores |
 | Plan wizard | `PlanWizardUiState.Error` + retry (AUD-002) |
 | Dominio | Validación plan con ingresos vinculados; IDs borrador OCR con nonce (AUD-004, AUD-008) |
 | Data | Wipe prefs antes de Room; OCR subsample; `allowBackup=false` (AUD-009, AUD-010, AUD-016) |
@@ -67,7 +141,7 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | UX | Retry en 5 VMs; OCR retry; onboarding Error; parse límite sobres (AUD-006, AUD-013–015) |
 | Tests | Migraciones v7→8, v11→12; `PendingPlanWizardInstrumentedTest` (AUD-011, AUD-012) |
 
-**Room actual:** `KipuDatabase` version **12** — migraciones `MIGRATION_1_2` … `MIGRATION_11_12`.
+**Room actual:** `KipuDatabase` version **16** — migraciones `MIGRATION_1_2` … `MIGRATION_15_16`.
 
 ---
 
@@ -383,10 +457,13 @@ Ver sección completa más abajo (post-Fase 14c) para detalle de archivos, wipe 
 - **Dos acciones en intro:**
   - **"Comenzar con mi plan"** → marca flag en `MainViewModel` + completa onboarding → abre wizard plan.
   - **"Configurar plan después"** → solo completa onboarding (sin wizard).
-- **Módulo nuevo `:feature:plan`** — wizard Compose de 3 pasos:
+- **Módulo `:feature:plan`** — wizard Compose de 6 pasos:
   1. `income` — ingreso mensual estimado (texto → `MoneyInputParser`).
   2. `expenses` — gastos fijos mensuales.
-  3. `summary` — validación plan + disponible diario + lista sobres semanales del seed.
+  3. `envelopes` — asignación por sobres.
+  4. `ant` — límite y categorías de gastos hormiga.
+  5. `goal` — meta opcional y deuda social.
+  6. `summary` — validación plan + disponible diario + resumen antes de guardar.
 - **Persistencia:** `SaveFinancialPlanUseCase` actualiza fila Room `financial_plans` (id canónico `financial-plan-primary`).
 - **Sobres en wizard:** edición de límites en paso Sobres; re-edición vía chips en tab Sobres (Fase 24).
 
@@ -516,7 +593,8 @@ MainActivity: onboardingCompleted == true
 - **Revisión OCR** — preview imagen en memoria, campos editables (monto, destinatario, operación, mensaje, categoría).
 - **Confirmación humana** — `ConfirmReceiptMovementUseCase` + detección duplicados antes de persistir.
 - **Entradas UI:** Inicio (tarjeta), Movimientos vacío, hub comprobantes.
-- **Sin persistir imagen** — solo bytes en memoria para preview/OCR; sin logs de URI ni texto OCR.
+- **Imágenes temporales y locales** — las compartidas o elegidas se leen desde su origen para preview/OCR; una foto tomada desde Kipu usa `cache/receipts` y se elimina al cancelar/cerrar o liberar su revisión. No existe purga al inicio: una captura interrumpida puede permanecer hasta la limpieza de Android o el borrado local, para no perder una captura pendiente. Sin logs de URI ni texto OCR y sin subida a nube.
+- **Fallo recuperable** — un error al abrir o procesar el comprobante muestra Reintentar o Back; no persiste nada automáticamente.
 
 ### Archivos clave
 
@@ -544,7 +622,7 @@ MainActivity: onboardingCompleted == true
 | ID | Resolución |
 |----|------------|
 | **F15-01** | Botón **Tomar foto** en `ReceiptsScreen` (`TakePicture` + `ReceiptCaptureUriFactory` + `FileProvider` cache `receipts/`) |
-| **F15-02** | Tests instrumentados: `ReceiptShareIntentParserTest`, `ReceiptShareIntentInstrumentedTest`, `ReceiptDuplicateDialogTest` |
+| **F15-02** | Tests instrumentados: `ReceiptShareIntentParserTest` y `ReceiptDuplicateDialogTest`; el smoke de share con espera fija se retiró el 13 ago por no comprobar el flujo de forma determinista |
 | **F15-03** | `ReceiptDuplicateDialog` alineado con movimientos: Fusionar / No es duplicado / Cancelar; MERGE → `DuplicateMerged` sin persistir |
 
 ---
@@ -555,7 +633,7 @@ MainActivity: onboardingCompleted == true
 
 - **CRUD juntas local** — crear (nombre + participantes), listar, eliminar; sin reparto de gastos ni Firebase.
 - **Room v5** — tabla `gatherings`; participantes pipe-separated en entity.
-- **Export JSON v2** — `UserDataSnapshot` incluye `gatherings`; CSV sigue solo movimientos.
+- **Export JSON v3** — `UserDataSnapshot` incluye juntas, gastos de junta y configuración completa; CSV sigue solo movimientos.
 - **UI** — `:feature:juntas`: lista, empty state, diálogo crear; acceso desde **Perfil → Ver juntas** (sin 6.º tab).
 - **Pulido** — fix lint `ReceiptShareIntentParser` (API 26+); `:app:lintDebug` + `assembleRelease` PASS.
 
@@ -643,7 +721,7 @@ MainActivity: onboardingCompleted == true
 | **F11-02** | `SaveFinancialPlanUseCase` rechaza plan `Invalid` (`InvalidFinancialPlanException`) |
 | **F14-01** | Flag `pendingPlanWizard` persistido en DataStore; `PendingPlanWizardInstrumentedTest` |
 | **F13-04** | `FileProvider` no exportado; rutas acotadas en `file_paths.xml` |
-| **F12-05** | Export JSON snapshot v4+ incluye juntas/gastos; tests serializer actualizados |
+| **F12-05** | Export JSON snapshot v3 incluye juntas/gastos y configuración persistida completa; tests serializer actualizados |
 
 ### Cierre Fase 19
 
@@ -663,7 +741,7 @@ MainActivity: onboardingCompleted == true
 | **F11-05** | `KipuDatabaseMigrationInstrumentedTest` v4→v9 |
 | **F12-07** | `NotificationListenerCoordinatorTest` (pref ON/OFF) |
 | **F14-03** | `CompleteOnboardingUseCase` cableado en `OnboardingViewModel` |
-| **F14-05** | `PlanWizardE2ETest` (wizard + cambio categoría) |
+| **F14-05** | `PlanWizardE2ETest` (seis pasos + guardar/reabrir/editar round-trip) |
 
 ### Cierre Fase 20
 
@@ -767,7 +845,7 @@ MainActivity: onboardingCompleted == true
 
 - `GoalLinkDialog` — elegir meta o quitar vínculo
 - `MovementHtmlCard` — "Vincular a meta" / "Cambiar meta" solo en **ingresos**
-- Progreso en Compromisos se actualiza al vincular ingresos
+- Progreso en Compromisos se actualiza al vincular ingresos y su tarjeta expone título, estado y avance textual para accesibilidad, además de la barra visual
 
 ### Reglas de negocio
 
@@ -897,7 +975,7 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 | Pieza | Rol |
 |-------|-----|
 | `keystore.properties.example` | Plantilla firma release (gitignored: `keystore.properties`, `*.jks`) |
-| `app/build.gradle.kts` | `signingConfigs.release` si existe keystore; `versionName` **1.0.0** |
+| `app/build.gradle.kts` | `signingConfigs.release` si existe keystore; release falla temprano si falta; `versionName` **1.0.0** |
 | `bundleRelease` | AAB para Play Console (`app/build/outputs/bundle/release/`) |
 
 ### Documentación
@@ -916,7 +994,7 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 | Campo | Valor |
 |-------|-------|
 | **Veredicto ECC** | **LISTO** (repo); **pendiente humano** Play Console |
-| **Evidencia** | `./gradlew :core:domain:test :app:lintDebug bundleRelease` PASS |
+| **Evidencia actual** | Unit tests, lint y debug build PASS; `bundleRelease` requiere firma real y falla temprano si falta `keystore.properties` |
 | **Pendiente humano** | Crear keystore; activar GitHub Pages; subir AAB; invitar testers; E2E manual N1–E4 |
 | **Próxima fase sugerida** | Closed testing / producción tras feedback internal |
 
@@ -973,7 +1051,7 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 | `movements/category/{categoryId}` | `categoryId`: ej. `category-food` | `MovementsScreen(initialCategoryId=…)` | Sobres → Ver movimientos | Back del sistema |
 | `gatherings` | — | `GatheringsScreen` | Perfil → Ver juntas | Back del sistema |
 | `receipts` | — | `ReceiptsScreen` | Inicio / Movimientos vacío | Back del sistema |
-| `receipts/review/{contentUri}` | `contentUri` (encoded) | `ReceiptReviewScreen` | Hub comprobantes; share intent | `popBackStack()` al confirmar |
+| `receipts/review/{contentUri}` | `contentUri` (encoded) | `ReceiptReviewScreen` | Hub comprobantes; share intent | Back o Cancelar vuelve atrás; tras guardar/fusionar, el resultado permanece hasta pulsar `Listo` |
 
 **Helpers:** `KipuPlanRoutes.wizard(startStep)`, `KipuPlanRoutes.movementsByCategory(categoryId)`, `GatheringRoutes.LIST`, `ReceiptRoutes.review(uri)`.
 
@@ -1013,7 +1091,7 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 ### Modelos / campos
 
 9. **`Movement.recordedAt`** — no usar `occurredAt` (no existe).
-10. **`FinancialPlanIds.PRIMARY` vs `DefaultFinancialPlanIds.PRIMARY`:** mismo string, dos objetos — unificar en refactor F11-04.
+10. **IDs de plan:** usar `FinancialPlanIds.PRIMARY`; `DefaultFinancialPlanIds` fue eliminado en Fase 20.
 11. **Confianza % en movimientos UI:** heurística por `MovementSource` (`MovementPresentation`); parsers/comprobantes usan `SuggestionConfidence` — sin campo en `Movement` (F14-07 aceptado MVP).
 12. **Cambio categoría:** solo movimientos en lista principal (`MovementsViewModel` → confirmados del repo); no aplica a pending notification sin trabajo extra.
 
@@ -1027,7 +1105,8 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 
 16. **No registrar rutas duplicadas** para `movements` — la ruta con categoría es **distinta** (`movements/category/...`).
 17. **Meta en Sobres** navega a **Compromisos**, no a `plan/summary`.
-18. **Flag wizard post-onboarding** es volátil — no depender para tests E2E sin persistencia.
+18. **Flag wizard post-onboarding** se persiste en `UserPreferences.pendingPlanWizard`; los tests deben esperar su consumo antes de navegar o recrear la actividad.
+19. **Share de comprobante:** enrutar `pendingReceiptUri` mediante un único `LaunchedEffect`; no volver a consumir ni navegar la misma URI desde otro efecto.
 
 ### Seguridad (AGENTS.md)
 
@@ -1045,14 +1124,14 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 | `:app` | `pe.kipu.app` | `KipuApplication`, `MainActivity`, `MainViewModel`, Hilt, `KipuNavGraph`, `KipuPlanRoutes`, bottom bar |
 | `:core:designsystem` | `pe.kipu.core.designsystem` | Tema, componentes UI (`KipuFilterChip`, `KipuCompactBadge`, botones, cards, headers) |
 | `:core:domain` | `pe.kipu.core.domain` | Modelos puros, UseCases, `CategoryIds`, `FinancialPlanIds`, repositorios (interfaces) |
-| `:core:data` | `pe.kipu.core.data` | Room (`kipu.db` v4), DataStore, seeds, notification listener, OCR ML Kit |
+| `:core:data` | `pe.kipu.core.data` | Room (`kipu.db` v16), DataStore, seeds, notification listener, OCR ML Kit |
 | `:feature:home` | `pe.kipu.feature.home` | `HomeScreen` — disponible hoy + alertas hormiga |
 | `:feature:movements` | `pe.kipu.feature.movements` | Lista movimientos HTML, filtros, duplicados, notificaciones pending, **cambio categoría** |
 | `:feature:envelopes` | `pe.kipu.feature.envelopes` | Sobres HTML, crear/eliminar, ajuste límite, últimos movimientos, nav plan/compromisos |
 | `:feature:commitments` | `pe.kipu.feature.commitments` | CRUD metas/deudas/pagos pendientes + alerta plan inválido |
 | `:feature:profile` | `pe.kipu.feature.profile` | Preferencias + toggle notificaciones |
 | `:feature:onboarding` | `pe.kipu.feature.onboarding` | **Solo** `PlanIntroStep` + completar onboarding |
-| `:feature:plan` | `pe.kipu.feature.plan` | Wizard plan 3 pasos (`PlanWizardScreen`, `PlanWizardViewModel`) |
+| `:feature:plan` | `pe.kipu.feature.plan` | Wizard plan 6 pasos (`PlanWizardScreen`, `PlanWizardViewModel`) |
 | `:feature:receipts` | `pe.kipu.feature.receipts` | Hub + revisión OCR comprobantes |
 | `:feature:juntas` | `pe.kipu.feature.juntas` | Lista juntas + crear/eliminar |
 
@@ -1069,18 +1148,13 @@ core/designsystem → (Compose BOM, sin domain)
 
 core/domain → stdlib + coroutines (JVM puro, sin Android)
 
-feature/home, movements, commitments, profile, onboarding, plan, receipts, juntas
+feature/home, movements, envelopes, commitments, profile, onboarding, plan, receipts, juntas
  └── core/designsystem + core/domain (+ Hilt, Compose)
-
-feature/receipts → core/data (ProcessReceiptFromUriUseCase, AndroidReceiptImageLoader)
-
-feature/envelopes
- └── core/designsystem + core/domain + feature:movements   ⚠️ ver trampa #5
 ```
 
-**Regla:** `feature/*` **no** debe depender de `core/data` ni de otros `feature/*` salvo excepción documentada (`envelopes → movements`, `receipts → data`).
+**Regla:** `feature/*` **no** debe depender de `core/data` ni de otros `feature/*`; no hay excepciones activas.
 
-Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **juntas**, **gastos de junta**. DataStore: preferencias no sensibles (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v6** (sin destructive fallback).
+Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **juntas**, **gastos de junta**. DataStore: preferencias no sensibles (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v16** (sin destructive fallback).
 
 ### `settings.gradle.kts` — módulos incluidos (orden canónico)
 
@@ -1163,12 +1237,12 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | Navigation Compose en `app` | Navegación global no pertenece a un feature | 0 |
 | Sin ViewModels en Fase 0 | Placeholders sin estado ni lógica | 0 |
 | Sin Hilt/Koin en Fase 0 | DI se introduce cuando exista domain/data | 0 |
-| `material-icons-extended` | Iconos para bottom bar; aceptable en MVP | 0 |
+| `material-icons-extended` | Histórico: hoy solo `:feature:plan` usa los iconos extendidos concretos; R8 elimina los no alcanzables en release | 0 |
 | ECC como metodología obligatoria | Ciclo verificable; contrato LISTO/NO LISTO | 1 |
 | `PROJECT_STATE.md` como fuente de verdad | Sincronizar estado entre encargos de IA | 1 |
 | Fase 1 = docs, no código | Separar control de calidad del shell funcional | 1 |
 | Componentes DS en `core/designsystem` | Reutilización sin acoplar features; solo presentación | 2 |
-| `material-icons-extended` en designsystem | Iconos outlined para estados vacío/error | 2 |
+| Iconos Material en designsystem | El designsystem usa `material-icons-core`; los extendidos no pertenecen al bottom bar ni a este módulo | 2 |
 | `Money` con `BigDecimal` scale 2 | PEN con centavos; signo en `MovementType`, no en amount negativo | 3 |
 | `core/domain` como JVM puro | Dominio libre de Android/Room/Compose | 3 |
 | Hilt 2.59.2 para AGP 9 | DI multi-módulo compatible con compileSdk 37 | 4 |
@@ -1180,7 +1254,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | `spentAmount` no persistido en sobres | Calculado desde movimientos; `EnvelopeBudgetState` es snapshot | 8 |
 | Semana presupuesto lunes–domingo Lima | `[start, end)` con `WeekRangeCalculator` | 8 |
 | ADJUSTED ≥ 80 % del límite semanal | `EnvelopeBudgetThresholds.ADJUSTED_PERCENT` | 8 |
-| `fallbackToDestructiveMigration` v1→v2 | MVP dev; migración real antes de release | 8 |
+| `fallbackToDestructiveMigration` v1→v2 | Histórico; eliminado desde Fase 17. Room v16 usa migraciones incrementales | 8 |
 | `totalRemaining` global en disponible diario | `totalLimit - totalSpent`; no sumar remainings por sobre (F9b) | 9b |
 | Hormiga por categoría en ventana 48 h | Umbrales en `AntSpendingThresholds`; alertas no persistidas | 9 |
 | `TimeProvider` inyectable | Tests deterministas; `WeekRangeCalculator` y Home insights | 9 |
@@ -1190,15 +1264,15 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | Refresh periódico insights Home/sobres | `TimeProvider.refreshTicks()` cada 60 s | 10c |
 | Reserva mensual sobres en plan | `sum(weeklyLimit) * 4` en `ValidateFinancialPlanUseCase` | 11 |
 | Progreso meta cap 100 % | `CalculateSavingsGoalProgressUseCase`; completada si settled o ahorrado ≥ meta | 11 |
-| Validación plan en UI, no en `save()` | `ValidateFinancialPlanUseCase` informa; gate en save diferido a CRUD explícito | 11b |
+| Validación de plan | Histórico: el gate se difería. Hoy `SaveFinancialPlanUseCase` rechaza un plan inválido además de informar en UI | 11b |
 | Alerta plan visible sin compromisos | `CommitmentsScreen` muestra tarjeta aunque lista vacía | 11b |
 | Ingresos notificación solo PENDING | `RegisterNotificationIncomeUseCase`; confirmación en Movimientos | 12 |
 | Dedup notificación solo pendiente | Mismo draft id: skip si PENDING; tras CONFIRMED, id con sufijo temporal | 12b |
 | Listener allowlist Yape/Plin | `MonitoredPaymentApps`; respeta `notificationsEnabled` | 12 |
 | Onboarding reducido a intro plan | Welcome/permisos/tutorial Yape eliminados por producto | 14 |
 | Wizard plan sin editar sobres | Límites semanales solo vía seed + diálogo Ajustar en Sobres | 14 |
-| Flag wizard en memoria (`MainViewModel`) | Evita persistencia extra; abrir wizard solo tras "Comenzar con mi plan" | 14 |
-| `feature:envelopes` → `feature:movements` | Reutilizar formateo fechas/títulos; evitar duplicar presentation | 14b |
+| Flag wizard en memoria (`MainViewModel`) | Histórico: hoy `UserPreferences.pendingPlanWizard` lo persiste y se consume al abrir el wizard | 14 |
+| `feature:envelopes` → `feature:movements` | Histórico: resuelto al mover `MovementDisplayLabels` a domain; no existe dependencia feature→feature | 14b |
 | `MovementsData` para combine flows | Kotlin `combine` máx. 5 parámetros | 14b |
 | Cambio categoría vía UseCase + validate | `UpdateMovementCategoryUseCase`; VM no muta entidades | 14b |
 | APK solo arm64 + R8 release | Tamaño y seguridad release; emulador x86 no soportado | 14c |
@@ -1210,14 +1284,13 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 
 ## Hallazgos abiertos
 
-| ID | Severidad | Hallazgo | Acción pendiente | Fase objetivo |
-|----|-----------|----------|------------------|---------------|
-| F0-05 | LOW | `material-icons-extended` aumenta tamaño APK | Parcialmente mitigado F14c arm64; evaluar subset icons | 16 |
+No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones instrumentadas añadidas el 13 ago pasaron en Moto G24; siguen pendientes las comprobaciones humanas de cámara/share real y locución audible con TalkBack.
 
 ## Hallazgos cerrados
 
 | ID | Severidad | Hallazgo | Resolución | Cerrado en |
 |----|-----------|----------|------------|------------|
+| F0-05 | LOW | `material-icons-extended` aumentaba tamaño APK | Release R8 conserva únicamente iconos alcanzables (29 clases en mapping; APK release 15.7 MB); el alcance actual extendido es `:feature:plan` | 13 ago 2026 |
 | F0-01 | LOW | Deprecación `centerAlignedTopAppBarColors` en `KipuTopBar` | Migrado a `topAppBarColors` | Fase 2 |
 | F1-01 | MEDIUM | Tablas de fase en `TDD_CHECKLIST` y `SECURITY_CHECKLIST` desactualizadas | Sincronizadas con roadmap 0–16; nota canónica añadida | Fase 1 |
 | F7-01 | MEDIUM | Fecha/hora detectada pero no en `SuggestedMovement` | Campo `suggestedRecordedAt` + `ReceiptDateTimeParser` | Fase 7b |
@@ -1256,7 +1329,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | F12-05 | LOW | Package names Yape/Plin no verificados en dispositivo | Allowlist + `MonitoredPaymentAppsTest`; E2E hardware opcional | Pre-release |
 | F12-07 | LOW | Sin tests presentation Profile/Movements notificaciones | `NotificationListenerCoordinatorTest` (pref ON/OFF) | Fase 20 |
 | F14-03 | LOW | `CompleteOnboardingUseCase` orphan en domain | Cableado en `OnboardingViewModel` + test | Fase 20 |
-| F14-05 | LOW | Sin tests Compose wizard / cambio categoría | `PlanWizardE2ETest` | Fase 20 |
+| F14-05 | LOW | Sin test Compose del wizard | `PlanWizardE2ETest` (seis pasos + persistencia) | Fase 20 |
 | F12-ECC | — | Revisión ECC Fase 12 | LISTO; hallazgos F12-01…F12-07 documentados | Fase 12 |
 | F12-01 | LOW | Docs auto-cerrados sin revisión gestor | Sincronización PROJECT_STATE + AGENTS en F12b | Fase 12b |
 | F12-02 | MEDIUM | Dedup bloqueaba re-ingreso tras confirmar | `RegisterNotificationIncomeUseCase` F12b | Fase 12b |
@@ -1358,7 +1431,7 @@ MVP funcional **completo** (Fases 0–16) + post-MVP **17–27 cerradas en repo*
 ### Producto / features
 
 - CRUD completo de plan financiero fuera del wizard (solo wizard edita ingresos/gastos fijos/sobres/meta)
-- Formulario de alta/edición manual de movimientos en UI (sin comprobante)
+- Edición de movimientos manuales existentes en UI (el alta manual sí está implementada)
 - Pasos onboarding eliminados: Welcome, Cómo funciona, Permisos, Tutorial Yape — **no reintroducir** sin petición
 - Firebase / sync en nube
 - Detección de **gastos** desde notificaciones (F12 solo ingresos)

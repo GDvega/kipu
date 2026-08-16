@@ -8,6 +8,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
@@ -45,10 +49,14 @@ fun OnboardingScreen(
                         text = state.message,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics {
+                            error(state.message)
+                            liveRegion = LiveRegionMode.Polite
+                        },
                     )
                     KipuPrimaryButton(
                         text = "Reintentar",
-                        onClick = viewModel::clearError,
+                        onClick = viewModel::retryOnboarding,
                         modifier = Modifier.padding(top = 16.dp),
                     )
                 }

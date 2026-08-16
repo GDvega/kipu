@@ -9,22 +9,22 @@ import pe.kipu.core.domain.model.PaymentChannel
 class MonitoredPaymentAppsTest {
 
     @Test
-    fun verifiedPackagesMatchGooglePlayJun2026() {
+    fun verifiedPackagesMatchGooglePlay() {
         assertEquals("com.bcp.innovacxion.yapeapp", MonitoredPaymentApps.YAPE_PACKAGE)
         assertEquals("pe.com.interbank.mobilebanking", MonitoredPaymentApps.PLIN_PACKAGE)
     }
 
     @Test
-    fun isMonitoredAcceptsVerifiedAndLegacyPackages() {
+    fun isMonitoredAcceptsVerifiedPackages() {
         assertTrue(MonitoredPaymentApps.isMonitored(MonitoredPaymentApps.YAPE_PACKAGE))
         assertTrue(MonitoredPaymentApps.isMonitored(MonitoredPaymentApps.PLIN_PACKAGE))
-        assertTrue(MonitoredPaymentApps.isMonitored(MonitoredPaymentApps.LEGACY_YAPE_PACKAGE))
-        assertTrue(MonitoredPaymentApps.isMonitored(MonitoredPaymentApps.LEGACY_PLIN_PACKAGE))
     }
 
     @Test
-    fun isMonitoredRejectsUnknownPackages() {
+    fun isMonitoredRejectsUnknownOrLegacyPackages() {
         assertFalse(MonitoredPaymentApps.isMonitored("com.unknown.wallet"))
+        assertFalse(MonitoredPaymentApps.isMonitored("com.bcp.yape"))
+        assertFalse(MonitoredPaymentApps.isMonitored("pe.interbank.plin"))
     }
 
     @Test

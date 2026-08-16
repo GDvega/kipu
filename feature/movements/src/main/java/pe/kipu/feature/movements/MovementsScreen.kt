@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,7 +47,6 @@ import pe.kipu.feature.movements.presentation.PendingNotificationDuplicateDialog
 import pe.kipu.feature.movements.presentation.PendingNotificationIncomeCard
 import pe.kipu.feature.movements.presentation.groupMovementsByDay
 import pe.kipu.feature.movements.presentation.movementDisplayTitle
-import pe.kipu.feature.movements.ui.AddMovementOptionsDialog
 import pe.kipu.feature.movements.ui.CategoryChangeDialog
 import pe.kipu.feature.movements.ui.GoalLinkDialog
 import pe.kipu.feature.movements.ui.ManualMovementDialog
@@ -85,11 +85,19 @@ fun MovementsScreen(
         }
     }
 
+    val showRegisterFab = (uiState as? MovementsUiState.Content)?.let { state ->
+        state.filteredMovements.isNotEmpty() ||
+            state.duplicatePairs.isNotEmpty() ||
+            state.pendingNotificationIncomes.isNotEmpty()
+    } == true
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            KipuRegisterFab(onClick = viewModel::onAddMovementClick)
+            if (showRegisterFab) {
+                KipuRegisterFab(onClick = viewModel::onAddMovementClick)
+            }
         },
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
@@ -106,6 +114,7 @@ fun MovementsScreen(
                     DuplicateResolutionDialog(
                         pair = pair,
                         onResolve = viewModel::onResolveDuplicate,
+                        isProcessing = state.isActionInProgress,
                     )
                 }
 
@@ -124,6 +133,7 @@ fun MovementsScreen(
                             pendingMovement = pendingMovement,
                             existingMatch = existingMatch,
                             onResolve = viewModel::onResolvePendingNotificationDuplicate,
+                            isProcessing = state.isActionInProgress,
                         )
                     }
                 }
@@ -133,6 +143,7 @@ fun MovementsScreen(
                         movement = movement,
                         categories = state.categories,
                         currentCategoryName = state.categoryNamesById[movement.categoryId],
+                        isProcessing = state.isActionInProgress,
                         onCategorySelected = viewModel::onCategorySelected,
                         onDismiss = viewModel::onDismissCategoryChange,
                     )
@@ -145,19 +156,9 @@ fun MovementsScreen(
                         currentGoalTitle = movement.commitmentId?.let { id ->
                             state.savingsGoals.find { it.id == id }?.title
                         },
+                        isProcessing = state.isActionInProgress,
                         onGoalSelected = viewModel::onGoalSelected,
                         onDismiss = viewModel::onDismissGoalLink,
-                    )
-                }
-
-                if (state.showAddOptionsDialog) {
-                    AddMovementOptionsDialog(
-                        onRegisterManual = viewModel::onRegisterManualClicked,
-                        onRegisterReceipt = {
-                            viewModel.onDismissAddOptions()
-                            onRegisterReceipt()
-                        },
-                        onDismiss = viewModel::onDismissAddOptions,
                     )
                 }
 
@@ -200,9 +201,7 @@ fun MovementsScreen(
                     )
                 }
 
-                val hasContent = state.filteredMovements.isNotEmpty() ||
-                    state.duplicatePairs.isNotEmpty() ||
-                    state.pendingNotificationIncomes.isNotEmpty()
+                val hasContent = showRegisterFab
 
                 if (!hasContent) {
                     KipuEmptyState(
@@ -239,6 +238,7 @@ fun MovementsScreen(
                                             movement = movement,
                                             onConfirm = { viewModel.onConfirmPendingNotification(movement.id) },
                                             onDismiss = { viewModel.onDismissPendingNotification(movement.id) },
+                                            enabled = !state.isActionInProgress,
                                         )
                                     }
                                 }
@@ -346,7 +346,12 @@ private fun DuplicatePairListItem(
     val secondTitle = movementDisplayTitle(pair.movementB.counterpartyName, pair.movementB.description)
     val reasonText = MovementDuplicateTranslator.matchReasonText(pair.matchReasonKey)
 
-    KipuCard(modifier = modifier.clickable(onClick = onClick)) {
+    KipuCard(
+        modifier = modifier.clickable(
+            role = Role.Button,
+            onClick = onClick,
+        ),
+    ) {
         Column {
             Text(
                 text = reasonText,

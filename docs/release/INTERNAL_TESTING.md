@@ -35,7 +35,8 @@ cp keystore.properties.example keystore.properties
 | Resultado | Ubicación |
 |-----------|-----------|
 | AAB firmado (con `keystore.properties`) | `app/build/outputs/bundle/release/app-release.aab` |
-| AAB sin firmar (sin keystore) | mismo path — **no subir** a Play Console |
+
+Sin `keystore.properties`, `preReleaseBuild` falla de forma intencional antes de generar un AAB nuevo. Kipu no permite producir silenciosamente un artefacto release sin firma. Si existe un AAB antiguo en `build/`, no debe usarse: genera uno nuevo después de configurar la firma.
 
 Verificar tamaño ~10–15 MB (arm64 + R8).
 

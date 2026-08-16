@@ -2,6 +2,7 @@ package pe.kipu.app.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -18,11 +19,14 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.compose.ui.graphics.Color
+import androidx.glance.unit.ColorProvider
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import pe.kipu.core.data.preferences.readKipuUserPreferences
 import pe.kipu.core.designsystem.theme.KipuPrimary
 import pe.kipu.core.designsystem.theme.KipuRed
-import androidx.glance.unit.ColorProvider
-import pe.kipu.core.data.preferences.readKipuUserPreferences
+import pe.kipu.core.domain.time.CycleRangeCalculator
 
 class DailyAvailableGlanceWidget : GlanceAppWidget() {
 
@@ -30,12 +34,16 @@ class DailyAvailableGlanceWidget : GlanceAppWidget() {
         val preferences = context.readKipuUserPreferences()
         val amountText = preferences.widgetDailyAvailableText ?: "—"
         val isOverBudget = preferences.widgetIsOverBudget
+        val updatedAtText = formatDailyAvailableWidgetUpdatedAt(
+            updatedAtMillis = preferences.widgetDailyAvailableUpdatedAtMillis,
+        )
 
         provideContent {
             GlanceTheme {
                 DailyAvailableWidgetContent(
                     amountText = amountText,
                     isOverBudget = isOverBudget,
+                    updatedAtText = updatedAtText,
                 )
             }
         }
@@ -46,6 +54,7 @@ class DailyAvailableGlanceWidget : GlanceAppWidget() {
 private fun DailyAvailableWidgetContent(
     amountText: String,
     isOverBudget: Boolean,
+    updatedAtText: String,
 ) {
     Column(
         modifier = GlanceModifier
@@ -76,8 +85,26 @@ private fun DailyAvailableWidgetContent(
             ),
             modifier = GlanceModifier.padding(top = 4.dp),
         )
+        Text(
+            text = updatedAtText,
+            style = TextStyle(
+                color = ColorProvider(Color(0xFF9CA3AF)),
+                fontSize = 11.sp,
+            ),
+            modifier = GlanceModifier.padding(top = 4.dp),
+        )
     }
 }
+
+internal fun formatDailyAvailableWidgetUpdatedAt(
+    updatedAtMillis: Long?,
+    zoneId: ZoneId = CycleRangeCalculator.PERU_ZONE,
+): String = updatedAtMillis?.let { instantMillis ->
+    "Actualizado ${WIDGET_UPDATED_AT_FORMATTER.format(Instant.ofEpochMilli(instantMillis).atZone(zoneId))}"
+} ?: "Sin actualizar"
+
+private val WIDGET_UPDATED_AT_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("dd/MM/yyyy, HH:mm")
 
 class DailyAvailableWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DailyAvailableGlanceWidget()

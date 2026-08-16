@@ -4,6 +4,7 @@ import javax.inject.Inject
 import pe.kipu.core.domain.model.CashFlowSummary
 import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.CommitmentType
+import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
 import pe.kipu.core.domain.model.MovementStatus
@@ -14,6 +15,7 @@ class CalculateCashFlowSummaryUseCase @Inject constructor() {
     operator fun invoke(
         movements: List<Movement>,
         commitments: List<Commitment>,
+        initialBalance: Money = Money.ZERO,
     ): CashFlowSummary {
         val confirmedMovements = movements.filter { it.status == MovementStatus.CONFIRMED }
         
@@ -25,23 +27,26 @@ class CalculateCashFlowSummaryUseCase @Inject constructor() {
             .filter { it.type == MovementType.EXPENSE }
             .fold(Money.ZERO) { total, movement -> total + movement.amount }
             
-        val netCash = when (val result = totalIncome - totalExpenses) {
-            is pe.kipu.core.domain.model.DomainResult.Ok -> result.value
-            is pe.kipu.core.domain.model.DomainResult.Err -> Money.ZERO
-        }
+        val netCash = initialBalance.amount.add(totalIncome.amount).subtract(totalExpenses.amount)
         
-        val totalGoalTarget = commitments
+        val totalGoalRemaining = commitments
             .filter { it.type == CommitmentType.SAVINGS_GOAL && !it.isSettled }
-            .mapNotNull { it.targetAmount }
+            .mapNotNull { commitment ->
+                val target = commitment.targetAmount ?: return@mapNotNull null
+                when (val remaining = target - (commitment.currentAmount ?: Money.ZERO)) {
+                    is DomainResult.Ok -> remaining.value
+                    is DomainResult.Err -> Money.ZERO
+                }
+            }
             .fold(Money.ZERO) { total, amount -> total + amount }
             
-        val isGoalAtRisk = netCash.amount < totalGoalTarget.amount
+        val isGoalAtRisk = !totalGoalRemaining.isZero() && netCash < totalGoalRemaining.amount
 
         return CashFlowSummary(
             totalIncome = totalIncome,
             totalExpenses = totalExpenses,
             netCash = netCash,
-            totalGoalTarget = totalGoalTarget,
+            totalGoalRemaining = totalGoalRemaining,
             isGoalAtRisk = isGoalAtRisk,
         )
     }

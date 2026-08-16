@@ -9,6 +9,7 @@ import pe.kipu.core.domain.model.Commitment
 import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.model.Envelope
+import pe.kipu.core.domain.model.EntityId
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
@@ -24,6 +25,9 @@ data class PlanSetupPreparationInput(
     val budgetCycle: BudgetCycle = BudgetCycle.WEEKLY,
     val envelopeLimits: Map<String, String>,
     val antSpendingLimitText: String,
+    val antSpendingAlertEnabled: Boolean = true,
+    val antSpendingAlertPercent: Int = 80,
+    val antSpendingTrackedCategoryIds: Set<EntityId> = emptySet(),
     val customEnvelopeLines: List<PlanWizardLineItem> = emptyList(),
     val goalSkipped: Boolean,
     val goalTitle: String,
@@ -80,9 +84,19 @@ class PreparePlanSetupUseCase @Inject constructor(
         }
 
         val envelopesById = input.existingEnvelopes.associateBy { it.id }.toMutableMap()
-        val wizardLimits = input.envelopeLimits +
+        val submittedCustomEnvelopeIds = input.customEnvelopeLines
+            .mapTo(mutableSetOf()) { line -> customEnvelopeId(line.id) }
+        val envelopeIdsToDelete = input.existingEnvelopes
+            .asSequence()
+            .map { it.id }
+            .filter(PlanEnvelopeTemplates::isWizardManagedCustomEnvelope)
+            .filterNot(submittedCustomEnvelopeIds::contains)
+            .toSet()
+        envelopeIdsToDelete.forEach(envelopesById::remove)
+        val wizardLimits = input.envelopeLimits.filterValues { it.isNotBlank() } +
             (PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID to input.antSpendingLimitText)
         for ((envelopeId, amountText) in wizardLimits) {
+            if (amountText.isBlank()) continue
             val limit = parsePositiveMoney(amountText)
                 ?: return PlanSetupPreparationResult.Error(
                     PlanSetupPreparationError.InvalidEnvelopeAmount(envelopeId),
@@ -96,6 +110,7 @@ class PreparePlanSetupUseCase @Inject constructor(
                     categoryId = categoryIdForWizardEnvelope(envelopeId),
                 )
         }
+
 
         val categoriesToSave = mutableListOf<Category>()
         val existingCategoriesByName = input.existingCategories.associateBy { normalizeName(it.name) }
@@ -163,11 +178,17 @@ class PreparePlanSetupUseCase @Inject constructor(
             incomeProfile = input.incomeProfile,
             payFrequency = input.payFrequency,
             budgetCycle = input.budgetCycle,
+            antSpendingLimit = envelopesById[PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID]
+                ?.weeklyLimit,
+            antSpendingAlertEnabled = input.antSpendingAlertEnabled,
+            antSpendingAlertPercent = input.antSpendingAlertPercent,
+            antSpendingTrackedCategoryIds = input.antSpendingTrackedCategoryIds,
         )
         val setup = PlanSetup(
             plan = plan,
             categories = categoriesToSave.toList(),
             envelopes = envelopes,
+            envelopeIdsToDelete = envelopeIdsToDelete,
             commitmentsToSave = commitmentsToSave.toList(),
             commitmentIdsToSettle = commitmentIdsToSettle.toSet(),
         )
@@ -270,7 +291,8 @@ class PreparePlanSetupUseCase @Inject constructor(
     private fun customCategoryId(lineId: String): String = "category-plan-${stableLineId(lineId)}"
 
     private fun customEnvelopeId(lineId: String): String =
-        if (lineId.startsWith("envelope-")) lineId else "envelope-plan-${stableLineId(lineId)}"
+        if (lineId.startsWith("envelope-")) lineId
+        else PlanEnvelopeTemplates.CUSTOM_ENVELOPE_PREFIX + stableLineId(lineId)
 
     private fun stableLineId(lineId: String): String = lineId.trim().ifEmpty { "invalid" }
 

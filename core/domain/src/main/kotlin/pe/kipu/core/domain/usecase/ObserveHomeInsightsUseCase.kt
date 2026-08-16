@@ -6,12 +6,14 @@ import kotlinx.coroutines.flow.combine
 import pe.kipu.core.domain.model.AlertSeverity
 import pe.kipu.core.domain.model.AntSpendingAlert
 import pe.kipu.core.domain.model.AntSpendingAlertKeys
-import pe.kipu.core.domain.model.DomainResult
+import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.HomeInsights
 
+import pe.kipu.core.domain.model.BudgetCycle
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds
 import pe.kipu.core.domain.repository.CommitmentRepository
+import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.TimeProvider
@@ -23,6 +25,7 @@ class ObserveHomeInsightsUseCase @Inject constructor(
     private val movementRepository: MovementRepository,
     private val commitmentRepository: CommitmentRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val financialPlanRepository: FinancialPlanRepository,
     private val calculateCycleAvailable: CalculateCycleAvailableUseCase,
     private val detectAntSpending: DetectAntSpendingUseCase,
     private val detectAntSpendingWeeklyLimitUseCase: DetectAntSpendingWeeklyLimitUseCase,
@@ -37,9 +40,23 @@ class ObserveHomeInsightsUseCase @Inject constructor(
             movementRepository.observeMovements(),
             commitmentRepository.observeCommitments(),
             userPreferencesRepository.observePreferences(),
-            timeProvider.refreshTicks(),
-        ) { budgets, movements, commitments, preferences, referenceInstant ->
-            val cycle = preferences.budgetCycle
+            financialPlanRepository.observePlans(),
+        ) { budgets, movements, commitments, preferences, plans ->
+            val plan = plans.firstOrNull()
+            HomeInputs(
+                budgets = budgets,
+                movements = movements,
+                commitments = commitments,
+                preferences = preferences,
+                plan = plan,
+            )
+        }.combine(timeProvider.refreshTicks()) { inputs, referenceInstant ->
+            val budgets = inputs.budgets
+            val movements = inputs.movements
+            val commitments = inputs.commitments
+            val preferences = inputs.preferences
+            val plan = inputs.plan
+            val cycle = plan?.budgetCycle ?: BudgetCycle.WEEKLY
             val cycleRange = cycleRangeCalculator.currentCycleRange(cycle, referenceInstant)
             val cycleAvailable = calculateCycleAvailable(
                 budgets = budgets,
@@ -54,11 +71,11 @@ class ObserveHomeInsightsUseCase @Inject constructor(
                 envelopeBudgets = budgets,
             )
             val antEnvelope = budgets.find { it.envelopeId == DefaultPlanEnvelopeIds.ANT_SPENDING }
-            val configuredLimit = preferences.antSpendingWeeklyLimitCents?.let(::centsToMoney)
+            val configuredLimit = plan?.antSpendingLimit
             val weeklyLimitStatus = detectAntSpendingWeeklyLimitUseCase(
                 antEnvelopeBudget = antEnvelope,
-                alertEnabled = preferences.antSpendingAlertEnabled,
-                alertPercent = preferences.antSpendingAlertPercent,
+                alertEnabled = plan?.antSpendingAlertEnabled ?: true,
+                alertPercent = plan?.antSpendingAlertPercent ?: DEFAULT_ALERT_PERCENT,
                 configuredWeeklyLimit = configuredLimit,
             )
             val weeklyLimitAlert = when (weeklyLimitStatus) {
@@ -92,7 +109,11 @@ class ObserveHomeInsightsUseCase @Inject constructor(
                 .filter { it.status == pe.kipu.core.domain.model.MovementStatus.CONFIRMED }
                 .sortedByDescending { it.recordedAt }
                 .take(RECENT_MOVEMENTS_LIMIT)
-            val cashFlowSummary = calculateCashFlowSummary(movements, commitments)
+            val cashFlowSummary = calculateCashFlowSummary(
+                movements = movements,
+                commitments = commitments,
+                initialBalance = plan?.initialBalance ?: Money.ZERO,
+            )
             HomeInsights(
                 cycleAvailable = cycleAvailable,
                 antSpendingAlerts = antSpendingAlerts,
@@ -105,15 +126,17 @@ class ObserveHomeInsightsUseCase @Inject constructor(
             )
         }
 
-    private fun centsToMoney(cents: Long): Money {
-        val value = java.math.BigDecimal.valueOf(cents).movePointLeft(2)
-        return when (val result = Money.of(value)) {
-            is DomainResult.Ok -> result.value
-            is DomainResult.Err -> Money.ZERO
-        }
-    }
-
     private companion object {
         const val RECENT_MOVEMENTS_LIMIT = 3
+        const val DEFAULT_ALERT_PERCENT = 80
     }
+
+    /** Agrupa las 5 entradas reactivas para combinarlas luego con el tick de tiempo. */
+    private data class HomeInputs(
+        val budgets: List<pe.kipu.core.domain.model.EnvelopeBudgetState>,
+        val movements: List<pe.kipu.core.domain.model.Movement>,
+        val commitments: List<pe.kipu.core.domain.model.Commitment>,
+        val preferences: pe.kipu.core.domain.model.UserPreferences,
+        val plan: FinancialPlan?,
+    )
 }

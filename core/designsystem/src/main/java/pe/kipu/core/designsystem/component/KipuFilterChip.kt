@@ -1,8 +1,5 @@
 package pe.kipu.core.designsystem.component
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -10,13 +7,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -28,10 +25,12 @@ fun KipuFilterChipRow(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp),
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier
             .horizontalScroll(rememberScrollState())
+            .selectableGroup()
             .padding(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -40,6 +39,7 @@ fun KipuFilterChipRow(
                 text = label,
                 selected = index == selectedIndex,
                 onClick = { onSelected(index) },
+                enabled = enabled,
             )
         }
     }
@@ -51,31 +51,30 @@ fun KipuFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val shape = MaterialTheme.shapes.extraLarge
     val colors = MaterialTheme.colorScheme
 
-    Text(
-        text = text,
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier
-            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .then(
-                if (selected) {
-                    Modifier.background(colors.primary, shape)
-                } else {
-                    Modifier
-                        .background(colors.surface, shape)
-                        .border(1.5.dp, colors.outline, shape)
-                },
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+        shape = shape,
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = colors.surface,
+            labelColor = colors.onSurface,
+            selectedContainerColor = colors.primary,
+            selectedLabelColor = colors.onPrimary,
+        ),
+        label = {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
             )
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .semantics {
-                contentDescription = if (selected) "$text, seleccionado" else text
-            },
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
-        color = if (selected) colors.onPrimary else colors.onSurface,
+        },
     )
 }

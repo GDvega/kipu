@@ -18,7 +18,16 @@ sealed interface GatheringsUiState {
         val formMovementId: String?,
         val formError: String?,
         val isSaving: Boolean,
-    ) : GatheringsUiState
+        val deleteTarget: GatheringSummary? = null,
+        val isDeleting: Boolean = false,
+        val deleteErrorMessage: String? = null,
+    ) : GatheringsUiState {
+        val canConfirmDialog: Boolean
+            get() = dialogMode != null && !isSaving
+
+        val canConfirmDelete: Boolean
+            get() = deleteTarget != null && !isDeleting
+    }
 
     data class Error(val message: String) : GatheringsUiState
 }

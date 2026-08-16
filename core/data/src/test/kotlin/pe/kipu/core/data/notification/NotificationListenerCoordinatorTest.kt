@@ -1,6 +1,7 @@
 package pe.kipu.core.data.notification
 
 import java.time.Instant
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -15,12 +16,10 @@ import pe.kipu.core.domain.parser.PlinIncomeNotificationParser
 import pe.kipu.core.domain.parser.YapeIncomeNotificationParser
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
-import pe.kipu.core.domain.usecase.DetectDuplicateMovementUseCase
-import pe.kipu.core.domain.usecase.EvaluateAutoApprovalUseCase
 import pe.kipu.core.domain.usecase.ParseNotificationTextUseCase
 import pe.kipu.core.domain.usecase.RegisterNotificationIncomeUseCase
-import pe.kipu.core.domain.duplicate.MovementDuplicateMatcher
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NotificationListenerCoordinatorTest {
 
     private val parseNotificationText = ParseNotificationTextUseCase(
@@ -103,9 +102,6 @@ class NotificationListenerCoordinatorTest {
             registerNotificationIncome = RegisterNotificationIncomeUseCase(
                 movementRepository = repository,
                 timeProvider = FixedInstantTimeProvider(Instant.parse("2026-06-16T15:00:00Z")),
-                userPreferencesRepository = userPrefs,
-                detectDuplicateMovement = DetectDuplicateMovementUseCase(MovementDuplicateMatcher()),
-                evaluateAutoApproval = EvaluateAutoApprovalUseCase(),
             ),
             applicationScope = scope,
         )

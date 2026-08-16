@@ -44,6 +44,10 @@ class SaveFinancialPlanUseCase @Inject constructor(
             incomeProfile = incomeProfile,
             payFrequency = payFrequency,
             budgetCycle = budgetCycle,
+            antSpendingLimit = existing?.antSpendingLimit,
+            antSpendingAlertEnabled = existing?.antSpendingAlertEnabled ?: true,
+            antSpendingAlertPercent = existing?.antSpendingAlertPercent ?: 80,
+            antSpendingTrackedCategoryIds = existing?.antSpendingTrackedCategoryIds.orEmpty(),
         )
 
         when (val structural = plan.validate()) {

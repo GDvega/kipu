@@ -73,6 +73,14 @@ android {
     }
 }
 
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        check(keystorePropertiesFile.exists()) {
+            "Release signing is required. Create keystore.properties from the ignored template before building release."
+        }
+    }
+}
+
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:domain"))
@@ -85,7 +93,10 @@ dependencies {
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:plan"))
     implementation(project(":feature:receipts"))
-    implementation(project(":feature:juntas"))
+
+
+
+
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

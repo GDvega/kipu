@@ -17,4 +17,11 @@ abstract class NotificationModule {
     abstract fun bindNotificationAccessChecker(
         impl: AndroidNotificationAccessChecker,
     ): NotificationAccessChecker
+
+    @Binds
+    @Singleton
+    abstract fun bindFixedExpenseReminderScheduler(
+        impl: pe.kipu.core.data.notification.AndroidFixedExpenseReminderScheduler,
+    ): pe.kipu.core.domain.notification.FixedExpenseReminderScheduler
 }
+

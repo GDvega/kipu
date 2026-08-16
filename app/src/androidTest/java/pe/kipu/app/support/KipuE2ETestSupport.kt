@@ -3,19 +3,20 @@ package pe.kipu.app.support
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
-import androidx.datastore.preferences.core.edit
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
-import kotlinx.coroutines.runBlocking
 import pe.kipu.app.MainActivity
-import pe.kipu.core.data.preferences.KipuPreferencesDataStore
-import pe.kipu.core.data.preferences.UserPreferencesKeys
+import pe.kipu.app.navigation.KipuDestination
+import pe.kipu.app.presentation.MainViewModel
+import pe.kipu.core.designsystem.component.KipuTestTags
 
 fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.skipOnboardingIfShown() {
     waitUntil(timeoutMillis = 60_000) {
@@ -27,13 +28,21 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.ski
     if (nodeWithTextExists("Inicio")) return
 
     if (nodeWithTextExists("Comenzar con mi plan") || nodeWithTextExists("¿Cuánto dinero recibes?")) {
-        runBlocking {
-            KipuPreferencesDataStore.get(activity).edit { prefs ->
-                prefs[UserPreferencesKeys.ONBOARDING_COMPLETED] = true
-                prefs[UserPreferencesKeys.PENDING_PLAN_WIZARD] = false
-            }
+        lateinit var mainViewModel: MainViewModel
+        runOnIdle {
+            mainViewModel = ViewModelProvider(activity)[MainViewModel::class.java]
+            mainViewModel.resetOnboarding()
         }
-        activityRule.scenario.recreate()
+        waitUntil(timeoutMillis = 20_000) {
+            nodeWithTextExists("Comenzar con mi plan")
+        }
+        onNodeWithText("Comenzar con mi plan")
+            .performScrollTo()
+            .performClick()
+        waitUntil(timeoutMillis = 20_000) {
+            nodeWithTextExists("¿Cuánto dinero recibes?") && !mainViewModel.pendingPlanWizard.value
+        }
+        runOnIdle { activity.onBackPressedDispatcher.onBackPressed() }
         waitUntil(timeoutMillis = 60_000) {
             nodeWithTextExists("Inicio")
         }
@@ -41,14 +50,20 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.ski
     }
 }
 
-fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.completePlanWizardWithDefaults() {
+fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.reachPlanSummaryWithApproximateIncome(
+    amount: String,
+) {
     waitUntil(timeoutMillis = 20_000) {
         nodeWithTextExists("¿Cuánto dinero recibes?")
     }
     waitUntil(timeoutMillis = 10_000) {
-        nodeWithTextExists("Sueldo mensual (aproximado)")
+        nodeWithTextExists("No sé exacto")
     }
-    replaceTextFieldContaining("Sueldo mensual (aproximado)", "1500")
+    tapText("No sé exacto")
+    waitForIdle()
+    onAllNodes(hasSetTextAction(), useUnmergedTree = true)[1]
+        .performScrollTo()
+        .performTextReplacement(amount)
     waitForIdle()
     tapButtonContaining("Continuar")
 
@@ -58,14 +73,13 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.com
     tapText("No tengo gastos fijos")
 
     waitUntil(timeoutMillis = 15_000) {
-        nodeWithTextExists("¿Cuánto quieres gastar a la semana?")
+        nodeWithTextExists("¿Cuánto quieres asignar a tus sobres?")
     }
     tapButtonContaining("Continuar")
 
     waitUntil(timeoutMillis = 15_000) {
         nodeWithTextExists("Gastos hormiga")
     }
-    tapText("S/ 25")
     tapButtonContaining("Continuar")
 
     waitUntil(timeoutMillis = 15_000) {
@@ -76,9 +90,27 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.com
     waitUntil(timeoutMillis = 20_000) {
         nodeWithTextExists("Tu plan está listo")
     }
-    tapButtonContaining("mi plan")
+}
 
-    waitForIdle()
+fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.openPlanIncomeFromEnvelopes() {
+    waitForMainNavigation()
+    onNodeWithTag(KipuTestTags.bottomBarTab(KipuDestination.Envelopes.route)).performClick()
+    waitUntil(timeoutMillis = 20_000) {
+        nodeWithTextExists("Mis Sobres")
+    }
+    waitUntil(timeoutMillis = 20_000) {
+        runCatching {
+            onNode(
+                hasClickAction() and hasAnyDescendant(hasText("Ingresos")),
+                useUnmergedTree = true,
+            ).assertExists()
+            true
+        }.getOrDefault(false)
+    }
+    tapButtonContaining("Ingresos")
+    waitUntil(timeoutMillis = 20_000) {
+        nodeWithTextExists("¿Cuánto dinero recibes?")
+    }
 }
 
 fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.waitForMainNavigation() {
@@ -120,7 +152,7 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.tap
     text: String,
 ) {
     val node = onNode(
-        hasContentDescription(text, substring = true) and hasClickAction(),
+        hasText(text, substring = true) and hasClickAction(),
     )
     runCatching {
         node.performClick()
@@ -132,12 +164,11 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.tap
 fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.tapText(
     text: String,
 ) {
-    val node = onNodeWithText(text)
-    runCatching {
-        node.performClick()
-    }.getOrElse {
-        node.performScrollTo().performClick()
+    val node = onNode(hasText(text) and hasClickAction())
+    if (runCatching { node.assertIsDisplayed() }.isFailure) {
+        node.performScrollTo()
     }
+    node.performClick()
 }
 
 fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.tapClickableContainingText(
@@ -147,19 +178,7 @@ fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.tap
         hasClickAction() and hasAnyDescendant(hasText(text)),
         useUnmergedTree = true,
     )
-    runCatching {
-        node.performClick()
-    }.getOrElse {
+    runCatching { node.performClick() }.getOrElse {
         node.performScrollTo().performClick()
     }
-}
-
-fun AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity>.replaceTextFieldContaining(
-    label: String,
-    value: String,
-) {
-    onNode(
-        hasSetTextAction() and hasAnyDescendant(hasText(label)),
-        useUnmergedTree = true,
-    ).performTextReplacement(value)
 }

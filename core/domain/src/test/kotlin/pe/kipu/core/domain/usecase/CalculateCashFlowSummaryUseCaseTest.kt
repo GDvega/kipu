@@ -26,8 +26,8 @@ class CalculateCashFlowSummaryUseCaseTest {
         
         assertEquals(Money.ZERO, result.totalIncome)
         assertEquals(Money.ZERO, result.totalExpenses)
-        assertEquals(Money.ZERO, result.netCash)
-        assertEquals(Money.ZERO, result.totalGoalTarget)
+        assertEquals(BigDecimal("0.00"), result.netCash)
+        assertEquals(Money.ZERO, result.totalGoalRemaining)
         assertFalse(result.isGoalAtRisk)
     }
 
@@ -44,12 +44,28 @@ class CalculateCashFlowSummaryUseCaseTest {
         
         assertEquals(BigDecimal("100.00"), result.totalIncome.amount)
         assertEquals(BigDecimal("50.00"), result.totalExpenses.amount)
-        assertEquals(BigDecimal("50.00"), result.netCash.amount)
+        assertEquals(BigDecimal("50.00"), result.netCash)
         assertFalse(result.isGoalAtRisk)
     }
 
     @Test
-    fun `returns zero net cash if expenses exceed income`() {
+    fun `adds initial balance to real cash`() {
+        val movements = listOf(
+            movement("inc1", "100.00", MovementType.INCOME),
+            movement("exp1", "40.00", MovementType.EXPENSE),
+        )
+
+        val result = useCase(
+            movements = movements,
+            commitments = emptyList(),
+            initialBalance = Money.of(BigDecimal("500.00")).getOrError(),
+        )
+
+        assertEquals(BigDecimal("560.00"), result.netCash)
+    }
+
+    @Test
+    fun `keeps negative net cash when expenses exceed income`() {
         val movements = listOf(
             movement("inc1", "50.00", MovementType.INCOME),
             movement("exp1", "100.00", MovementType.EXPENSE),
@@ -59,7 +75,7 @@ class CalculateCashFlowSummaryUseCaseTest {
         
         assertEquals(BigDecimal("50.00"), result.totalIncome.amount)
         assertEquals(BigDecimal("100.00"), result.totalExpenses.amount)
-        assertEquals(BigDecimal("0.00"), result.netCash.amount)
+        assertEquals(BigDecimal("-50.00"), result.netCash)
         assertFalse(result.isGoalAtRisk)
     }
 
@@ -77,8 +93,8 @@ class CalculateCashFlowSummaryUseCaseTest {
         
         val result = useCase(movements, commitments)
         
-        assertEquals(BigDecimal("60.00"), result.netCash.amount)
-        assertEquals(BigDecimal("70.00"), result.totalGoalTarget.amount)
+        assertEquals(BigDecimal("60.00"), result.netCash)
+        assertEquals(BigDecimal("70.00"), result.totalGoalRemaining.amount)
         assertTrue(result.isGoalAtRisk) // 60 < 70
     }
 
@@ -95,9 +111,26 @@ class CalculateCashFlowSummaryUseCaseTest {
         
         val result = useCase(movements, commitments)
         
-        assertEquals(BigDecimal("100.00"), result.netCash.amount)
-        assertEquals(BigDecimal("50.00"), result.totalGoalTarget.amount)
+        assertEquals(BigDecimal("100.00"), result.netCash)
+        assertEquals(BigDecimal("50.00"), result.totalGoalRemaining.amount)
         assertFalse(result.isGoalAtRisk) // 100 is not < 50
+    }
+
+    @Test
+    fun `goal risk compares cash with amount still missing instead of original target`() {
+        val movements = listOf(movement("inc1", "500.00", MovementType.INCOME))
+        val commitments = listOf(
+            commitment(
+                id = "goal1",
+                targetAmount = "10000.00",
+                currentAmount = "9500.00",
+                isSettled = false,
+            ),
+        )
+
+        val result = useCase(movements, commitments)
+
+        assertFalse(result.isGoalAtRisk)
     }
 
     private fun movement(
@@ -120,12 +153,14 @@ class CalculateCashFlowSummaryUseCaseTest {
     private fun commitment(
         id: String,
         targetAmount: String,
+        currentAmount: String? = null,
         isSettled: Boolean,
     ) = Commitment(
         id = id,
         type = CommitmentType.SAVINGS_GOAL,
         title = "Title",
         targetAmount = Money.of(BigDecimal(targetAmount)).getOrError(),
+        currentAmount = currentAmount?.let { Money.of(BigDecimal(it)).getOrError() },
         isSettled = isSettled,
     )
 }

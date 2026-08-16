@@ -48,7 +48,7 @@ class KipuNavigationE2ETest {
         composeRule.onNodeWithText("Mis Sobres").assertExists()
 
         composeRule.onNodeWithText("Compromisos").performClick()
-        composeRule.onNodeWithText("Sin compromisos").assertExists()
+        composeRule.onNodeWithText("Nuevo compromiso").assertIsDisplayed()
 
         composeRule.onNodeWithText("Perfil").performClick()
         composeRule.onNodeWithText("Configuración y preferencias").assertExists()
@@ -62,6 +62,7 @@ class KipuNavigationE2ETest {
         composeRule.waitForHomeScreen()
 
         composeRule.onNodeWithTag(KipuTestTags.REGISTER_FAB).performClick()
+        composeRule.tapClickableContainingText("Registro manual")
         composeRule.waitUntil(timeoutMillis = 10_000) {
             runCatching {
                 composeRule.onAllNodes(hasText("Monto"))[0].assertExists()
@@ -116,8 +117,10 @@ class KipuNavigationE2ETest {
         composeRule.waitForMainNavigation()
 
         composeRule.onNodeWithText("Perfil").performClick()
-        composeRule.onNodeWithText("Ver cuentas compartidas").performClick()
-        composeRule.onNodeWithText("Gastos compartidos con amigos").assertExists()
+        composeRule.onNodeWithText("Ver cuentas compartidas")
+            .performScrollTo()
+            .performClick()
+        waitForGatheringsScreen()
         composeRule.onNodeWithText("Nueva cuenta").assertExists()
     }
 
@@ -125,12 +128,24 @@ class KipuNavigationE2ETest {
     fun createGatheringShowsInList() {
         openGatheringsScreen()
 
-        composeRule.onNodeWithText("Nueva cuenta").performClick()
+        composeRule.onNodeWithText("Nueva cuenta")
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            runCatching {
+                composeRule.onAllNodes(hasSetTextAction(), useUnmergedTree = true)[1]
+                    .assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
         composeRule.onAllNodes(hasSetTextAction(), useUnmergedTree = true)[0]
             .performTextReplacement("Cena E2E")
         composeRule.onAllNodes(hasSetTextAction(), useUnmergedTree = true)[1]
             .performTextReplacement("Ana\nLuis")
-        composeRule.onNodeWithText("Guardar").performClick()
+        composeRule.onNodeWithText("Guardar")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
 
         composeRule.waitUntil(timeoutMillis = 10_000) {
             runCatching {
@@ -151,7 +166,18 @@ class KipuNavigationE2ETest {
                 true
             }.getOrDefault(false)
         }
-        composeRule.onNodeWithText("Ver cuentas compartidas").performClick()
-        composeRule.onNodeWithText("Gastos compartidos con amigos").assertIsDisplayed()
+        composeRule.onNodeWithText("Ver cuentas compartidas")
+            .performScrollTo()
+            .performClick()
+        waitForGatheringsScreen()
+    }
+
+    private fun waitForGatheringsScreen() {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            runCatching {
+                composeRule.onNodeWithText("Gastos compartidos con amigos").assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
     }
 }

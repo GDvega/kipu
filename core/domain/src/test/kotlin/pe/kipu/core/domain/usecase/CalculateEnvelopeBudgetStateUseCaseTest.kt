@@ -89,6 +89,16 @@ class CalculateEnvelopeBudgetStateUseCaseTest {
     }
 
     @Test
+    fun `clamps percent used when ratio exceeds integer range`() {
+        val percent = CalculateEnvelopeBudgetStateUseCase.calculatePercentUsed(
+            spent = Money.of(BigDecimal("99999999999999.99")).getOrError(),
+            limit = Money.of(BigDecimal("0.01")).getOrError(),
+        )
+
+        assertEquals(Int.MAX_VALUE, percent)
+    }
+
+    @Test
     fun `excludes gathering linked movements from budget spent calculation`() {
         val m1 = expense(CategoryIds.FOOD, "120.00", instant(2026, 6, 16, 10, 0))
         val m2 = expense(CategoryIds.FOOD, "40.00", instant(2026, 6, 16, 11, 0))

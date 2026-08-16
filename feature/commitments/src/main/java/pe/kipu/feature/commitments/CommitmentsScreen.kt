@@ -40,6 +40,7 @@ import pe.kipu.feature.commitments.presentation.CommitmentsUiState
 import pe.kipu.feature.commitments.presentation.CommitmentsViewModel
 import pe.kipu.feature.commitments.ui.CommitmentDeleteConfirmDialog
 import pe.kipu.feature.commitments.ui.CommitmentFormDialog
+import pe.kipu.feature.commitments.ui.SavingsContributionDialog
 
 @Composable
 fun CommitmentsScreen(
@@ -52,7 +53,7 @@ fun CommitmentsScreen(
         KipuScreenHeader(title = "Compromisos")
         when (val state = uiState) {
             CommitmentsUiState.Loading -> {
-                KipuScreenLoadingState(title = "Compromisos")
+                KipuScreenLoadingState()
             }
 
             is CommitmentsUiState.Content -> {
@@ -68,9 +69,23 @@ fun CommitmentsScreen(
                         onDismiss = viewModel::onDismissForm,
                     )
                 }
-                if (state.deleteTargetId != null && state.deleteTargetTitle != null) {
+
+                if (state.showContributionDialog) {
+                    SavingsContributionDialog(
+                        state = state.contributionState,
+                        onIsDepositChanged = viewModel::onContributionIsDepositChanged,
+                        onAmountChanged = viewModel::onContributionAmountChanged,
+                        onPresetSelected = viewModel::onContributionPresetSelected,
+                        onConfirm = viewModel::onConfirmContribution,
+                        onDismiss = viewModel::onDismissContribution,
+                    )
+                }
+
+                state.deleteTargetTitle?.let { title ->
                     CommitmentDeleteConfirmDialog(
-                        title = state.deleteTargetTitle,
+                        title = title,
+                        isDeleting = state.isDeleting,
+                        errorMessage = state.deleteErrorMessage,
                         onConfirm = viewModel::onConfirmDelete,
                         onDismiss = viewModel::onDismissDelete,
                     )
@@ -80,57 +95,49 @@ fun CommitmentsScreen(
                 val invalidPlan =
                     state.insights.planValidation as? FinancialPlanValidationResult.Invalid
 
-                if (summaries.isEmpty() && invalidPlan == null) {
-                    KipuEmptyState(
-                        title = "Sin compromisos",
-                        message = "Metas, deudas sociales y pagos pendientes aparecerán aquí.",
-                        actionLabel = "Nuevo compromiso",
-                        onAction = viewModel::onCreateClick,
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(KipuLayout.listItemSpacing),
-                        contentPadding = KipuLayout.screenContentPadding(),
-                    ) {
-                        item(key = "add-commitment") {
-                            KipuPrimaryButton(
-                                text = "Nuevo compromiso",
-                                onClick = viewModel::onCreateClick,
-                                modifier = Modifier.fillMaxWidth(),
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(KipuLayout.listItemSpacing),
+                    contentPadding = KipuLayout.screenContentPadding(),
+                ) {
+                    item(key = "add-commitment") {
+                        KipuPrimaryButton(
+                            text = "Nuevo compromiso",
+                            onClick = viewModel::onCreateClick,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    invalidPlan?.let { validation ->
+                        item(key = "plan-alert") {
+                            PlanValidationAlertCard(validation = validation)
+                        }
+                    }
+                    if (summaries.isEmpty()) {
+                        item(key = "empty-commitments-hint") {
+                            KipuEmptyState(
+                                title = "Sin compromisos",
+                                message = "Metas, deudas sociales y pagos pendientes aparecerán aquí.",
                             )
                         }
-                        invalidPlan?.let { validation ->
-                            item(key = "plan-alert") {
-                                PlanValidationAlertCard(validation = validation)
-                            }
+                    } else {
+                        item(key = "header") {
+                            KipuSectionHeader(
+                                title = "Tus compromisos",
+                                horizontalPadding = 0.dp,
+                            )
                         }
-                        if (summaries.isEmpty()) {
-                            item(key = "empty-commitments-hint") {
-                                Text(
-                                    text = "Aún no tienes compromisos registrados.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                )
-                            }
-                        } else {
-                            item(key = "header") {
-                                KipuSectionHeader(
-                                    title = "Tus compromisos",
-                                    horizontalPadding = 0.dp,
-                                )
-                            }
-                            items(
-                                items = summaries,
-                                key = { summary -> summary.commitment.id },
-                            ) { summary ->
-                                CommitmentListItem(
-                                    summary = summary,
-                                    onEdit = { viewModel.onEditClick(summary) },
-                                    onDelete = { viewModel.onDeleteClick(summary) },
-                                )
-                            }
+                        items(
+                            items = summaries,
+                            key = { summary -> summary.commitment.id },
+                        ) { summary ->
+                            CommitmentListItem(
+                                summary = summary,
+                                onContribute = { viewModel.onContributeClick(summary) },
+                                onEdit = { viewModel.onEditClick(summary) },
+                                onDelete = { viewModel.onDeleteClick(summary) },
+                            )
                         }
                     }
                 }
@@ -172,6 +179,7 @@ private fun PlanValidationAlertCard(
 @Composable
 private fun CommitmentListItem(
     summary: CommitmentSummary,
+    onContribute: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -183,7 +191,11 @@ private fun CommitmentListItem(
 
     KipuCard(
         modifier = modifier.semantics(mergeDescendants = true) {
-            contentDescription = "${commitment.title}, $statusText"
+            contentDescription = listOfNotNull(
+                commitment.title,
+                statusText,
+                progressText,
+            ).joinToString()
         },
     ) {
         Column {
@@ -199,11 +211,19 @@ private fun CommitmentListItem(
             )
             val savingsProgress = summary.savingsProgress
             if (commitment.type == CommitmentType.SAVINGS_GOAL && savingsProgress != null) {
+                commitment.savingsHorizonMonths?.let { months ->
+                    Text(
+                        text = "Plazo objetivo: $months meses",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 KipuLinearProgress(
                     progress = savingsProgress.progressPercent / 100f,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
+                        .padding(top = 8.dp),
                     fillColor = MaterialTheme.colorScheme.primary,
                     trackColor = KipuSecondary.copy(alpha = 0.3f),
                 )
@@ -253,8 +273,15 @@ private fun CommitmentListItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (commitment.type == CommitmentType.SAVINGS_GOAL) {
+                    KipuPrimaryButton(
+                        text = "+ Aportar / Retirar",
+                        onClick = onContribute,
+                        modifier = Modifier.weight(1.3f),
+                    )
+                }
                 KipuSecondaryButton(
                     text = "Editar",
                     onClick = onEdit,
@@ -264,6 +291,7 @@ private fun CommitmentListItem(
                 KipuSecondaryButton(
                     text = "Eliminar",
                     onClick = onDelete,
+                    destructive = true,
                     modifier = Modifier.weight(1f),
                     fillWidth = true,
                 )
@@ -271,3 +299,4 @@ private fun CommitmentListItem(
         }
     }
 }
+

@@ -235,6 +235,115 @@ class KipuDatabaseMigrationInstrumentedTest {
         database.close()
     }
 
+    @Test
+    fun migrateFromVersion11To13AddsInitialBalanceCents() {
+        createVersion11DatabaseWithEmptyEnvelopeIds()
+        applyMigrations(KipuDatabaseMigrations.MIGRATION_11_12)
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(*migrationsFromVersion(12))
+            .allowMainThreadQueries()
+            .build()
+
+        val readable = database.openHelper.readableDatabase
+        readable.query("PRAGMA table_info(`financial_plans`)").use { cursor ->
+            val columns = buildList {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+            }
+            assertTrue(columns.contains("initialBalanceCents"))
+        }
+        database.close()
+    }
+
+    @Test
+    fun migrateFromVersion13To15AddsBudgetCycle() {
+        createVersion11DatabaseWithEmptyEnvelopeIds()
+        applyMigrations(
+            KipuDatabaseMigrations.MIGRATION_11_12,
+            KipuDatabaseMigrations.MIGRATION_12_13,
+            KipuDatabaseMigrations.MIGRATION_13_14,
+        )
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(*migrationsFromVersion(14))
+            .allowMainThreadQueries()
+            .build()
+
+        val readable = database.openHelper.readableDatabase
+        readable.query("PRAGMA table_info(`financial_plans`)").use { cursor ->
+            val columns = buildList {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+            }
+            assertTrue(columns.contains("budgetCycle"))
+        }
+        database.close()
+    }
+
+    @Test
+    fun migrateFromVersion15To16AddsAtomicPlanSettingsWithSafeDefaults() {
+        createVersion11DatabaseWithEmptyEnvelopeIds()
+        applyMigrations(
+            KipuDatabaseMigrations.MIGRATION_11_12,
+            KipuDatabaseMigrations.MIGRATION_12_13,
+            KipuDatabaseMigrations.MIGRATION_13_14,
+            KipuDatabaseMigrations.MIGRATION_14_15,
+        )
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(KipuDatabaseMigrations.MIGRATION_15_16)
+            .allowMainThreadQueries()
+            .build()
+
+        val readable = database.openHelper.readableDatabase
+        readable.query(
+            "SELECT antSpendingLimitCents, antSpendingAlertEnabled, " +
+                "antSpendingAlertPercent, antSpendingTrackedCategoryIds " +
+                "FROM financial_plans WHERE id = ?",
+            arrayOf(FinancialPlanIds.PRIMARY),
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertTrue(cursor.isNull(0))
+            assertEquals(1, cursor.getInt(1))
+            assertEquals(80, cursor.getInt(2))
+            assertEquals("", cursor.getString(3))
+        }
+        database.close()
+    }
+
+    @Test
+    fun migrateAllTheWayToLatest() {
+        createVersion4Database()
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(*KipuDatabaseMigrations.ALL)
+            .allowMainThreadQueries()
+            .build()
+
+        val readable = database.openHelper.readableDatabase
+
+        // Comprobar que hemos llegado a la versión 16
+        assertEquals(16, readable.version)
+
+        // Comprobar alguna de las últimas columnas añadidas
+        readable.query("PRAGMA table_info(`financial_plans`)").use { cursor ->
+            val columns = buildList {
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+            }
+            assertTrue(columns.contains("budgetCycle"))
+            assertTrue(columns.contains("antSpendingLimitCents"))
+            assertTrue(columns.contains("antSpendingAlertEnabled"))
+            assertTrue(columns.contains("antSpendingAlertPercent"))
+            assertTrue(columns.contains("antSpendingTrackedCategoryIds"))
+        }
+        database.close()
+    }
+
     private fun createVersion11DatabaseWithEmptyEnvelopeIds() {
         createVersion10Database()
         seedPrimaryFinancialPlan()

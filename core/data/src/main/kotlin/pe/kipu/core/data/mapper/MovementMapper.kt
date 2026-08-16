@@ -59,6 +59,6 @@ internal fun Long.toMoney(): Money {
     val value = BigDecimal.valueOf(this).movePointLeft(2)
     return when (val result = Money.of(value)) {
         is DomainResult.Ok -> result.value
-        is DomainResult.Err -> error("Invalid stored amount cents: $this")
+        is DomainResult.Err -> error("Invalid stored amount cents")
     }
 }

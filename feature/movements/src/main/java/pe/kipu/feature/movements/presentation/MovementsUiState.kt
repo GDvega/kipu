@@ -23,8 +23,8 @@ sealed interface MovementsUiState {
         val categoryChangeTarget: Movement? = null,
         val goalLinkTarget: Movement? = null,
         val savingsGoals: List<Commitment> = emptyList(),
-        val showAddOptionsDialog: Boolean = false,
         val manualMovementForm: ManualMovementFormState? = null,
+        val isActionInProgress: Boolean = false,
     ) : MovementsUiState {
         val filteredMovements: List<Movement> = movements
             .filter { it.matchesChannelFilter(selectedFilter) }
