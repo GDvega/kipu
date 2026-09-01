@@ -95,8 +95,10 @@ fun KipuBottomBar(
                     label = {
                         Text(
                             text = destination.label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     },
                     modifier = Modifier.testTag(KipuTestTags.bottomBarTab(destination.route)),

@@ -1,6 +1,11 @@
 package pe.kipu.feature.plan
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +31,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -34,7 +40,9 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLoadingIndicator
 import pe.kipu.core.designsystem.component.KipuPrimaryButton
@@ -82,6 +90,35 @@ fun PlanWizardScreen(
         }
 
         is PlanWizardUiState.Content -> {
+            val context = LocalContext.current
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) {
+                viewModel.onFinish(onFinished)
+            }
+            val hasFixedPaymentReminders = !state.skipFixedExpenses && (
+                state.electricityText.isNotBlank() ||
+                    state.waterText.isNotBlank() ||
+                    state.internetText.isNotBlank() ||
+                    state.rentText.isNotBlank() ||
+                    state.phoneText.isNotBlank() ||
+                    state.debtsText.isNotBlank() ||
+                    state.educationText.isNotBlank() ||
+                    state.customExpenseLines.any { it.amountText.isNotBlank() }
+                )
+            val finishPlan = {
+                val needsPermission = hasFixedPaymentReminders &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    ) != PackageManager.PERMISSION_GRANTED
+                if (needsPermission) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    viewModel.onFinish(onFinished)
+                }
+            }
             BackHandler(enabled = state.isSaving) {}
             val contentScrollState = rememberScrollState()
             val isCompactHeight = LocalConfiguration.current.screenHeightDp < 480
@@ -90,7 +127,7 @@ fun PlanWizardScreen(
             }
             val handleBack = {
                 if (!state.isSaving) {
-                    if (state.step == PlanWizardStep.Income) {
+                    if (state.step == PlanWizardStep.Income || (state.isEditingExistingPlan && state.step == state.startStep)) {
                         if (state.isEditingExistingPlan) {
                             onBack()
                         } else {
@@ -149,6 +186,7 @@ fun PlanWizardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
+                            .kipuScrollbar(contentScrollState)
                             .verticalScroll(contentScrollState)
                             .padding(horizontal = KipuLayout.screenHorizontalPadding)
                     ) {
@@ -228,7 +266,9 @@ fun PlanWizardScreen(
                                         envelopeLimits = state.envelopeLimits,
                                         customizingEnvelopeId = state.customizingEnvelopeId,
                                         customEnvelopeLines = state.customEnvelopeLines,
+                                        reserveMonthlyContributionText = state.reserveMonthlyContributionText,
                                         onBudgetCycleSelected = viewModel::onBudgetCycleSelected,
+                                        onReserveMonthlyContributionChanged = viewModel::onReserveMonthlyContributionChanged,
                                         onPresetSelected = viewModel::onEnvelopePresetSelected,
                                         onLimitChanged = viewModel::onEnvelopeLimitChanged,
                                         onCustomize = viewModel::onCustomizeEnvelope,
@@ -323,14 +363,34 @@ fun PlanWizardScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                             }
+                            if (state.isEditingExistingPlan) {
+                                KipuSecondaryButton(
+                                    text = if (state.isSaving) "Guardando..." else "✓ Guardar cambios",
+                                    onClick = finishPlan,
+                                    enabled = !state.isSaving,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    fillWidth = true,
+                                )
+                            }
                         } else {
+                            if (hasFixedPaymentReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                Text(
+                                    text = "Al guardar, Android puede pedir permiso para avisarte de tus pagos fijos.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                             KipuPrimaryButton(
                                 text = when {
                                     state.isSaving -> "Guardando..."
                                     state.isEditingExistingPlan -> "✓ Guardar mi plan"
                                     else -> "✓ Crear mi plan"
                                 },
-                                onClick = { viewModel.onFinish(onFinished) },
+                                onClick = finishPlan,
                                 enabled = !state.isSaving && state.validation !is FinancialPlanValidationResult.Invalid,
                                 modifier = Modifier.fillMaxWidth(),
                             )

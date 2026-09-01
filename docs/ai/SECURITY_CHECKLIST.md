@@ -12,7 +12,7 @@ Activar **antes de merge** cuando el encargo toca:
 |---------|--------------|
 | Persistencia (Room, DataStore, archivos) | MEDIUM |
 | Parsers, OCR, intents compartidos | HIGH |
-| Permisos (notificaciones, cámara, galería) | HIGH |
+| Permisos (notificaciones, micrófono, selector de imágenes) | HIGH |
 | Exportar o eliminar datos | HIGH |
 | Logs, crash reporting, analytics | MEDIUM |
 | Backup Android (`allowBackup`, rules XML) | MEDIUM |
@@ -102,7 +102,7 @@ Ejecutar antes de cada commit que toque código:
 - [ ] DataStore para preferencias no sensibles; evaluar cifrado si hay PII
 - [ ] Eliminar datos borra todas las tablas y preferencias
 
-### Permisos (notificaciones, cámara, galería)
+### Permisos (notificaciones, micrófono, selector de imágenes)
 
 - [ ] Permiso solicitado solo cuando el usuario activa la función
 - [ ] Explicación en español simple antes del diálogo del sistema
@@ -115,7 +115,7 @@ Ejecutar antes de cada commit que toque código:
 - [ ] Export genera archivo local; no sube automáticamente
 - [ ] Export incluye aviso de sensibilidad del archivo
 - [ ] Eliminar pide confirmación doble (diálogo destructivo)
-- [ ] Wipe borra DB, DataStore, caché de imágenes y archivos exportados temporales
+- [ ] Wipe borra DB, DataStore y archivos exportados temporales
 - [ ] Operaciones irreversibles claramente etiquetadas
 
 ### Logs y crash reporting
@@ -130,7 +130,7 @@ Ejecutar antes de cada commit que toque código:
 - [x] `android:allowBackup=false` en manifest (jun 2026 — remediación AUD-016); reglas XML mantienen exclusiones como defensa en profundidad
 - [x] Room `kipu.db` (+ wal/shm) excluida de cloud backup y device transfer (rules XML)
 - [x] DataStore `kipu_preferences.preferences_pb` excluido
-- [x] Cache `exports/` y `receipts/` excluida de backup/transfer
+- [x] Cache `exports/` excluida de backup/transfer
 - [x] Decisión documentada en `PROJECT_STATE.md` (F0-02 cerrado Fase 19)
 
 ---

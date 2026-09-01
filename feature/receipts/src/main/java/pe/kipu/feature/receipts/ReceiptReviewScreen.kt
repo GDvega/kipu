@@ -35,6 +35,7 @@ import pe.kipu.core.designsystem.component.KipuBadgeTone
 import pe.kipu.core.designsystem.component.KipuCard
 import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuFilterChip
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLoadingIndicator
@@ -87,10 +88,12 @@ fun ReceiptReviewScreen(
                     )
                 }
 
+                val reviewScrollState = androidx.compose.foundation.rememberScrollState()
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .kipuScrollbar(reviewScrollState)
+                        .verticalScroll(reviewScrollState)
                         .padding(bottom = KipuLayout.screenHorizontalPadding),
                 ) {
                     Text(

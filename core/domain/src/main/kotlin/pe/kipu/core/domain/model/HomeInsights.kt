@@ -12,10 +12,23 @@ data class HomeInsights(
     val recentMovements: List<Movement> = emptyList(),
     val userPreferences: UserPreferences,
     val cashFlowSummary: CashFlowSummary? = null,
+    val financialPlan: FinancialPlan? = null,
+    val categoryDistribution: CategoryExpenseDistribution? = null,
+    val monthlyBudgetSummary: MonthlyBudgetSummary? = null,
+    val reserveBalance: ReserveBalance? = null,
+    val availableBalance: AvailableBalance? = null,
+    val hasCurrentMonthReserveContribution: Boolean = false,
 )
 
 data class HomePeriodSummary(
     val totalCycleLimit: Money,
     val totalCycleSpent: Money,
     val daysRemainingInCycle: Int,
+)
+
+data class MonthlyBudgetSummary(
+    val plannedIncome: Money,
+    val actualExpenses: Money,
+    val remaining: Money,
+    val isOverBudget: Boolean,
 )

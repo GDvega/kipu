@@ -1,5 +1,6 @@
 package pe.kipu.core.domain.usecase
 
+import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import pe.kipu.core.domain.model.ConfirmMovementResult
@@ -7,17 +8,24 @@ import pe.kipu.core.domain.model.DomainError
 import pe.kipu.core.domain.model.DuplicateDetectionResult
 import pe.kipu.core.domain.model.DuplicateResolution
 import pe.kipu.core.domain.model.EntityId
+import pe.kipu.core.domain.model.MovementAuditAction
+import pe.kipu.core.domain.model.MovementAuditEntry
 import pe.kipu.core.domain.model.MovementSource
 import pe.kipu.core.domain.model.MovementStatus
+import pe.kipu.core.domain.repository.MovementAuditRepository
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.DirectLocalTransactionRunner
+import pe.kipu.core.domain.repository.LocalTransactionRunner
 
 /**
  * Promotes a pending notification movement to [MovementStatus.CONFIRMED]
- * after duplicate detection (same semantics as F10).
+ * after duplicate detection (same semantics as F10) and records an audit log.
  */
 class ConfirmPendingNotificationMovementUseCase @Inject constructor(
     private val movementRepository: MovementRepository,
     private val detectDuplicateMovement: DetectDuplicateMovementUseCase,
+    private val movementAuditRepository: MovementAuditRepository,
+    private val localTransactionRunner: LocalTransactionRunner = DirectLocalTransactionRunner,
 ) {
 
     suspend operator fun invoke(
@@ -39,7 +47,7 @@ class ConfirmPendingNotificationMovementUseCase @Inject constructor(
 
         return when (detection) {
             DuplicateDetectionResult.NoMatch -> {
-                movementRepository.save(candidate).getOrThrow()
+                saveWithAudit(candidate)
                 ConfirmMovementResult.Saved(candidate)
             }
 
@@ -50,7 +58,7 @@ class ConfirmPendingNotificationMovementUseCase @Inject constructor(
                 )
 
                 DuplicateResolution.SAVE_AS_NEW -> {
-                    movementRepository.save(candidate).getOrThrow()
+                    saveWithAudit(candidate)
                     ConfirmMovementResult.Saved(candidate)
                 }
 
@@ -62,6 +70,26 @@ class ConfirmPendingNotificationMovementUseCase @Inject constructor(
                 DuplicateResolution.CANCEL -> ConfirmMovementResult.Cancelled
             }
         }
+    }
+
+    private suspend fun saveWithAudit(movement: pe.kipu.core.domain.model.Movement) {
+        val auditEntry = MovementAuditEntry(
+            id = UUID.randomUUID().toString(),
+            movementId = movement.id,
+            action = MovementAuditAction.CREATED,
+            movementType = movement.type,
+            amount = movement.amount,
+            categoryId = movement.categoryId,
+            channel = movement.channel,
+            description = movement.description,
+            counterpartyName = movement.counterpartyName,
+            details = "Ingreso por notificación confirmado",
+            timestamp = movement.createdAt,
+        )
+        localTransactionRunner.run {
+            movementRepository.save(movement).getOrThrow()
+            movementAuditRepository.recordAudit(auditEntry).getOrThrow()
+        }.getOrThrow()
     }
 
     private fun Result<Unit>.getOrThrow() {

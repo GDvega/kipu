@@ -294,7 +294,15 @@ class KipuDatabaseMigrationInstrumentedTest {
         )
 
         val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
-            .addMigrations(KipuDatabaseMigrations.MIGRATION_15_16)
+            .addMigrations(
+                KipuDatabaseMigrations.MIGRATION_15_16,
+                KipuDatabaseMigrations.MIGRATION_16_17,
+                KipuDatabaseMigrations.MIGRATION_17_18,
+                KipuDatabaseMigrations.MIGRATION_18_19,
+                KipuDatabaseMigrations.MIGRATION_19_20,
+                KipuDatabaseMigrations.MIGRATION_20_21,
+                KipuDatabaseMigrations.MIGRATION_21_22,
+            )
             .allowMainThreadQueries()
             .build()
 
@@ -325,8 +333,8 @@ class KipuDatabaseMigrationInstrumentedTest {
 
         val readable = database.openHelper.readableDatabase
 
-        // Comprobar que hemos llegado a la versión 16
-        assertEquals(16, readable.version)
+        // Comprobar que hemos llegado a la versión actual.
+        assertEquals(22, readable.version)
 
         // Comprobar alguna de las últimas columnas añadidas
         readable.query("PRAGMA table_info(`financial_plans`)").use { cursor ->
@@ -341,6 +349,147 @@ class KipuDatabaseMigrationInstrumentedTest {
             assertTrue(columns.contains("antSpendingAlertPercent"))
             assertTrue(columns.contains("antSpendingTrackedCategoryIds"))
         }
+        database.close()
+    }
+
+    @Test
+    fun migrateFromVersion20To21AddsReserveTargetAndLedgerWithoutInventingBalance() {
+        createVersion4Database()
+        applyMigrations(
+            *KipuDatabaseMigrations.ALL
+                .filter { it.startVersion >= 4 && it.endVersion <= 20 }
+                .toTypedArray(),
+        )
+        openRawDatabase().use { db ->
+            db.execSQL(
+                """
+                INSERT INTO financial_plans (
+                    id, estimatedMonthlyIncomeCents, fixedExpensesCents, envelopeIds
+                ) VALUES (?, 200000, 120000, '')
+                """.trimIndent(),
+                arrayOf(FinancialPlanIds.PRIMARY),
+            )
+        }
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(
+                KipuDatabaseMigrations.MIGRATION_20_21,
+                KipuDatabaseMigrations.MIGRATION_21_22,
+            )
+            .allowMainThreadQueries()
+            .build()
+        val readable = database.openHelper.readableDatabase
+
+        readable.query(
+            "SELECT reserveMonthlyContributionCents FROM financial_plans WHERE id = ?",
+            arrayOf(FinancialPlanIds.PRIMARY),
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(0L, cursor.getLong(0))
+        }
+        assertNotNull(
+            readable.query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='reserve_events'",
+            ).use { it.moveToFirst() },
+        )
+        assertNotNull(
+            readable.query(
+                "SELECT name FROM sqlite_master WHERE type='index' " +
+                    "AND name='index_reserve_events_sourceMovementId_type'",
+            ).use { it.moveToFirst() },
+        )
+        database.close()
+    }
+
+    @Test
+    fun migrateFromVersion21To22PreservesLedgerAndAllowsHistoricalUses() {
+        createVersion4Database()
+        applyMigrations(
+            *KipuDatabaseMigrations.ALL
+                .filter { it.startVersion >= 4 && it.endVersion <= 21 }
+                .toTypedArray(),
+        )
+        openRawDatabase().use { db ->
+            db.execSQL(
+                """
+                INSERT INTO reserve_events (
+                    id, type, amountCents, sourceMovementId, reversesEventId,
+                    occurredAtMillis, createdAtMillis
+                ) VALUES ('use-old', 'USE', 10000, 'movement-1', NULL, 1, 1)
+                """.trimIndent(),
+            )
+        }
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(KipuDatabaseMigrations.MIGRATION_21_22)
+            .allowMainThreadQueries()
+            .build()
+        val writable = database.openHelper.writableDatabase
+
+        writable.execSQL(
+            """
+            INSERT INTO reserve_events (
+                id, type, amountCents, sourceMovementId, reversesEventId,
+                occurredAtMillis, createdAtMillis
+            ) VALUES ('use-history', 'USE', 6000, 'movement-1', NULL, 2, 2)
+            """.trimIndent(),
+        )
+        writable.query(
+            "SELECT COUNT(*) FROM reserve_events WHERE sourceMovementId = 'movement-1'",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(2, cursor.getInt(0))
+        }
+        assertNotNull(
+            writable.query(
+                "SELECT name FROM sqlite_master WHERE type='index' " +
+                    "AND name='index_reserve_events_sourceMovementId'",
+            ).use { it.moveToFirst() },
+        )
+        database.close()
+    }
+
+    @Test
+    fun migrateFromVersion19To20AddsNullableEnvelopeIdWithoutReassigningHistory() {
+        createVersion4Database()
+        applyMigrations(
+            *KipuDatabaseMigrations.ALL
+                .filter { it.startVersion >= 4 && it.endVersion <= 19 }
+                .toTypedArray(),
+        )
+        openRawDatabase().use { db ->
+            db.execSQL(
+                """
+                INSERT INTO movements (
+                    id, type, amountCents, categoryId, channel, source, status,
+                    description, counterpartyName, operationNumber, commitmentId,
+                    recordedAtMillis, createdAtMillis
+                ) VALUES (?, 'EXPENSE', 4000, 'other', 'CASH', 'MANUAL', 'CONFIRMED',
+                    NULL, NULL, NULL, NULL, 1, 1)
+                """.trimIndent(),
+                arrayOf("legacy-other"),
+            )
+        }
+
+        val database = Room.databaseBuilder(context, KipuDatabase::class.java, dbName)
+            .addMigrations(
+                KipuDatabaseMigrations.MIGRATION_19_20,
+                KipuDatabaseMigrations.MIGRATION_20_21,
+                KipuDatabaseMigrations.MIGRATION_21_22,
+            )
+            .allowMainThreadQueries()
+            .build()
+        val readable = database.openHelper.readableDatabase
+
+        readable.query("SELECT envelopeId FROM movements WHERE id = 'legacy-other'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertTrue(cursor.isNull(0))
+        }
+        assertNotNull(
+            readable.query(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name='index_movements_envelopeId'",
+            ).use { it.moveToFirst() },
+        )
         database.close()
     }
 

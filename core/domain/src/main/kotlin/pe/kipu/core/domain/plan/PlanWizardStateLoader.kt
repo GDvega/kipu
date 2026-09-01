@@ -33,6 +33,7 @@ object PlanWizardStateLoader {
         val phoneText: String,
         val debtsText: String,
         val educationText: String,
+        val customExpenseLines: List<PlanWizardLineItem> = emptyList(),
     )
 
     data class GoalDefaults(
@@ -133,6 +134,29 @@ object PlanWizardStateLoader {
             )
         }
 
+        val hasBreakdown = plan.electricityExpenses != null ||
+            plan.waterExpenses != null ||
+            plan.internetExpenses != null ||
+            plan.rentExpenses != null ||
+            plan.phoneExpenses != null ||
+            plan.debtsExpenses != null ||
+            plan.educationExpenses != null ||
+            !plan.customFixedExpensesJson.isNullOrBlank()
+
+        if (hasBreakdown) {
+            return FixedExpenseDefaults(
+                skipFixedExpenses = false,
+                electricityText = plan.electricityExpenses?.amount?.toInputText().orEmpty(),
+                waterText = plan.waterExpenses?.amount?.toInputText().orEmpty(),
+                internetText = plan.internetExpenses?.amount?.toInputText().orEmpty(),
+                rentText = plan.rentExpenses?.amount?.toInputText().orEmpty(),
+                phoneText = plan.phoneExpenses?.amount?.toInputText().orEmpty(),
+                debtsText = plan.debtsExpenses?.amount?.toInputText().orEmpty(),
+                educationText = plan.educationExpenses?.amount?.toInputText().orEmpty(),
+                customExpenseLines = CustomFixedExpenseSerializer.deserialize(plan.customFixedExpensesJson),
+            )
+        }
+
         return FixedExpenseDefaults(
             skipFixedExpenses = false,
             electricityText = "",
@@ -140,14 +164,14 @@ object PlanWizardStateLoader {
             internetText = "",
             rentText = "",
             phoneText = "",
-            debtsText = fixed.amount.stripTrailingZeros().toPlainString(),
+            debtsText = "",
             educationText = "",
         )
     }
 
 
     fun goalDefaults(emergencyGoal: Commitment?): GoalDefaults {
-        if (emergencyGoal == null || emergencyGoal.type != CommitmentType.SAVINGS_GOAL) {
+        if (emergencyGoal == null || emergencyGoal.type != CommitmentType.SAVINGS_GOAL || emergencyGoal.isSettled) {
             return GoalDefaults(
                 goalType = GoalType.EMERGENCY,
                 goalName = GoalType.EMERGENCY.defaultTitle(),

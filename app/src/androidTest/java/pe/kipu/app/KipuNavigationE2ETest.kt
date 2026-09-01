@@ -62,7 +62,6 @@ class KipuNavigationE2ETest {
         composeRule.waitForHomeScreen()
 
         composeRule.onNodeWithTag(KipuTestTags.REGISTER_FAB).performClick()
-        composeRule.tapClickableContainingText("Registro manual")
         composeRule.waitUntil(timeoutMillis = 10_000) {
             runCatching {
                 composeRule.onAllNodes(hasText("Monto"))[0].assertExists()

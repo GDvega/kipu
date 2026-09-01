@@ -25,10 +25,12 @@ class ConfirmReceiptMovementUseCaseTest {
 
     private val now = Instant.parse("2026-06-16T15:00:00Z")
     private val repository = FakeMovementRepository()
+    private val auditRepository = FakeMovementAuditRepository()
     private val useCase = ConfirmReceiptMovementUseCase(
         confirmWithDuplicateCheck = ConfirmSuggestedMovementWithDuplicateCheckUseCase(
             movementRepository = repository,
             detectDuplicateMovement = DetectDuplicateMovementUseCase(MovementDuplicateMatcher()),
+            movementAuditRepository = auditRepository,
         ),
         timeProvider = FixedTimeProvider(now),
     )
@@ -109,5 +111,16 @@ class ConfirmReceiptMovementUseCaseTest {
 
         override suspend fun findByCounterpartyName(counterpartyName: String): List<Movement> =
             movements.value.filter { it.counterpartyName == counterpartyName }
+    }
+
+    private class FakeMovementAuditRepository : pe.kipu.core.domain.repository.MovementAuditRepository {
+        val recordedLogs = mutableListOf<pe.kipu.core.domain.model.MovementAuditEntry>()
+        override fun observeAuditLogs(): kotlinx.coroutines.flow.Flow<List<pe.kipu.core.domain.model.MovementAuditEntry>> =
+            MutableStateFlow(recordedLogs)
+        override suspend fun recordAudit(entry: pe.kipu.core.domain.model.MovementAuditEntry): Result<Unit> {
+            recordedLogs.add(entry)
+            return Result.success(Unit)
+        }
+        override suspend fun getAll(): List<pe.kipu.core.domain.model.MovementAuditEntry> = recordedLogs
     }
 }

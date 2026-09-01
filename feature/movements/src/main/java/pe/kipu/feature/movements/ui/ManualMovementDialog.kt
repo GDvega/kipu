@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import java.math.BigDecimal
 import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
@@ -53,6 +56,7 @@ import pe.kipu.core.designsystem.theme.KipuPrimary
 import pe.kipu.core.designsystem.theme.KipuPurple
 import pe.kipu.core.designsystem.theme.KipuRed
 import pe.kipu.core.domain.model.Category
+import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.feature.movements.presentation.ManualMovementAmountValidator
@@ -71,6 +75,8 @@ data class ManualMovementFormState(
     val channel: PaymentChannel = PaymentChannel.CASH,
     val amountText: String = "",
     val categoryId: String? = null,
+    val envelopeId: String? = null,
+    val isUnexpectedExpense: Boolean = false,
     val description: String = "",
     val counterpartyName: String = "",
     val isSaving: Boolean = false,
@@ -87,11 +93,14 @@ data class ManualMovementFormState(
 @Composable
 fun ManualMovementDialog(
     categories: List<Category>,
+    envelopes: List<Envelope> = emptyList(),
     formState: ManualMovementFormState,
     onMovementTypeSelected: (MovementType) -> Unit,
     onChannelSelected: (ManualMovementChannelOption) -> Unit,
     onAmountChanged: (String) -> Unit,
     onCategorySelected: (String) -> Unit,
+    onEnvelopeSelected: (String?) -> Unit = {},
+    onUnexpectedExpenseChanged: (Boolean) -> Unit = {},
     onDescriptionChanged: (String) -> Unit,
     onCounterpartyChanged: (String) -> Unit,
     onConfirm: () -> Unit,
@@ -120,9 +129,11 @@ fun ManualMovementDialog(
             }
         },
         text = {
+            val dialogScrollState = androidx.compose.foundation.rememberScrollState()
             Column(
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
+                    .kipuScrollbar(dialogScrollState)
+                    .verticalScroll(dialogScrollState)
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -206,7 +217,7 @@ fun ManualMovementDialog(
                 if (categories.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Sobre / Categoría",
+                            text = "Categoría",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -228,6 +239,77 @@ fun ManualMovementDialog(
                                 )
                             }
                         }
+                    }
+                }
+
+                if (isExpense && envelopes.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Sobre del plan (opcional)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "El gasto se descontará solo del sobre que elijas.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            KipuFilterChip(
+                                text = "Ninguno",
+                                selected = formState.envelopeId == null,
+                                onClick = { onEnvelopeSelected(null) },
+                                enabled = !formState.isSaving,
+                            )
+                            envelopes.forEach { envelope ->
+                                KipuFilterChip(
+                                    text = "Sobre · ${envelope.name}",
+                                    selected = formState.envelopeId == envelope.id,
+                                    onClick = { onEnvelopeSelected(envelope.id) },
+                                    enabled = !formState.isSaving,
+                                )
+                            }
+                        }
+                    }
+                }
+
+
+                if (isExpense) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = formState.isUnexpectedExpense,
+                                enabled = !formState.isSaving,
+                                role = Role.Switch,
+                                onValueChange = onUnexpectedExpenseChanged,
+                            )
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Es una compra imprevista",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "Antes de guardar verás de dónde sale el dinero y un reajuste opcional.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = formState.isUnexpectedExpense,
+                            onCheckedChange = null,
+                            enabled = !formState.isSaving,
+                        )
                     }
                 }
 
@@ -445,4 +527,3 @@ private fun InteractiveChannelRow(
         }
     }
 }
-

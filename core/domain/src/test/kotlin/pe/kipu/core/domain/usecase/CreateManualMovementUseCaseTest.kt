@@ -16,17 +16,23 @@ import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.PaymentChannel
+import pe.kipu.core.domain.model.ReserveEvent
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.ReserveEventRepository
 import pe.kipu.core.domain.time.TimeProvider
 
 class CreateManualMovementUseCaseTest {
 
     private val fixedInstant = Instant.parse("2026-06-16T15:30:00Z")
     private val repository = RecordingMovementRepository()
+    private val auditRepository = FakeMovementAuditRepository()
+    private val reserveRepository = RecordingReserveEventRepository()
     private val useCase = CreateManualMovementUseCase(
         movementRepository = repository,
+        movementAuditRepository = auditRepository,
         timeProvider = FixedTimeProvider(fixedInstant),
+        reserveEventRepository = reserveRepository,
     )
 
     @Test
@@ -39,6 +45,7 @@ class CreateManualMovementUseCaseTest {
             categoryId = CategoryIds.FOOD,
             channel = PaymentChannel.CASH,
             description = "Mercado de barrio",
+            commitmentId = "goal-1",
         )
 
         assertTrue(result.isSuccess)
@@ -50,6 +57,7 @@ class CreateManualMovementUseCaseTest {
         assertEquals(MovementStatus.CONFIRMED, saved.status)
         assertEquals("manual-${fixedInstant.toEpochMilli()}", saved.id)
         assertEquals("Mercado de barrio", saved.description)
+        assertEquals("goal-1", saved.commitmentId)
     }
 
     @Test
@@ -63,6 +71,39 @@ class CreateManualMovementUseCaseTest {
 
         assertTrue(result.isFailure)
         assertEquals(0, repository.savedCount)
+    }
+
+    @Test
+    fun savesEnvelopeAssignmentAndReserveUseForUnexpectedExpense() = runTest {
+        val result = useCase(
+            type = MovementType.EXPENSE,
+            amount = Money.of(BigDecimal("300.00")).getOrError(),
+            categoryId = CategoryIds.OTHER,
+            channel = PaymentChannel.CASH,
+            envelopeId = "envelope-leisure",
+            reserveAmount = Money.of(BigDecimal("100.00")).getOrError(),
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("envelope-leisure", repository.lastSaved?.envelopeId)
+        assertEquals(BigDecimal("100.00"), reserveRepository.lastRecorded?.amount?.amount)
+        assertEquals(repository.lastSaved?.id, reserveRepository.lastRecorded?.sourceMovementId)
+    }
+
+    @Test
+    fun rejectsReserveUseGreaterThanExpenseBeforeWriting() = runTest {
+        val savedBefore = repository.savedCount
+
+        val result = useCase(
+            type = MovementType.EXPENSE,
+            amount = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.OTHER,
+            channel = PaymentChannel.CASH,
+            reserveAmount = Money.of(BigDecimal("101.00")).getOrError(),
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(savedBefore, repository.savedCount)
     }
 
     private class FixedTimeProvider(private val instant: Instant) : TimeProvider {
@@ -86,5 +127,28 @@ class CreateManualMovementUseCaseTest {
         }
 
         override suspend fun delete(id: EntityId): Result<Unit> = Result.success(Unit)
+    }
+
+    private class FakeMovementAuditRepository : pe.kipu.core.domain.repository.MovementAuditRepository {
+        val recordedLogs = mutableListOf<pe.kipu.core.domain.model.MovementAuditEntry>()
+        override fun observeAuditLogs(): Flow<List<pe.kipu.core.domain.model.MovementAuditEntry>> = flowOf(recordedLogs)
+        override suspend fun recordAudit(entry: pe.kipu.core.domain.model.MovementAuditEntry): Result<Unit> {
+            recordedLogs.add(entry)
+            return Result.success(Unit)
+        }
+        override suspend fun getAll(): List<pe.kipu.core.domain.model.MovementAuditEntry> = recordedLogs
+    }
+
+    private class RecordingReserveEventRepository : ReserveEventRepository {
+        var lastRecorded: ReserveEvent? = null
+
+        override fun observeAll(): Flow<List<ReserveEvent>> = flowOf(emptyList())
+
+        override suspend fun getById(id: String): ReserveEvent? = null
+
+        override suspend fun record(event: ReserveEvent): Result<Unit> {
+            lastRecorded = event
+            return Result.success(Unit)
+        }
     }
 }

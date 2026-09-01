@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — Snapshot post-Fase 27 (internal testing Play Store)
 
-Última actualización: **13 agosto 2026**.
+Última actualización: **30 agosto 2026**.
 Este documento es la **fuente de verdad** del estado del repositorio entre fases. Actualizar al cerrar cada fase o bloque de entrega significativo.
 
 > **Para IAs:** leer primero [Trampas conocidas para futuras sesiones](#trampas-conocidas-para-futuras-sesiones-ia), [Navegación extendida](#navegación-extendida-post-fase-14) y [Dependencias entre módulos](#dependencias-actuales). Evitar reintroducir pasos de onboarding eliminados, rutas duplicadas o dependencias circulares feature↔feature.
@@ -40,7 +40,7 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | Pulido UI Movimientos/Sobres | ✅ Paridad visual HTML; acciones cableadas |
 | Optimización APK (14c) | ✅ `arm64-v8a` + R8/shrink release (~14 MB vs ~27 MB debug) |
 | Fase 15 — Comprobantes UI | ✅ **MVP funcional** (share intent + revisión manual) |
-| Fase 16 — Juntas + pulido | ✅ **MVP funcional** (CRUD juntas local + lint/release) |
+| Fase 16 — Cuentas compartidas + pulido | ✅ **MVP funcional** (módulo interno `:feature:juntas`) |
 | Fases 17–27 — Post-MVP | ✅ Repo listo — Play Console pendiente |
 | Fase 17 — Cierre riesgos F16 | ✅ Migraciones Room, editar/reparto juntas, KSP, backup |
 | Fase 18 — Cierre riesgos restantes | ✅ Wipe instrumentado, liquidación juntas, Room v7 |
@@ -53,18 +53,49 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | Fase 25 — MERGE duplicados notificación | ✅ Paridad con diálogo movimientos/comprobantes (F12-06) |
 | Fase 26 — QA Play Store | ✅ Política privacidad in-app + docs release; ECC F14 cerrado |
 | Fase 27 — Internal testing pipeline | ⚠️ Pipeline con guard de firma; AAB firmado y carga humana pendientes |
-| Verificación reciente | 13 ago 2026: `:app` **43/43 PASS** y `:core:data` **24/24 PASS** en Moto G24 (Android 14, fuente 1.3) con Gradle offline; regresión focalizada **9/9 PASS** de navegación, semántica MEDIUM y wizard. El histórico 11 ago (38/38 + 24/24) se conserva abajo |
+| Verificación reciente | 30 ago 2026: `:app` **44/44 PASS** y `:core:data` **43/43 PASS** en Moto G24 (Android 14) con Gradle offline. Incluye la confirmación accesible de compras imprevistas, transacciones Room, migraciones hasta v22 y reconciliación de reserva. Los históricos del 27, 25, 24, 13 y 11 ago se conservan abajo |
+
+### Implementación del plan integral (25 ago 2026)
+
+| Superficie | Estado | Evidencia |
+|------------|--------|-----------|
+| Nombre para usuarios | ✅ Implementado | La interfaz y la documentación de uso llaman **Cuentas compartidas** a la función; se conservan `:feature:juntas`, paquetes y ruta `gatherings` para evitar una migración técnica sin beneficio |
+| Persistencia | ✅ Implementado | Room v22 incorpora recibos mensuales, auditoría, vínculo movimiento→sobre y ledger de reserva; las operaciones financieras relacionadas se escriben dentro de transacciones Room |
+| Exportación y borrado | ✅ Implementado | Snapshot JSON v5 incluye recibos, auditoría, vínculo a sobre, configuración de servicios y eventos de reserva; el wipe elimina las nuevas tablas y conserva el re-seed existente |
+| Voz | ✅ Implementado | Interpretación local por reglas, sin cliente Cloudflare/Gemini; confirmación permanece abierta ante fallo y bloquea doble envío |
+| Pagos mensuales | ✅ Implementado | Los importes del plan son referencias editables; al pagar se registra el monto real, que puede ser diferente, y voz reconoce frases como “He pagado 55 soles del recibo de luz” |
+| Presupuesto mensual en Inicio | ✅ Implementado | Muestra ingreso planificado, gasto real confirmado y disponible del mes en `America/Lima`, independientemente del ciclo diario/semanal/mensual elegido |
+| Recibos mensuales | ✅ Implementado | La observación cambia automáticamente de mes según `America/Lima`; muestra monto pagado real sin reemplazar la referencia del plan y los errores Room no incluyen montos |
+| Cámara de comprobantes | ✅ Retirada | Kipu conserva share de Yape/Plin y Photo Picker, pero ya no crea capturas físicas ni archivos temporales `cache/receipts` |
+| Recordatorios | ✅ Implementado | Android 13+ solicita `POST_NOTIFICATIONS` solo al guardar un plan con pagos fijos; rechazar el permiso no bloquea el guardado |
+
+Verificación del 25 ago: `testDebugUnitTest`, `assembleDebug` y `lintDebug` PASS con Gradle offline. Tras autorizar ADB, `:app:connectedDebugAndroidTest` terminó **42/42 PASS** y `:core:data:connectedDebugAndroidTest` **36/36 PASS** en Moto G24. Las corridas focalizadas de pago mensual real y parser de share terminaron **1/1 PASS** y **4/4 PASS**. El conteo de app cambia respecto del 24 ago porque se retiraron dos pruebas exclusivas de captura propia y se añadió la regresión del pago real.
+
+### Reserva acumulable y recuperación — implementación cerrada (30 ago 2026)
+
+| Lote | Estado | Evidencia |
+|------|--------|-----------|
+| 0 — Identidad movimiento→sobre | ✅ Cerrado | Room v20 añade `movements.envelopeId` nullable e indexado; movimientos históricos permanecen sin sobre, y una categoría compartida solo consume el sobre asignado explícitamente. RED/GREEN de dominio y mapper, migración 19→20 instrumentada en Moto G24, suites `:core:domain:test` y `:core:data:testDebugUnitTest` PASS |
+| 1 — Ledger de reserva | ✅ Cerrado | Room v21 añade el aporte mensual al plan y un ledger append-only de aportes, usos, devoluciones y reversas; Room v22 permite reemplazar un uso solo después de su reversa y mantiene un único uso activo por movimiento. RED/GREEN de dominio y mappers; migraciones y repositorio real PASS en Moto G24 |
+| 2 — Disponible/cobertura | ✅ Cerrado | Cálculos puros acumulan aportes no usados, separan reserva de efectivo libre y cubren compras en orden reserva → saldo disponible → faltante; GREEN focalizado en JVM |
+| 3 — Operación atómica y reajuste | ✅ Cerrado | El creador compartido de movimientos admite sobre y consumo de reserva dentro de la misma transacción que la auditoría; una falla revierte las tres escrituras (**2/2 PASS** en Moto G24). El reajuste solo propone Gastos hormiga/Ocio/Familia, protege Comida/Transporte y exige confirmación vigente antes de persistir |
+| 4 — Wizard, Inicio y entradas | ✅ Cerrado | El wizard persiste la meta mensual; Inicio separa saldo disponible y reserva acumulada. El aporte real es explícito e idempotente por mes. El alta manual y la voz permiten elegir sobre y marcar explícitamente una compra imprevista; antes de guardar muestran cobertura reserva → saldo disponible → faltante y un reajuste opcional que protege Comida/Transporte |
+| 5 — Reversiones, reconciliación, export/wipe | ✅ Cerrado | Editar, convertir a ingreso o borrar un movimiento respaldado por reserva registra la reversa correspondiente dentro de la misma transacción. JSON v5 exporta el ledger y los nuevos campos; wipe elimina el ledger. Migraciones v21→v22, rollback Room y suites completas PASS |
+
+Invariantes ya fijadas: un movimiento afecta cero o un sobre; los históricos ambiguos no se reasignan; `envelopeId` explícito prevalece sobre `categoryId`; no existe rollover individual de sobres en este incremento.
+
+Verificación de cierre del 30 ago: `testDebugUnitTest`, `assembleDebug` y `lintDebug` PASS con Gradle offline. En Moto G24, `UnexpectedExpenseUiTest` terminó **2/2 PASS**, el bloque focalizado de transacciones/repositorio/migraciones **20/20 PASS** y la ejecución completa `:app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest` terminó **44/44 + 43/43 PASS**.
 
 ### Remediación HIGH de interfaz y controles (11 ago 2026)
 
 | Superficie | Estado | Evidencia |
 |------------|--------|-----------|
 | Contraste claro/oscuro | ✅ Corregido | Roles Material 3 explícitos; regresión calcula mínimo 4.66:1 para texto y 3.17:1 para componentes/contornos |
-| Acciones destructivas | ✅ Corregido | Borrado de datos, sobres, compromisos y juntas, además de desvincular meta, usan el rol `error`; doble confirmación de wipe preservada |
+| Acciones destructivas | ✅ Corregido | Borrado de datos, sobres, compromisos y cuentas compartidas, además de desvincular meta, usan el rol `error`; doble confirmación de wipe preservada |
 | Chips, tarjetas y radios | ✅ Corregido | Selección nativa `selected`/radio, grupos seleccionables y objetivos táctiles de 48 dp; prueba semántica instrumentada PASS |
 | Speed dial de Inicio | ✅ Corregido | Una acción semántica y objetivo mínimo de 48 dp por opción, scrim sin foco redundante y Back cierra el menú; prueba y smoke físico PASS |
 | Formularios y errores | ✅ Corregido | Contenido desplazable con IME; error asociado al campo con `Error` + `LiveRegion.Polite`; prueba instrumentada y smoke con teclado PASS |
-| Inicio, Sobres y Juntas adaptativos | ✅ Corregido | `FlowRow` evita comprimir/truncar montos; Juntas permite seleccionar movimientos posteriores al octavo; prueba del movimiento 9 PASS |
+| Inicio, Sobres y Cuentas compartidas adaptativos | ✅ Corregido | `FlowRow` evita comprimir/truncar montos; la pantalla permite seleccionar movimientos posteriores al octavo; prueba del movimiento 9 PASS |
 | Onboarding | ✅ Corregido | Reintento ejecuta otra vez el caso de uso, bloquea doble envío y el CTA queda sobre la navegación de tres botones |
 | Movimientos | ✅ Corregido | El FAB se oculta en Loading, Error y vacío para no duplicar acciones primarias |
 
@@ -88,18 +119,18 @@ Verificación del bloque: `testDebugUnitTest`, `assembleDebug`, `lintDebug`, 38/
 
 | Superficie | Estado | Evidencia de implementación |
 |------------|--------|-----------------------------|
-| Captura temporal | ✅ Instrumentación app | Foto de cámara con UUID en `cache/receipts`; `ReceiptCaptureUriFactoryInstrumentedTest` y `ReceiptReviewViewModelErrorInstrumentedTest` comprueban que solo se borra una captura propia, al cancelar/cerrar o liberar la revisión |
+| Selección de comprobante | ✅ Sin captura propia | Share y Photo Picker leen una imagen desde su app de origen; la captura física y `cache/receipts` fueron retirados el 24 ago |
 | Share intent | ⚠️ Cobertura automática parcial | `ReceiptShareIntentParserTest` acepta `ACTION_SEND image/*` únicamente con URI `content`; `MainActivity` consume la URI pendiente en un único `LaunchedEffect`. El share externo en inicio frío/cálido sigue pendiente de prueba humana |
 | Fallo OCR/carga | ✅ Instrumentación app | `ReceiptReviewViewModelErrorInstrumentedTest` verifica que una excepción inesperada expone Error recuperable y que Reintentar no duplica el procesamiento |
 | Privacidad de errores Room | ✅ Verificado JVM | Los mappers ya no interpolan montos ni objetos financieros en `error()`; `SensitiveMapperErrorMessageTest` PASS |
 
-Verificación en dispositivo del 13 ago: `./gradlew --offline --no-daemon --max-workers=1 -Pksp.incremental=false :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest` terminó PASS (`:app` 43/43, `:core:data` 24/24) en Moto G24, Android 14 y fuente 1.3. La ejecución focalizada de `KipuNavigationE2ETest`, `MediumAccessibilitySemanticsTest` y `PlanWizardE2ETest` también terminó 9/9 PASS. No existe purga de capturas huérfanas al iniciar: una captura interrumpida puede permanecer en caché hasta la limpieza de Android o el borrado local, para no perder una captura aún pendiente de una cámara externa. C1–C3 de share real, cámara física y locución audible con TalkBack permanecen como comprobaciones humanas.
+Verificación en dispositivo del 13 ago: `./gradlew --offline --no-daemon --max-workers=1 -Pksp.incremental=false :app:connectedDebugAndroidTest :core:data:connectedDebugAndroidTest` terminó PASS (`:app` 43/43, `:core:data` 24/24) en Moto G24, Android 14 y fuente 1.3. La ejecución focalizada de `KipuNavigationE2ETest`, `MediumAccessibilitySemanticsTest` y `PlanWizardE2ETest` también terminó 9/9 PASS. C1–C3 de share real y locución audible con TalkBack permanecen como comprobaciones humanas.
 
 ### Verificación de viewport compacto (13 ago 2026)
 
 | Superficie | Estado | Evidencia automatizada en Moto G24, fuente 1.3 |
 |------------|--------|-----------------------------------------------|
-| Juntas | ✅ | `KipuNavigationE2ETest` crea una junta y completa sus dos campos en el formulario compacto; incluido en 43/43 y en la focalizada 9/9 |
+| Cuentas compartidas | ✅ | `KipuNavigationE2ETest` crea una cuenta y completa sus dos campos en el formulario compacto; incluido en 43/43 y en la focalizada 9/9 |
 | Wizard de plan | ✅ | `PlanWizardE2ETest` recorre los seis pasos, guarda y reabre el plan; incluido en 43/43 y en la focalizada 9/9 |
 | Switches de hormiga y deuda social | ✅ | `MediumAccessibilitySemanticsTest` valida objetivo mínimo, rol y estado en contenido desplazable; incluido en 43/43 y en la focalizada 9/9 |
 
@@ -107,7 +138,7 @@ Verificación en dispositivo del 13 ago: `./gradlew --offline --no-daemon --max-
 
 | Hallazgo | Estado | Evidencia |
 |----------|--------|-----------|
-| H-01 — exportación JSON incompleta | ✅ Corregido | Snapshot v3 incluye gastos de junta y todos los campos persistidos de plan, junta y preferencias; tests JSON/CSV PASS |
+| H-01 — exportación JSON incompleta | ✅ Corregido | Snapshot v4 incluye cuentas compartidas, recibos mensuales, auditoría de movimientos y la configuración persistida; tests JSON/CSV PASS |
 | H-02 — saldo inicial fuera de Efectivo real | ✅ Corregido | `CalculateCashFlowSummaryUseCase` suma saldo inicial + ingresos − gastos; test domain e integración Home PASS |
 | H-03 — edición de junta invalida liquidación | ✅ Corregido | Conserva `isSettled` y rechaza quitar pagadores con gastos; test domain PASS |
 | H-04 — eliminación de junta sin confirmación | ✅ Corregido | Diálogo destructivo explícito antes de ejecutar la cascada Room; compilación feature PASS |
@@ -133,7 +164,7 @@ Auditoría y remediación incremental en Moto G24 documentadas en `docs/qa/KIPU_
 
 | Cambio | Detalle |
 |--------|---------|
-| Room v16 | `MIGRATION_15_16` lleva la configuración de gasto hormiga al plan Room para guardado transaccional; conserva migraciones anteriores |
+| Room v22 | Las migraciones incrementales hasta `MIGRATION_21_22` conservan la configuración del plan, recibos, auditoría, vínculo movimiento→sobre y ledger de reserva |
 | Plan wizard | `PlanWizardUiState.Error` + retry (AUD-002) |
 | Dominio | Validación plan con ingresos vinculados; IDs borrador OCR con nonce (AUD-004, AUD-008) |
 | Data | Wipe prefs antes de Room; OCR subsample; `allowBackup=false` (AUD-009, AUD-010, AUD-016) |
@@ -141,7 +172,7 @@ Auditoría y remediación incremental en Moto G24 documentadas en `docs/qa/KIPU_
 | UX | Retry en 5 VMs; OCR retry; onboarding Error; parse límite sobres (AUD-006, AUD-013–015) |
 | Tests | Migraciones v7→8, v11→12; `PendingPlanWizardInstrumentedTest` (AUD-011, AUD-012) |
 
-**Room actual:** `KipuDatabase` version **16** — migraciones `MIGRATION_1_2` … `MIGRATION_15_16`.
+**Room actual:** `KipuDatabase` version **22** — migraciones `MIGRATION_1_2` … `MIGRATION_21_22`.
 
 ---
 
@@ -593,7 +624,7 @@ MainActivity: onboardingCompleted == true
 - **Revisión OCR** — preview imagen en memoria, campos editables (monto, destinatario, operación, mensaje, categoría).
 - **Confirmación humana** — `ConfirmReceiptMovementUseCase` + detección duplicados antes de persistir.
 - **Entradas UI:** Inicio (tarjeta), Movimientos vacío, hub comprobantes.
-- **Imágenes temporales y locales** — las compartidas o elegidas se leen desde su origen para preview/OCR; una foto tomada desde Kipu usa `cache/receipts` y se elimina al cancelar/cerrar o liberar su revisión. No existe purga al inicio: una captura interrumpida puede permanecer hasta la limpieza de Android o el borrado local, para no perder una captura pendiente. Sin logs de URI ni texto OCR y sin subida a nube.
+- **Imágenes locales** — las compartidas o elegidas se leen desde su app de origen para preview/OCR. Kipu no ofrece captura física ni conserva una copia en `cache/receipts`; sin logs de URI/texto OCR y sin subida a nube.
 - **Fallo recuperable** — un error al abrir o procesar el comprobante muestra Reintentar o Back; no persiste nada automáticamente.
 
 ### Archivos clave
@@ -621,7 +652,7 @@ MainActivity: onboardingCompleted == true
 
 | ID | Resolución |
 |----|------------|
-| **F15-01** | Botón **Tomar foto** en `ReceiptsScreen` (`TakePicture` + `ReceiptCaptureUriFactory` + `FileProvider` cache `receipts/`) |
+| **F15-01** | Histórico superado el 24 ago: se retiraron `TakePicture`, `ReceiptCaptureUriFactory` y la caché `receipts`; permanecen share y Photo Picker |
 | **F15-02** | Tests instrumentados: `ReceiptShareIntentParserTest` y `ReceiptDuplicateDialogTest`; el smoke de share con espera fija se retiró el 13 ago por no comprobar el flujo de forma determinista |
 | **F15-03** | `ReceiptDuplicateDialog` alineado con movimientos: Fusionar / No es duplicado / Cancelar; MERGE → `DuplicateMerged` sin persistir |
 
@@ -1040,7 +1071,7 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 | Movimientos | `movements` | `MovementsScreen()` sin filtro | ✅ Visible |
 | Sobres | `envelopes` | `EnvelopesScreen(...)` con callbacks nav | ✅ Visible |
 | Compromisos | `commitments` | `CommitmentsScreen` | ✅ Visible |
-| Perfil | `profile` | `ProfileScreen(onNavigateToGatherings=…)` | ✅ Visible |
+| Perfil | `profile` | `ProfileScreen(onNavigateToSharedAccounts=…)` | ✅ Visible |
 
 ### Rutas secundarias (fuera del bottom bar)
 
@@ -1049,7 +1080,7 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 | `plan/{startStep}` | `startStep`: `income` \| `expenses` \| `envelopes` \| `ant` \| `goal` \| `summary` | `PlanWizardScreen` | Onboarding; Sobres → chips Ingresos/Gastos/Sobres/Meta | `popBackStack()` al terminar |
 | `privacy` | — | `PrivacyPolicyScreen` | Perfil → Política de privacidad | Back del sistema |
 | `movements/category/{categoryId}` | `categoryId`: ej. `category-food` | `MovementsScreen(initialCategoryId=…)` | Sobres → Ver movimientos | Back del sistema |
-| `gatherings` | — | `GatheringsScreen` | Perfil → Ver juntas | Back del sistema |
+| `gatherings` | — | `GatheringsScreen` | Perfil → Ver cuentas compartidas | Back del sistema |
 | `receipts` | — | `ReceiptsScreen` | Inicio / Movimientos vacío | Back del sistema |
 | `receipts/review/{contentUri}` | `contentUri` (encoded) | `ReceiptReviewScreen` | Hub comprobantes; share intent | Back o Cancelar vuelve atrás; tras guardar/fusionar, el resultado permanece hasta pulsar `Listo` |
 
@@ -1133,7 +1164,7 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 | `:feature:onboarding` | `pe.kipu.feature.onboarding` | **Solo** `PlanIntroStep` + completar onboarding |
 | `:feature:plan` | `pe.kipu.feature.plan` | Wizard plan 6 pasos (`PlanWizardScreen`, `PlanWizardViewModel`) |
 | `:feature:receipts` | `pe.kipu.feature.receipts` | Hub + revisión OCR comprobantes |
-| `:feature:juntas` | `pe.kipu.feature.juntas` | Lista juntas + crear/eliminar |
+| `:feature:juntas` | `pe.kipu.feature.juntas` | UI «Cuentas compartidas» + crear/eliminar |
 
 ### Dependencias actuales (grafo — **leer antes de añadir módulos**)
 
@@ -1154,7 +1185,7 @@ feature/home, movements, envelopes, commitments, profile, onboarding, plan, rece
 
 **Regla:** `feature/*` **no** debe depender de `core/data` ni de otros `feature/*`; no hay excepciones activas.
 
-Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **juntas**, **gastos de junta**. DataStore: preferencias no sensibles (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v16** (sin destructive fallback).
+Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **cuentas compartidas**, gastos compartidos, recibos mensuales y auditoría de movimientos. DataStore: preferencias no sensibles (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v19** (sin destructive fallback).
 
 ### `settings.gradle.kts` — módulos incluidos (orden canónico)
 
@@ -1254,7 +1285,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | `spentAmount` no persistido en sobres | Calculado desde movimientos; `EnvelopeBudgetState` es snapshot | 8 |
 | Semana presupuesto lunes–domingo Lima | `[start, end)` con `WeekRangeCalculator` | 8 |
 | ADJUSTED ≥ 80 % del límite semanal | `EnvelopeBudgetThresholds.ADJUSTED_PERCENT` | 8 |
-| `fallbackToDestructiveMigration` v1→v2 | Histórico; eliminado desde Fase 17. Room v16 usa migraciones incrementales | 8 |
+| `fallbackToDestructiveMigration` v1→v2 | Histórico; eliminado desde Fase 17. Room v22 usa migraciones incrementales | 8 |
 | `totalRemaining` global en disponible diario | `totalLimit - totalSpent`; no sumar remainings por sobre (F9b) | 9b |
 | Hormiga por categoría en ventana 48 h | Umbrales en `AntSpendingThresholds`; alertas no persistidas | 9 |
 | `TimeProvider` inyectable | Tests deterministas; `WeekRangeCalculator` y Home insights | 9 |
@@ -1284,7 +1315,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 
 ## Hallazgos abiertos
 
-No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones instrumentadas añadidas el 13 ago pasaron en Moto G24; siguen pendientes las comprobaciones humanas de cámara/share real y locución audible con TalkBack.
+No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones instrumentadas añadidas el 13 ago pasaron en Moto G24; siguen pendientes las comprobaciones humanas de share real y locución audible con TalkBack.
 
 ## Hallazgos cerrados
 

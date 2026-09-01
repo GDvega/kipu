@@ -15,6 +15,8 @@ import androidx.navigation.navArgument
 import pe.kipu.feature.commitments.CommitmentsScreen
 import pe.kipu.feature.envelopes.EnvelopesScreen
 import pe.kipu.feature.home.HomeScreen
+import pe.kipu.feature.juntas.GatheringsScreen
+import pe.kipu.feature.juntas.navigation.GatheringRoutes
 import pe.kipu.feature.movements.MovementsScreen
 import pe.kipu.feature.plan.PlanWizardScreen
 import pe.kipu.feature.profile.ProfileScreen
@@ -61,6 +63,9 @@ fun KipuNavGraph(
                 onNavigateToCategoryMovements = { categoryId ->
                     navController.navigate(KipuPlanRoutes.movementsByCategory(categoryId))
                 },
+                onNavigateToPlan = { startStep ->
+                    navController.navigate(KipuPlanRoutes.wizard(startStep))
+                },
             )
         }
         composable(KipuDestination.Movements.route) {
@@ -104,12 +109,18 @@ fun KipuNavGraph(
                 onNavigateToPrivacyPolicy = {
                     navController.navigate(ProfileRoutes.PRIVACY)
                 },
+                onNavigateToSharedAccounts = {
+                    navController.navigate(GatheringRoutes.LIST)
+                },
             )
         }
         composable(ProfileRoutes.PRIVACY) {
             PrivacyPolicyScreen(
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(GatheringRoutes.LIST) {
+            GatheringsScreen()
         }
         composable(
             route = KipuPlanRoutes.WIZARD,

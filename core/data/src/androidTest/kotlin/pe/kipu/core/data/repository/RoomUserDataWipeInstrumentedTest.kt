@@ -28,6 +28,8 @@ import pe.kipu.core.domain.model.MovementSource
 import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
+import pe.kipu.core.domain.receipt.MonthlyServiceReceipt
+import pe.kipu.core.domain.receipt.ServiceReceiptKey
 import pe.kipu.core.domain.model.getOrError
 import java.math.BigDecimal
 
@@ -88,11 +90,23 @@ class RoomUserDataWipeInstrumentedTest {
             createdAt = now,
         )
         database.movementDao().upsert(movement.toEntity())
+        database.monthlyServiceReceiptDao().upsert(
+            MonthlyServiceReceipt(
+                key = ServiceReceiptKey.LIGHT,
+                title = "Luz",
+                configuredAmount = Money.of(BigDecimal("60.00")).getOrError(),
+                monthKey = "2026-06",
+                isPaid = true,
+                paidMovementId = movement.id,
+                paidAt = now,
+            ).toEntity(),
+        )
         preferencesRepository.updatePreferences { it.copy(onboardingCompleted = true) }.getOrThrow()
 
         wipeRepository.wipeAllUserData().getOrThrow()
 
         assertEquals(0, database.movementDao().observeAll().first().size)
+        assertEquals(0, database.monthlyServiceReceiptDao().getAll().size)
         assertTrue(database.categoryDao().observeAll().first().isNotEmpty())
         assertTrue(database.envelopeDao().observeAll().first().isEmpty())
         assertEquals(false, preferencesRepository.observePreferences().first().onboardingCompleted)

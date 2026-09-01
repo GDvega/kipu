@@ -1,10 +1,12 @@
 package pe.kipu.core.data.repository
 
+import androidx.room.withTransaction
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import androidx.room.withTransaction
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import pe.kipu.core.data.local.KipuDatabase
 import pe.kipu.core.data.local.KipuDatabaseSeeder
 import pe.kipu.core.domain.repository.UserDataWipeRepository
@@ -16,20 +18,30 @@ class RoomUserDataWipeRepository @Inject constructor(
     private val userPreferencesRepository: UserPreferencesRepository,
 ) : UserDataWipeRepository {
 
-    override suspend fun wipeAllUserData(): Result<Unit> = runCatching {
-        userPreferencesRepository.clear().getOrThrow()
-        database.withTransaction {
-            database.movementDao().deleteAll()
-            database.dismissedDuplicatePairDao().deleteAll()
-            database.commitmentDao().deleteAll()
-            database.financialPlanDao().deleteAll()
-            database.envelopeDao().deleteAll()
-            database.gatheringDao().deleteAll()
-            database.gatheringExpenseDao().deleteAll()
-            database.categoryDao().deleteAll()
+    override suspend fun wipeAllUserData(): Result<Unit> = try {
+        withContext(NonCancellable) {
+            userPreferencesRepository.clear().getOrThrow()
+            database.withTransaction {
+                database.movementDao().deleteAll()
+                database.dismissedDuplicatePairDao().deleteAll()
+                database.commitmentDao().deleteAll()
+                database.financialPlanDao().deleteAll()
+                database.envelopeDao().deleteAll()
+                database.gatheringDao().deleteAll()
+                database.gatheringExpenseDao().deleteAll()
+                database.categoryDao().deleteAll()
+                database.movementAuditDao().deleteAll()
+                database.monthlyServiceReceiptDao().deleteAll()
+                database.reserveEventDao().deleteAll()
+            }
+            withContext(Dispatchers.IO) {
+                KipuDatabaseSeeder.seedBaseline(database.openHelper.writableDatabase)
+            }
         }
-        withContext(Dispatchers.IO) {
-            KipuDatabaseSeeder.seedBaseline(database.openHelper.writableDatabase)
-        }
+        Result.success(Unit)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 }

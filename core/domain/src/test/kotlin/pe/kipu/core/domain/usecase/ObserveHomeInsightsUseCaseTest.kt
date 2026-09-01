@@ -22,11 +22,14 @@ import pe.kipu.core.domain.model.MovementSource
 import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
+import pe.kipu.core.domain.model.ReserveEvent
+import pe.kipu.core.domain.model.ReserveEventType
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.ReserveEventRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.FixedTimeProvider
 import pe.kipu.core.domain.time.CycleRangeCalculator
@@ -171,6 +174,85 @@ class ObserveHomeInsightsUseCaseTest {
         val insights = useCase().first()
 
         assertTrue(insights.antSpendingAlerts.isEmpty())
+        assertEquals(plan, insights.financialPlan)
+    }
+
+    @Test
+    fun `propagates financial plan into insights when present`() = runTest {
+        val plan = FinancialPlan(
+            id = "plan-monthly-test",
+            estimatedMonthlyIncome = Money.of(BigDecimal("1500.00")).getOrError(),
+            fixedExpenses = Money.of(BigDecimal("500.00")).getOrError(),
+            budgetCycle = BudgetCycle.MONTHLY,
+        )
+        val useCase = createUseCase(
+            envelopes = emptyList(),
+            movements = emptyList(),
+            reference = wednesday,
+            plan = plan,
+        )
+
+        val insights = useCase().first()
+
+        assertEquals(plan, insights.financialPlan)
+        assertEquals(BudgetCycle.MONTHLY, insights.cycleAvailable.cycle)
+    }
+
+    @Test
+    fun `monthly budget subtracts actual expenses in Lima regardless of selected cycle`() = runTest {
+        val plan = FinancialPlan(
+            id = "plan-monthly-summary",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.of(BigDecimal("45.00")).getOrError(),
+            budgetCycle = BudgetCycle.DAILY,
+        )
+        val currentLightPayment = movement("light-payment", "55.00", hoursAgo = 1)
+        val currentCoffee = movement("coffee", "10.00", hoursAgo = 2)
+        val previousMonthExpense = movement("old", "100.00", hoursAgo = 3).copy(
+            recordedAt = wednesday.minusSeconds(40L * 24 * 60 * 60),
+        )
+        val useCase = createUseCase(
+            envelopes = emptyList(),
+            movements = listOf(currentLightPayment, currentCoffee, previousMonthExpense),
+            reference = wednesday,
+            plan = plan,
+        )
+
+        val summary = useCase().first().monthlyBudgetSummary
+
+        assertEquals(Money.of(BigDecimal("2000.00")).getOrError(), summary?.plannedIncome)
+        assertEquals(Money.of(BigDecimal("65.00")).getOrError(), summary?.actualExpenses)
+        assertEquals(Money.of(BigDecimal("1935.00")).getOrError(), summary?.remaining)
+        assertEquals(false, summary?.isOverBudget)
+    }
+
+    @Test
+    fun `home separates accumulated reserve from accumulated available cash`() = runTest {
+        val plan = FinancialPlan(
+            id = "plan-reserve",
+            estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+            fixedExpenses = Money.ZERO,
+            initialBalance = Money.of(BigDecimal("1000.00")).getOrError(),
+            reserveMonthlyContribution = Money.of(BigDecimal("200.00")).getOrError(),
+        )
+        val contribution = ReserveEvent(
+            id = "reserve-august",
+            type = ReserveEventType.CONTRIBUTION,
+            amount = Money.of(BigDecimal("200.00")).getOrError(),
+            occurredAt = wednesday,
+            createdAt = wednesday,
+        )
+
+        val insights = createUseCase(
+            envelopes = emptyList(),
+            movements = emptyList(),
+            reference = wednesday,
+            plan = plan,
+            reserveEvents = listOf(contribution),
+        )().first()
+
+        assertEquals(BigDecimal("200.00"), insights.reserveBalance?.balance)
+        assertEquals(BigDecimal("800.00"), insights.availableBalance?.availableBalance)
     }
 
     private fun createUseCase(
@@ -179,6 +261,7 @@ class ObserveHomeInsightsUseCaseTest {
         reference: Instant,
         plan: FinancialPlan? = null,
         preferences: UserPreferences = UserPreferences(),
+        reserveEvents: List<ReserveEvent> = emptyList(),
     ): ObserveHomeInsightsUseCase {
         val timeProvider = FixedTimeProvider(reference)
         val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
@@ -186,6 +269,7 @@ class ObserveHomeInsightsUseCaseTest {
             envelopeRepository = FakeEnvelopeRepository(envelopes),
             movementRepository = FakeMovementRepository(movements),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = FakeMonthlyServiceReceiptRepository(),
             financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
@@ -197,17 +281,29 @@ class ObserveHomeInsightsUseCaseTest {
             observeEnvelopeBudgets = observeEnvelopeBudgets,
             movementRepository = FakeMovementRepository(movements),
             commitmentRepository = FakeCommitmentRepository(),
-            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
+            categoryRepository = FakeCategoryRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(preferences),
             financialPlanRepository = FakeFinancialPlanRepository(plan),
+            reserveEventRepository = FakeReserveEventRepository(reserveEvents),
             calculateCycleAvailable = CalculateCycleAvailableUseCase(
                 CalculatePeriodEnvelopeTotalsUseCase(),
             ),
             detectAntSpending = DetectAntSpendingUseCase(),
             detectAntSpendingWeeklyLimitUseCase = DetectAntSpendingWeeklyLimitUseCase(),
+            calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
+            calculateCategoryExpenseDistribution = CalculateCategoryExpenseDistributionUseCase(),
+            calculateReserveBalance = CalculateReserveBalanceUseCase(),
+            calculateAvailableBalance = CalculateAvailableBalanceUseCase(),
             cycleRangeCalculator = cycleRangeCalculator,
             timeProvider = timeProvider,
         )
+    }
+
+    private class FakeCategoryRepository : pe.kipu.core.domain.repository.CategoryRepository {
+        override fun observeCategories(): Flow<List<pe.kipu.core.domain.model.Category>> = flowOf(emptyList())
+        override suspend fun getById(id: String): pe.kipu.core.domain.model.Category? = null
+        override suspend fun save(category: pe.kipu.core.domain.model.Category): Result<Unit> = Result.success(Unit)
+        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
     }
 
     private fun movement(
@@ -268,6 +364,14 @@ class ObserveHomeInsightsUseCaseTest {
         override suspend fun delete(id: String) = Result.success(Unit)
     }
 
+    private class FakeReserveEventRepository(
+        private val events: List<ReserveEvent>,
+    ) : ReserveEventRepository {
+        override fun observeAll(): Flow<List<ReserveEvent>> = flowOf(events)
+        override suspend fun getById(id: String): ReserveEvent? = events.find { it.id == id }
+        override suspend fun record(event: ReserveEvent): Result<Unit> = Result.success(Unit)
+    }
+
     private class FakeGatheringExpenseRepository : pe.kipu.core.domain.repository.GatheringExpenseRepository {
         override fun observeTotalsByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, pe.kipu.core.domain.model.Money>())
         override fun observeExpensesByGathering() = flowOf(emptyMap<pe.kipu.core.domain.model.EntityId, List<pe.kipu.core.domain.model.GatheringExpense>>())
@@ -282,5 +386,12 @@ class ObserveHomeInsightsUseCaseTest {
         override suspend fun getById(id: String) = null
         override suspend fun save(commitment: pe.kipu.core.domain.model.Commitment) = Result.success(Unit)
         override suspend fun delete(id: String) = Result.success(Unit)
+    }
+
+    private class FakeMonthlyServiceReceiptRepository : pe.kipu.core.domain.repository.MonthlyServiceReceiptRepository {
+        override fun observeReceiptsForMonth(monthKey: String) = flowOf(emptyList<pe.kipu.core.domain.receipt.MonthlyServiceReceipt>())
+        override fun observeAllPaidMovementIds(): Flow<Set<String>> = flowOf(emptySet())
+        override suspend fun saveReceipt(receipt: pe.kipu.core.domain.receipt.MonthlyServiceReceipt) {}
+        override suspend fun getReceipt(monthKey: String, serviceKeyIdentifier: String) = null
     }
 }

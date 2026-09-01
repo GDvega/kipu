@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -336,24 +337,24 @@ fun FixedExpensesStepContent(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Servicios y pagos obligatorios que se descuentan de tu ingreso mensual.",
+            text = "Pon un aproximado para planificar. Cuando pagues luz, agua, gas u otro servicio registrarás el monto real.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
-        FixedExpenseRow(Icons.Default.Bolt, "Luz", electricityText, onElectricityChanged)
-        FixedExpenseRow(Icons.Default.WaterDrop, "Agua", waterText, onWaterChanged)
-        FixedExpenseRow(Icons.Default.Wifi, "Internet", internetText, onInternetChanged)
-        FixedExpenseRow(Icons.Default.Home, "Alquiler / casa", rentText, onRentChanged)
-        FixedExpenseRow(Icons.Default.PhoneAndroid, "Celular", phoneText, onPhoneChanged)
-        FixedExpenseRow(Icons.Default.Handshake, "Préstamos y deudas", debtsText, onDebtsChanged)
-        FixedExpenseRow(Icons.Default.School, "Universidad / educación", educationText, onEducationChanged)
+        FixedExpenseRow(Icons.Default.Bolt, "Luz", electricityText, Color(0xFFF59E0B), onElectricityChanged)
+        FixedExpenseRow(Icons.Default.WaterDrop, "Agua", waterText, Color(0xFF0284C7), onWaterChanged)
+        FixedExpenseRow(Icons.Default.Wifi, "Internet", internetText, Color(0xFF06B6D4), onInternetChanged)
+        FixedExpenseRow(Icons.Default.Home, "Alquiler / casa", rentText, Color(0xFFF97316), onRentChanged)
+        FixedExpenseRow(Icons.Default.PhoneAndroid, "Celular", phoneText, Color(0xFF10B981), onPhoneChanged)
+        FixedExpenseRow(Icons.Default.Handshake, "Préstamos y deudas", debtsText, Color(0xFFEF4444), onDebtsChanged)
+        FixedExpenseRow(Icons.Default.School, "Universidad / educación", educationText, Color(0xFF8B5CF6), onEducationChanged)
 
         customExpenseLines.forEach { line ->
             WizardLineItemRow(
                 label = line.label,
                 amountText = line.amountText,
-                labelPlaceholder = "Nombre (ej. Netflix, Gimnasio)",
+                labelPlaceholder = "Nombre (ej. Gas, Netflix)",
                 onLabelChanged = { onCustomLineChanged(line.id, it, line.amountText) },
                 onAmountChanged = { onCustomLineChanged(line.id, line.label, it) },
                 onRemove = { onRemoveCustomExpenseLine(line.id) },
@@ -406,7 +407,7 @@ fun FixedExpensesStepContent(
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            text = "Se descontarán mensualmente de tu ingreso neto",
+            text = "Monto de referencia para calcular tu plan general",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
@@ -427,6 +428,7 @@ private fun FixedExpenseRow(
     icon: ImageVector,
     label: String,
     value: String,
+    tint: Color = MaterialTheme.colorScheme.primary,
     onValueChange: (String) -> Unit,
 ) {
     Row(
@@ -436,7 +438,7 @@ private fun FixedExpenseRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        IconBadge(icon = icon, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        IconBadge(icon = icon, tint = tint)
         KipuPenOutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -453,7 +455,9 @@ fun EnvelopesStepContent(
     envelopeLimits: Map<String, String>,
     customizingEnvelopeId: String?,
     customEnvelopeLines: List<PlanWizardLineItem>,
+    reserveMonthlyContributionText: String,
     onBudgetCycleSelected: (pe.kipu.core.domain.model.BudgetCycle) -> Unit,
+    onReserveMonthlyContributionChanged: (String) -> Unit,
     onPresetSelected: (String, BigDecimal) -> Unit,
     onLimitChanged: (String, String) -> Unit,
     onCustomize: (String?) -> Unit,
@@ -486,6 +490,37 @@ fun EnvelopesStepContent(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        KipuCard(style = KipuCardStyle.Large) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(icon = Icons.Default.Thunderstorm, tint = MaterialTheme.colorScheme.primary)
+                Column(modifier = Modifier.padding(start = 12.dp)) {
+                    Text(
+                        text = "Reserva para imprevistos",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Aparta un monto cada mes. Si no lo usas, se acumula para una compra o emergencia futura.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            KipuPenOutlinedTextField(
+                value = reserveMonthlyContributionText,
+                onValueChange = onReserveMonthlyContributionChanged,
+                label = "Aporte mensual para imprevistos",
+                placeholder = "0",
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            Text(
+                text = "No se registra como gasto: queda separado dentro de tu saldo hasta que confirmes usarlo.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
             )
         }
 
@@ -985,6 +1020,15 @@ fun PlanSummaryContent(
                     isExpense = true,
                 )
             }
+            state.reserveMonthlyContributionText.toBigDecimalOrNull()
+                ?.takeIf { it.signum() > 0 }
+                ?.let { reserve ->
+                    SummaryRow(
+                        "Reserva para imprevistos",
+                        "- ${formatPenAmountForDisplay(reserve)}",
+                        isExpense = true,
+                    )
+                }
             state.monthlyExtraAvailable?.let { extra ->
                 val isNegative = extra.signum() < 0
                 SummaryRow(

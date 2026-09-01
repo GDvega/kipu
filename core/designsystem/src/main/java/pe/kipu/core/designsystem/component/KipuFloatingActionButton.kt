@@ -3,6 +3,7 @@ package pe.kipu.core.designsystem.component
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,28 @@ fun KipuRegisterFab(
     ) {
         Icon(
             imageVector = Icons.Filled.Add,
+            contentDescription = null,
+        )
+    }
+}
+
+@Composable
+fun KipuVoiceFab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Registrar por voz",
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(56.dp)
+            .testTag("voice_fab")
+            .semantics { this.contentDescription = contentDescription },
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Mic,
             contentDescription = null,
         )
     }

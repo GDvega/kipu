@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,6 +25,7 @@ fun KipuSecondaryButton(
     enabled: Boolean = true,
     fillWidth: Boolean = false,
     destructive: Boolean = false,
+    leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     val contentColor = if (destructive) {
         MaterialTheme.colorScheme.error
@@ -47,6 +49,10 @@ fun KipuSecondaryButton(
             disabledContentColor = contentColor.copy(alpha = 0.6f),
         ),
     ) {
+        if (leadingIcon != null) {
+            leadingIcon()
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(8.dp))
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,

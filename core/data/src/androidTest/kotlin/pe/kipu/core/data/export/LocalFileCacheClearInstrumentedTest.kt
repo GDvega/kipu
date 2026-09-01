@@ -23,20 +23,14 @@ class LocalFileCacheClearInstrumentedTest {
     }
 
     @Test
-    fun clearLocalFileCachesRemovesExportsAndReceiptImages() = runBlocking {
+    fun clearLocalFileCachesRemovesExports() = runBlocking {
         val exportFile = File(context.cacheDir, "exports/kipu-test-export.json").apply {
             parentFile?.mkdirs()
             writeText("{\"test\":true}")
         }
-        val receiptFile = File(context.cacheDir, "receipts/test-receipt.jpg").apply {
-            parentFile?.mkdirs()
-            writeText("fake-image")
-        }
-
         val result = repository.clearLocalFileCaches()
 
         assertTrue(result.isSuccess)
         assertFalse(exportFile.exists())
-        assertFalse(receiptFile.exists())
     }
 }

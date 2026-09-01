@@ -17,16 +17,14 @@ class FixedExpenseReminderReceiver : BroadcastReceiver() {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Recordatorios de pagos",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply {
-                description = "Avisos al inicio de mes o quincena para pagos sí o sí"
-            }
-            notificationManager.createNotificationChannel(channel)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Recordatorios de pagos",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "Avisos al inicio de mes o quincena para pagos sí o sí"
         }
+        notificationManager.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -36,6 +34,15 @@ class FixedExpenseReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.POST_NOTIFICATIONS,
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+        }
 
         notificationManager.notify(NOTIFICATION_ID, notification)
     }

@@ -32,3 +32,4 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+.agents/

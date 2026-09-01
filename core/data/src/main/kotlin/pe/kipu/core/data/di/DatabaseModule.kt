@@ -18,6 +18,7 @@ import pe.kipu.core.data.local.dao.FinancialPlanDao
 import pe.kipu.core.data.local.dao.GatheringDao
 import pe.kipu.core.data.local.dao.GatheringExpenseDao
 import pe.kipu.core.data.local.dao.MovementDao
+import pe.kipu.core.data.local.dao.ReserveEventDao
 import pe.kipu.core.data.local.migration.KipuDatabaseMigrations
 
 @Module
@@ -62,4 +63,15 @@ object DatabaseModule {
     @Provides
     fun provideGatheringExpenseDao(database: KipuDatabase): GatheringExpenseDao =
         database.gatheringExpenseDao()
+
+    @Provides
+    fun provideMonthlyServiceReceiptDao(database: KipuDatabase): pe.kipu.core.data.local.dao.MonthlyServiceReceiptDao =
+        database.monthlyServiceReceiptDao()
+
+    @Provides
+    fun provideMovementAuditDao(database: KipuDatabase): pe.kipu.core.data.local.dao.MovementAuditDao =
+        database.movementAuditDao()
+
+    @Provides
+    fun provideReserveEventDao(database: KipuDatabase): ReserveEventDao = database.reserveEventDao()
 }

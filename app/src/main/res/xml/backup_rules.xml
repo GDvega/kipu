@@ -2,7 +2,7 @@
 <!--
   Financial data in kipu.db is excluded from Google cloud backup.
   User preferences (DataStore) are excluded to avoid restoring stale flags after reinstall.
-  Ephemeral export/receipt cache must not leave the device via backup or transfer.
+  Ephemeral export cache must not leave the device via backup or transfer.
 -->
 <full-backup-content>
     <exclude domain="database" path="kipu.db" />
@@ -11,5 +11,4 @@
     <exclude domain="database" path="." />
     <exclude domain="file" path="datastore/kipu_preferences.preferences_pb" />
     <exclude domain="file" path="cache/exports/" />
-    <exclude domain="file" path="cache/receipts/" />
 </full-backup-content>

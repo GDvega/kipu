@@ -28,6 +28,17 @@ class MovementMapperTest {
     }
 
     @Test
+    fun `maps envelope id in round trip`() {
+        val entity = MapperTestFixtures.sampleMovementEntity().copy(envelopeId = "envelope-food")
+
+        val domain = entity.toDomain()
+        val roundTrip = domain.toEntity()
+
+        assertEquals("envelope-food", domain.envelopeId)
+        assertEquals(entity, roundTrip)
+    }
+
+    @Test
     fun `entity to domain to entity round trip`() {
         val original = MapperTestFixtures.sampleMovementEntity()
 

@@ -2,7 +2,7 @@
 
 Guía paso a paso para **Fase 27**. Complementa `PLAY_STORE.md` y `E2E_QA_CHECKLIST.md`.
 
-**Última revisión:** 20 junio 2026
+**Última revisión:** 24 agosto 2026
 
 ---
 
@@ -68,7 +68,7 @@ Pegar la URL en Play Console → **Política de privacidad**.
 
    ```
    MVP 1.0.0 — finanzas personales local.
-   Sobres, movimientos, comprobantes, juntas, export/wipe.
+   Sobres, movimientos, comprobantes, cuentas compartidas, export/wipe.
    ```
 
 6. **Store listing** — copiar textos de `PLAY_STORE.md`

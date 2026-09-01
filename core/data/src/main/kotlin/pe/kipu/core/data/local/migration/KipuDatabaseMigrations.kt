@@ -273,6 +273,139 @@ object KipuDatabaseMigrations {
         }
     }
 
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN electricityExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN waterExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN internetExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN rentExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN phoneExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN debtsExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN educationExpensesCents INTEGER DEFAULT NULL",
+            )
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN customFixedExpensesJson TEXT DEFAULT NULL",
+            )
+        }
+    }
+
+    val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `monthly_service_receipts` (
+                    `id` TEXT NOT NULL,
+                    `monthKey` TEXT NOT NULL,
+                    `serviceKeyIdentifier` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `configuredAmountCents` INTEGER NOT NULL,
+                    `isPaid` INTEGER NOT NULL,
+                    `paidMovementId` TEXT DEFAULT NULL,
+                    `paidAtEpochMs` INTEGER DEFAULT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_monthly_service_receipts_monthKey` ON `monthly_service_receipts` (`monthKey`)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_monthly_service_receipts_monthKey_serviceKeyIdentifier` ON `monthly_service_receipts` (`monthKey`, `serviceKeyIdentifier`)")
+        }
+    }
+
+    val MIGRATION_18_19 = object : Migration(18, 19) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `movement_audit_logs` (
+                    `id` TEXT NOT NULL,
+                    `movementId` TEXT NOT NULL,
+                    `action` TEXT NOT NULL,
+                    `movementType` TEXT NOT NULL,
+                    `amountCents` INTEGER NOT NULL,
+                    `categoryId` TEXT NOT NULL,
+                    `categoryName` TEXT DEFAULT NULL,
+                    `channel` TEXT NOT NULL,
+                    `description` TEXT DEFAULT NULL,
+                    `counterpartyName` TEXT DEFAULT NULL,
+                    `details` TEXT DEFAULT NULL,
+                    `timestampEpochMs` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_movement_audit_logs_movementId` ON `movement_audit_logs` (`movementId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_movement_audit_logs_timestampEpochMs` ON `movement_audit_logs` (`timestampEpochMs`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_movement_audit_logs_action` ON `movement_audit_logs` (`action`)")
+        }
+    }
+
+    val MIGRATION_19_20 = object : Migration(19, 20) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE movements ADD COLUMN envelopeId TEXT DEFAULT NULL")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_movements_envelopeId` ON `movements` (`envelopeId`)",
+            )
+        }
+    }
+
+    val MIGRATION_20_21 = object : Migration(20, 21) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE financial_plans ADD COLUMN " +
+                    "reserveMonthlyContributionCents INTEGER NOT NULL DEFAULT 0",
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `reserve_events` (
+                    `id` TEXT NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `amountCents` INTEGER NOT NULL,
+                    `sourceMovementId` TEXT DEFAULT NULL,
+                    `reversesEventId` TEXT DEFAULT NULL,
+                    `occurredAtMillis` INTEGER NOT NULL,
+                    `createdAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                    "`index_reserve_events_sourceMovementId_type` " +
+                    "ON `reserve_events` (`sourceMovementId`, `type`)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_reserve_events_reversesEventId` " +
+                    "ON `reserve_events` (`reversesEventId`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_reserve_events_occurredAtMillis` " +
+                    "ON `reserve_events` (`occurredAtMillis`)",
+            )
+        }
+    }
+
+    val MIGRATION_21_22 = object : Migration(21, 22) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP INDEX IF EXISTS `index_reserve_events_sourceMovementId_type`")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_reserve_events_sourceMovementId` " +
+                    "ON `reserve_events` (`sourceMovementId`)",
+            )
+        }
+    }
+
     val ALL = arrayOf(
         MIGRATION_1_2,
         MIGRATION_2_3,
@@ -289,5 +422,11 @@ object KipuDatabaseMigrations {
         MIGRATION_13_14,
         MIGRATION_14_15,
         MIGRATION_15_16,
+        MIGRATION_16_17,
+        MIGRATION_17_18,
+        MIGRATION_18_19,
+        MIGRATION_19_20,
+        MIGRATION_20_21,
+        MIGRATION_21_22,
     )
 }

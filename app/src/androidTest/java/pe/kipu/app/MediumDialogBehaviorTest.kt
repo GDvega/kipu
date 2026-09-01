@@ -78,7 +78,7 @@ class MediumDialogBehaviorTest {
             }
         }
 
-        composeRule.onNodeWithText("Registrar movimiento").assertIsDisplayed()
+        composeRule.onNodeWithText("Registrar Gasto").assertIsDisplayed()
         composeRule.onNodeWithText("Monto").assertIsNotEnabled()
         pressBack()
         composeRule.waitForIdle()

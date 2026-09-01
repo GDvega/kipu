@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuSubScreenScaffold
+import pe.kipu.core.designsystem.component.kipuScrollbar
 
 @Composable
 fun PrivacyPolicyScreen(
@@ -23,10 +24,12 @@ fun PrivacyPolicyScreen(
         onBack = onBack,
         modifier = modifier,
     ) {
+        val privacyScrollState = androidx.compose.foundation.rememberScrollState()
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .kipuScrollbar(privacyScrollState)
+                .verticalScroll(privacyScrollState)
                 .padding(horizontal = KipuLayout.screenHorizontalPadding),
         ) {
             Text(
@@ -48,7 +51,7 @@ fun PrivacyPolicyScreen(
                 )
             }
             Text(
-                text = "Última actualización: 13 de agosto de 2026",
+                text = "Última actualización: 25 de agosto de 2026",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 24.dp, bottom = 32.dp),
@@ -67,22 +70,29 @@ private val privacySections = listOf(
         title = "Resumen",
         body = "Kipu es una app de finanzas personales para Perú. Tus movimientos y " +
             "configuración se guardan en tu celular. No pedimos claves de Yape, Plin ni bancos, " +
-            "y no subimos tus datos financieros a servidores propios.",
+            "y tus movimientos permanecen en el dispositivo. Si usas comandos de voz, Kipu " +
+            "interpreta la transcripción localmente después del reconocimiento del sistema.",
     ),
     PrivacySection(
         title = "Qué guardamos",
         body = "Movimientos, categorías, sobres, metas, cuentas compartidas y preferencias que tú registras " +
             "o confirmas. Si compartes un comprobante, la imagen se procesa en el dispositivo " +
-            "con OCR local; no la enviamos a la nube por defecto. Una foto tomada desde Kipu usa " +
-            "caché temporal durante captura y revisión y se descarta al cancelar, salir o terminar " +
-            "el flujo. Si la app se interrumpe antes, la caché puede permanecer temporalmente hasta " +
-            "que Android la limpie o elimines tus datos locales.",
+            "con OCR local y se lee desde su app de origen; no la enviamos a la nube por defecto. " +
+            "Kipu no toma ni conserva fotos con la cámara.",
     ),
     PrivacySection(
         title = "Notificaciones (opcional)",
         body = "Si activas el acceso en Perfil, podemos leer notificaciones de ingresos de " +
             "Yape o Plin para sugerirte un movimiento. Siempre debes confirmar antes de guardar. " +
             "Puedes desactivar esta función cuando quieras.",
+    ),
+    PrivacySection(
+        title = "Comandos de voz (opcional)",
+        body = "Al usar el micrófono, el servicio de reconocimiento de voz del dispositivo " +
+            "convierte tu voz en texto según las condiciones de su proveedor. Después, Kipu " +
+            "interpreta esa transcripción en el dispositivo para proponer monto, categoría y " +
+            "medio de pago. No enviamos la transcripción a servidores de Kipu ni guardamos el " +
+            "resultado hasta que tú lo revisas y confirmas.",
     ),
     PrivacySection(
         title = "Métricas técnicas de ML Kit",

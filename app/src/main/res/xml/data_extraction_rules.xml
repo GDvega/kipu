@@ -11,7 +11,6 @@
         <exclude domain="database" path="." />
         <exclude domain="file" path="datastore/kipu_preferences.preferences_pb" />
         <exclude domain="file" path="cache/exports/" />
-        <exclude domain="file" path="cache/receipts/" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="database" path="kipu.db" />
@@ -20,6 +19,5 @@
         <exclude domain="database" path="." />
         <exclude domain="file" path="datastore/kipu_preferences.preferences_pb" />
         <exclude domain="file" path="cache/exports/" />
-        <exclude domain="file" path="cache/receipts/" />
     </device-transfer>
 </data-extraction-rules>

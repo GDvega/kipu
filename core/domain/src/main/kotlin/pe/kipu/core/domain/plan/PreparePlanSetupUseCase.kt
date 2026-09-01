@@ -20,6 +20,7 @@ data class PlanSetupPreparationInput(
     val estimatedMonthlyIncome: Money,
     val fixedExpenses: Money,
     val initialBalance: Money = Money.ZERO,
+    val reserveMonthlyContribution: Money = Money.ZERO,
     val incomeProfile: IncomeProfile = IncomeProfile.FIXED,
     val payFrequency: PayFrequency = PayFrequency.MONTHLY,
     val budgetCycle: BudgetCycle = BudgetCycle.WEEKLY,
@@ -41,6 +42,14 @@ data class PlanSetupPreparationInput(
     val existingCategories: List<Category> = emptyList(),
     val existingEnvelopes: List<Envelope> = emptyList(),
     val existingCommitments: List<Commitment> = emptyList(),
+    val electricityExpenses: Money? = null,
+    val waterExpenses: Money? = null,
+    val internetExpenses: Money? = null,
+    val rentExpenses: Money? = null,
+    val phoneExpenses: Money? = null,
+    val debtsExpenses: Money? = null,
+    val educationExpenses: Money? = null,
+    val customFixedExpensesJson: String? = null,
 )
 
 sealed interface PlanSetupPreparationError {
@@ -174,6 +183,7 @@ class PreparePlanSetupUseCase @Inject constructor(
             estimatedMonthlyIncome = input.estimatedMonthlyIncome,
             fixedExpenses = input.fixedExpenses,
             initialBalance = input.initialBalance,
+            reserveMonthlyContribution = input.reserveMonthlyContribution,
             envelopeIds = envelopes.map { it.id },
             incomeProfile = input.incomeProfile,
             payFrequency = input.payFrequency,
@@ -183,6 +193,14 @@ class PreparePlanSetupUseCase @Inject constructor(
             antSpendingAlertEnabled = input.antSpendingAlertEnabled,
             antSpendingAlertPercent = input.antSpendingAlertPercent,
             antSpendingTrackedCategoryIds = input.antSpendingTrackedCategoryIds,
+            electricityExpenses = input.electricityExpenses,
+            waterExpenses = input.waterExpenses,
+            internetExpenses = input.internetExpenses,
+            rentExpenses = input.rentExpenses,
+            phoneExpenses = input.phoneExpenses,
+            debtsExpenses = input.debtsExpenses,
+            educationExpenses = input.educationExpenses,
+            customFixedExpensesJson = input.customFixedExpensesJson,
         )
         val setup = PlanSetup(
             plan = plan,
@@ -208,7 +226,7 @@ class PreparePlanSetupUseCase @Inject constructor(
         val existing = input.existingCommitments.firstOrNull {
             it.id == CommitmentIds.EMERGENCY_FUND && it.type == CommitmentType.SAVINGS_GOAL
         }
-        if (input.goalSkipped) {
+        if (input.goalSkipped || input.goalTargetText.isBlank()) {
             return if (existing != null && !existing.isSettled) {
                 PreparedCommitment.Settle(existing.id)
             } else {

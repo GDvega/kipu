@@ -96,22 +96,31 @@ class PlanWizardStateLoaderTest {
     }
 
     @Test
-    fun `does not invent fixed expense breakdown when total matches old seed`() {
+    fun `loads detailed fixed expense breakdown into corresponding fields`() {
         val plan = FinancialPlan(
             id = FinancialPlanIds.PRIMARY,
             estimatedMonthlyIncome = Money.of(BigDecimal("3000")).getOrError(),
-            fixedExpenses = Money.of(PeruPlanDefaults.SEED_FIXED_EXPENSES_MONTHLY).getOrError(),
+            fixedExpenses = Money.of(BigDecimal("100")).getOrError(),
+            electricityExpenses = Money.of(BigDecimal("20")).getOrError(),
+            waterExpenses = Money.of(BigDecimal("20")).getOrError(),
+            internetExpenses = Money.of(BigDecimal("20")).getOrError(),
+            phoneExpenses = Money.of(BigDecimal("40")).getOrError(),
         )
 
         val defaults = PlanWizardStateLoader.fixedExpenseDefaults(plan)
 
         assertFalse(defaults.skipFixedExpenses)
+        assertEquals("20", defaults.electricityText)
+        assertEquals("20", defaults.waterText)
+        assertEquals("20", defaults.internetText)
+        assertEquals("40", defaults.phoneText)
         assertEquals("", defaults.rentText)
-        assertEquals("1800", defaults.debtsText)
+        assertEquals("", defaults.debtsText)
+        assertEquals("", defaults.educationText)
     }
 
     @Test
-    fun `loads custom fixed total into debts field`() {
+    fun `legacy plan without breakdown does not misattribute total to debts field`() {
         val plan = FinancialPlan(
             id = FinancialPlanIds.PRIMARY,
             estimatedMonthlyIncome = Money.of(BigDecimal("3000")).getOrError(),
@@ -120,8 +129,10 @@ class PlanWizardStateLoaderTest {
 
         val defaults = PlanWizardStateLoader.fixedExpenseDefaults(plan)
 
-        assertEquals("2200", defaults.debtsText)
+        assertFalse(defaults.skipFixedExpenses)
+        assertEquals("", defaults.debtsText)
         assertEquals("", defaults.rentText)
+        assertEquals("", defaults.electricityText)
     }
 
     @Test
@@ -247,6 +258,7 @@ class PlanWizardStateLoaderTest {
         assertEquals("", goal.goalCurrentText)
         assertEquals(GoalType.EMERGENCY, goal.goalType)
         assertEquals("5", goal.goalMonthsText)
+        assertFalse(goal.goalSkipped)
     }
 
     private fun budget(id: String, name: String, categoryId: String, limit: String) =

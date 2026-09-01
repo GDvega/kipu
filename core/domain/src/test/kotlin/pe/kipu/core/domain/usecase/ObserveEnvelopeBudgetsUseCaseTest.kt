@@ -56,6 +56,7 @@ class ObserveEnvelopeBudgetsUseCaseTest {
             envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
             movementRepository = FakeMovementRepository(listOf(movement)),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = FakeMonthlyServiceReceiptRepository(),
             financialPlanRepository = FakeFinancialPlanRepository(emptyList()),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
@@ -105,6 +106,7 @@ class ObserveEnvelopeBudgetsUseCaseTest {
             envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
             movementRepository = FakeMovementRepository(listOf(movement)),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = FakeMonthlyServiceReceiptRepository(),
             financialPlanRepository = FakeFinancialPlanRepository(listOf(plan)),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
@@ -117,6 +119,108 @@ class ObserveEnvelopeBudgetsUseCaseTest {
 
         // Con ventana mensual el gasto del 5-jun cuenta (40/100 = 40%); con la semanal sería 0%.
         assertEquals(40, states.first().percentUsed)
+    }
+
+    @Test
+    fun `monthly fixed service payment does not consume weekly envelope`() = runTest {
+        val reference = Instant.parse("2026-06-17T15:00:00Z")
+        val timeProvider = FixedTimeProvider(reference)
+        val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
+        val envelope = Envelope(
+            id = "envelope-services",
+            name = "Servicios corrientes",
+            weeklyLimit = Money.of(BigDecimal("60.00")).getOrError(),
+            categoryId = CategoryIds.SERVICES,
+        )
+        // Pago de luz mensual de S/ 150 (gasto fijo mensual)
+        val monthlyLightPayment = Movement(
+            id = "m-light",
+            type = MovementType.EXPENSE,
+            amount = Money.of(BigDecimal("150.00")).getOrError(),
+            categoryId = CategoryIds.SERVICES,
+            channel = PaymentChannel.YAPE,
+            source = MovementSource.MANUAL,
+            status = MovementStatus.CONFIRMED,
+            recordedAt = reference,
+            createdAt = reference,
+        )
+        val receiptRepo = FakeMonthlyServiceReceiptRepository(paidMovementIds = setOf("m-light"))
+        val useCase = ObserveEnvelopeBudgetsUseCase(
+            envelopeRepository = FakeEnvelopeRepository(listOf(envelope)),
+            movementRepository = FakeMovementRepository(listOf(monthlyLightPayment)),
+            gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = receiptRepo,
+            financialPlanRepository = FakeFinancialPlanRepository(emptyList()),
+            calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
+                CalculateCategoryPeriodSpentUseCase(),
+            ),
+            cycleRangeCalculator = cycleRangeCalculator,
+            timeProvider = timeProvider,
+        )
+
+        val states = useCase().first()
+
+        // El pago fijo mensual no debe descontar del sobre semanal de servicios (0% usado, no 250%)
+        assertEquals(0, states.first().percentUsed)
+        assertEquals(Money.ZERO, states.first().spentAmount)
+        assertEquals(Money.of(BigDecimal("60.00")).getOrError(), states.first().remainingAmount)
+    }
+
+    @Test
+    fun `movement assigned to one shared category envelope is counted only once`() = runTest {
+        val reference = Instant.parse("2026-06-17T15:00:00Z")
+        val timeProvider = FixedTimeProvider(reference)
+        val cycleRangeCalculator = CycleRangeCalculator(timeProvider)
+        val leisure = Envelope(
+            id = "envelope-leisure",
+            name = "Ocio",
+            weeklyLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.OTHER,
+        )
+        val family = Envelope(
+            id = "envelope-family",
+            name = "Familia",
+            weeklyLimit = Money.of(BigDecimal("100.00")).getOrError(),
+            categoryId = CategoryIds.OTHER,
+        )
+        val movement = Movement(
+            id = "m-shared-category",
+            type = MovementType.EXPENSE,
+            amount = Money.of(BigDecimal("40.00")).getOrError(),
+            categoryId = CategoryIds.OTHER,
+            envelopeId = leisure.id,
+            channel = PaymentChannel.YAPE,
+            source = MovementSource.MANUAL,
+            status = MovementStatus.CONFIRMED,
+            recordedAt = reference,
+            createdAt = reference,
+        )
+        val useCase = ObserveEnvelopeBudgetsUseCase(
+            envelopeRepository = FakeEnvelopeRepository(listOf(leisure, family)),
+            movementRepository = FakeMovementRepository(listOf(movement)),
+            gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = FakeMonthlyServiceReceiptRepository(),
+            financialPlanRepository = FakeFinancialPlanRepository(emptyList()),
+            calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
+                CalculateCategoryPeriodSpentUseCase(),
+            ),
+            cycleRangeCalculator = cycleRangeCalculator,
+            timeProvider = timeProvider,
+        )
+
+        val states = useCase().first().associateBy { it.envelopeId }
+
+        assertEquals(Money.of(BigDecimal("40.00")).getOrError(), states.getValue(leisure.id).spentAmount)
+        assertEquals(Money.ZERO, states.getValue(family.id).spentAmount)
+    }
+
+    private class FakeMonthlyServiceReceiptRepository(
+        private val paidMovementIds: Set<String> = emptySet(),
+    ) : pe.kipu.core.domain.repository.MonthlyServiceReceiptRepository {
+        override fun observeReceiptsForMonth(monthKey: String) = flowOf(emptyList<pe.kipu.core.domain.receipt.MonthlyServiceReceipt>())
+        override fun observeAllPaidMovementIds(): Flow<Set<String>> = flowOf(paidMovementIds)
+        override suspend fun saveReceipt(receipt: pe.kipu.core.domain.receipt.MonthlyServiceReceipt) {}
+        override suspend fun getReceipt(monthKey: String, serviceKeyIdentifier: String) = null
     }
 
     private class FakeFinancialPlanRepository(

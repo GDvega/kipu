@@ -140,6 +140,7 @@ class PlanWizardViewModel @Inject constructor(
 
             _uiState.value = PlanWizardUiState.Content(
                 step = startStep,
+                startStep = startStep,
                 isEditingExistingPlan = PlanWizardStateLoader.hasExistingPlan(existingPlan),
                 incomeProfile = incomeProfileDefaults.incomeProfile,
                 payFrequency = incomeProfileDefaults.payFrequency,
@@ -148,6 +149,12 @@ class PlanWizardViewModel @Inject constructor(
                 secondQuincenaText = incomeDefaults.secondQuincenaText,
                 extraIncomeText = incomeDefaults.extraIncomeText,
                 initialBalanceText = incomeDefaults.initialBalanceText,
+                reserveMonthlyContributionText = existingPlan?.reserveMonthlyContribution
+                    ?.amount
+                    ?.takeUnless { it.signum() == 0 }
+                    ?.stripTrailingZeros()
+                    ?.toPlainString()
+                    .orEmpty(),
                 approximateIncomeText = incomeDefaults.approximateIncomeText,
                 lowWeekText = incomeDefaults.lowWeekText,
                 normalWeekText = incomeDefaults.normalWeekText,
@@ -160,6 +167,7 @@ class PlanWizardViewModel @Inject constructor(
                 phoneText = fixedExpenseFields.phoneText,
                 debtsText = fixedExpenseFields.debtsText,
                 educationText = fixedExpenseFields.educationText,
+                customExpenseLines = fixedDefaults.customExpenseLines,
                 envelopeLimits = defaultLimits,
                 antSpendingLimitText = antLimitFromPlan
                     ?: defaultLimits[PlanEnvelopeTemplates.ANT_SPENDING_ENVELOPE_ID].orEmpty(),
@@ -251,6 +259,11 @@ class PlanWizardViewModel @Inject constructor(
 
     fun onBudgetCycleSelected(cycle: pe.kipu.core.domain.model.BudgetCycle) {
         updateContent { it.copy(budgetCycle = cycle) }
+        scheduleSummaryRefresh()
+    }
+
+    fun onReserveMonthlyContributionChanged(value: String) {
+        updateContent { it.copy(reserveMonthlyContributionText = value, errorMessage = null) }
         scheduleSummaryRefresh()
     }
 
@@ -452,7 +465,13 @@ class PlanWizardViewModel @Inject constructor(
 
     fun onGoalNameChanged(value: String) = updateContent { it.copy(goalName = value, errorMessage = null) }
     fun onGoalTargetChanged(value: String) {
-        updateContent { it.copy(goalTargetText = value, errorMessage = null) }
+        updateContent {
+            it.copy(
+                goalTargetText = value,
+                goalSkipped = if (value.isNotBlank()) false else it.goalSkipped,
+                errorMessage = null,
+            )
+        }
         refreshGoalSuggestion()
         scheduleSummaryRefresh()
     }
@@ -676,14 +695,16 @@ class PlanWizardViewModel @Inject constructor(
         val previewBudgets = buildPreviewBudgets(content)
         val income = planWizardSaver.parseMonthlyIncome(content)
         val fixedExpenses = planWizardSaver.parseFixedExpenses(content)
+        val reserveMonthlyContribution = planWizardSaver.parseReserveMonthlyContribution(content)
 
-        val planBreakdown = if (income != null && fixedExpenses != null) {
+        val planBreakdown = if (income != null && fixedExpenses != null && reserveMonthlyContribution != null) {
             val envelopes = previewBudgets.map { it.toEnvelope() }
             val commitments = buildPreviewCommitments(content)
             val plan = FinancialPlan(
                 id = FinancialPlanIds.PRIMARY,
                 estimatedMonthlyIncome = income,
                 fixedExpenses = fixedExpenses,
+                reserveMonthlyContribution = reserveMonthlyContribution,
                 envelopeIds = emptyList(),
                 budgetCycle = content.budgetCycle,
             )

@@ -25,9 +25,11 @@ class ConfirmPendingNotificationMovementUseCaseTest {
 
     private val now = Instant.parse("2026-06-16T15:00:00Z")
     private val repository = RecordingMovementRepository()
+    private val auditRepository = FakeMovementAuditRepository()
     private val useCase = ConfirmPendingNotificationMovementUseCase(
         movementRepository = repository,
         detectDuplicateMovement = DetectDuplicateMovementUseCase(MovementDuplicateMatcher()),
+        movementAuditRepository = auditRepository,
     )
 
     @Test
@@ -110,5 +112,15 @@ class ConfirmPendingNotificationMovementUseCaseTest {
             movements = movements.filter { it.id != id }
             return Result.success(Unit)
         }
+    }
+
+    private class FakeMovementAuditRepository : pe.kipu.core.domain.repository.MovementAuditRepository {
+        val recordedLogs = mutableListOf<pe.kipu.core.domain.model.MovementAuditEntry>()
+        override fun observeAuditLogs(): Flow<List<pe.kipu.core.domain.model.MovementAuditEntry>> = flowOf(recordedLogs)
+        override suspend fun recordAudit(entry: pe.kipu.core.domain.model.MovementAuditEntry): Result<Unit> {
+            recordedLogs.add(entry)
+            return Result.success(Unit)
+        }
+        override suspend fun getAll(): List<pe.kipu.core.domain.model.MovementAuditEntry> = recordedLogs
     }
 }
