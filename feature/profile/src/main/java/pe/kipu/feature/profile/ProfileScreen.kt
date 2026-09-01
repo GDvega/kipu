@@ -41,6 +41,7 @@ import pe.kipu.core.designsystem.component.KipuCard
 import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuFilterChipRow
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuScreenLoadingState
@@ -59,6 +60,7 @@ import pe.kipu.feature.profile.presentation.ProfileViewModel
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onNavigateToPrivacyPolicy: () -> Unit = {},
+    onNavigateToSharedAccounts: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -132,10 +134,12 @@ fun ProfileScreen(
                     )
                 }
 
+                val profileScrollState = androidx.compose.foundation.rememberScrollState()
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
+                        .kipuScrollbar(profileScrollState)
+                        .verticalScroll(profileScrollState)
                         .padding(horizontal = KipuLayout.screenHorizontalPadding),
                 ) {
                     KipuCard(modifier = Modifier.fillMaxWidth()) {
@@ -233,6 +237,11 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 16.dp),
+                    )
+                    KipuTextLink(
+                        text = "Ver cuentas compartidas",
+                        onClick = onNavigateToSharedAccounts,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                     KipuTextLink(
                         text = "Política de privacidad",

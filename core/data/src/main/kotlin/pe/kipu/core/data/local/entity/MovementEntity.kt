@@ -21,7 +21,7 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
-    indices = [Index("categoryId"), Index("commitmentId")],
+    indices = [Index("categoryId"), Index("commitmentId"), Index("envelopeId")],
 )
 data class MovementEntity(
     @PrimaryKey val id: String,
@@ -36,6 +36,7 @@ data class MovementEntity(
     val counterpartyName: String?,
     val operationNumber: String?,
     val commitmentId: String? = null,
+    val envelopeId: String? = null,
     val recordedAtMillis: Long,
     val createdAtMillis: Long,
 )

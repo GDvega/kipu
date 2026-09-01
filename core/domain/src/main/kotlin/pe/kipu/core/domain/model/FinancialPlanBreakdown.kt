@@ -7,6 +7,7 @@ import java.math.BigDecimal
  */
 data class FinancialPlanBreakdown(
     val monthlyEnvelopeReserve: Money,
+    val reserveMonthlyContribution: Money,
     val commitmentsBurden: Money,
     val totalOutflows: Money,
     /** Signed balance: estimated income minus total outflows (may be negative). */

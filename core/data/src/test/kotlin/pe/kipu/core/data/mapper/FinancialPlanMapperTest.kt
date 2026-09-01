@@ -34,6 +34,7 @@ class FinancialPlanMapperTest {
             antSpendingAlertEnabled = false,
             antSpendingAlertPercent = 75,
             antSpendingTrackedCategoryIds = "category-coffee,category-food",
+            reserveMonthlyContributionCents = 20_000L,
         )
 
         val domain = original.toDomain()
@@ -49,6 +50,7 @@ class FinancialPlanMapperTest {
         assertEquals(BigDecimal("75.00"), domain.antSpendingLimit?.amount)
         assertFalse(domain.antSpendingAlertEnabled)
         assertEquals(75, domain.antSpendingAlertPercent)
+        assertEquals(BigDecimal("200.00"), domain.reserveMonthlyContribution.amount)
         assertEquals(
             setOf("category-food", "category-coffee"),
             domain.antSpendingTrackedCategoryIds,

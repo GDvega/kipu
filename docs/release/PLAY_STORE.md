@@ -55,7 +55,7 @@ Firmar con keystore de producción — ver `INTERNAL_TESTING.md` y `keystore.pro
 
 ### Descripción completa (borrador)
 
-Kipu te ayuda a llevar el control de tu plata en Perú: gastos del día, sobres semanales, metas de ahorro y juntas con amigos.
+Kipu te ayuda a llevar el control de tu plata en Perú: gastos del día, sobres semanales, metas de ahorro y cuentas compartidas.
 
 **Qué puedes hacer**
 
@@ -64,7 +64,7 @@ Kipu te ayuda a llevar el control de tu plata en Perú: gastos del día, sobres 
 - Opcional: detectar ingresos desde notificaciones (tú confirmas antes de guardar)
 - Sobres semanales, disponible diario y alertas de gasto hormiga
 - Metas, deudas sociales y pagos pendientes
-- Juntas: reparto de gastos y liquidación por participante
+- Cuentas compartidas: reparto de gastos y liquidación por participante
 - Exportar o borrar todos tus datos cuando quieras
 
 **Privacidad**
@@ -108,11 +108,13 @@ Respuestas sugeridas para el formulario (revisar contra build actual):
 | Datos recopilados por ML Kit | Información del dispositivo/app, identificadores por instalación, rendimiento, configuración, tamaños, eventos y errores |
 | Finalidad | Diagnóstico y analítica de uso del SDK |
 | ¿Datos vendidos? | No |
-| ¿Solo procesamiento en dispositivo? | Sí para datos financieros y OCR; no para las métricas técnicas de ML Kit |
+| ¿Solo procesamiento en dispositivo? | Sí para datos financieros, interpretación de la transcripción y OCR; no para las métricas técnicas de ML Kit ni necesariamente para el reconocimiento de voz elegido por el sistema |
 
 Permisos declarados:
 
 - **Notification listener** — opcional; explicar en descripción y política
+- **RECORD_AUDIO** — opcional; solo se solicita al tocar el micrófono
+- **POST_NOTIFICATIONS** — opcional en Android 13+; se solicita al guardar un plan con pagos fijos para mostrar recordatorios
 - **INTERNET** — presente de forma transitiva por ML Kit/DataTransport para métricas técnicas; el flujo financiero principal sigue funcionando localmente
 
 ---

@@ -9,6 +9,7 @@ import pe.kipu.core.data.repository.RoomCategoryRepository
 import pe.kipu.core.data.repository.RoomCommitmentRepository
 import pe.kipu.core.data.repository.RoomMovementRepository
 import pe.kipu.core.data.repository.RoomPlanSetupRepository
+import pe.kipu.core.data.repository.RoomReserveEventRepository
 import pe.kipu.core.data.export.AndroidUserDataExportFileRepository
 import pe.kipu.core.data.preferences.DataStoreUserPreferencesRepository
 import pe.kipu.core.data.repository.RoomDuplicateDismissalRepository
@@ -30,6 +31,8 @@ import pe.kipu.core.domain.repository.UserDataExportFileRepository
 import pe.kipu.core.domain.repository.UserDataWipeRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.ReserveEventRepository
+import pe.kipu.core.domain.repository.LocalTransactionRunner
 import pe.kipu.core.domain.plan.PlanSetupRepository
 
 @Module
@@ -39,6 +42,16 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindMovementRepository(impl: RoomMovementRepository): MovementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReserveEventRepository(impl: RoomReserveEventRepository): ReserveEventRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLocalTransactionRunner(
+        impl: pe.kipu.core.data.repository.RoomLocalTransactionRunner,
+    ): LocalTransactionRunner
 
     @Binds
     @Singleton
@@ -97,4 +110,16 @@ abstract class RepositoryModule {
     abstract fun bindUserDataExportFileRepository(
         impl: AndroidUserDataExportFileRepository,
     ): UserDataExportFileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMonthlyServiceReceiptRepository(
+        impl: pe.kipu.core.data.repository.RoomMonthlyServiceReceiptRepository,
+    ): pe.kipu.core.domain.repository.MonthlyServiceReceiptRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMovementAuditRepository(
+        impl: pe.kipu.core.data.repository.RoomMovementAuditRepository,
+    ): pe.kipu.core.domain.repository.MovementAuditRepository
 }

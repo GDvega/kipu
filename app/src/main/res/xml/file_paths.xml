@@ -3,7 +3,4 @@
     <cache-path
         name="exports"
         path="exports/" />
-    <cache-path
-        name="receipts"
-        path="receipts/" />
 </paths>

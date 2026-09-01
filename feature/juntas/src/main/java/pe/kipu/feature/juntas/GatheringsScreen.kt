@@ -56,6 +56,7 @@ import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
 import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLoadingIndicator
 import pe.kipu.core.designsystem.component.KipuPenOutlinedTextField
@@ -177,8 +178,12 @@ fun GatheringsScreen(
                         onAction = viewModel::onCreateClick,
                     )
                 } else {
+                    val gatheringsListState = androidx.compose.foundation.lazy.rememberLazyListState()
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        state = gatheringsListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .kipuScrollbar(gatheringsListState),
                         verticalArrangement = Arrangement.spacedBy(KipuLayout.listItemSpacing),
                         contentPadding = KipuLayout.screenContentPadding(),
                     ) {

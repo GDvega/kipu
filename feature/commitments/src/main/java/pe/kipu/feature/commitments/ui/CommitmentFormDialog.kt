@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import pe.kipu.core.designsystem.component.KipuDialogConfirmButton
 import pe.kipu.core.designsystem.component.KipuDialogDismissButton
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuFilterChipRow
 import pe.kipu.core.designsystem.component.KipuPenOutlinedTextField
 import pe.kipu.core.domain.model.CommitmentType
@@ -61,9 +62,11 @@ fun CommitmentFormDialog(
         onDismissRequest = { if (!formState.isSaving) onDismiss() },
         title = { Text(text = if (isEdit) "Editar compromiso" else "Nuevo compromiso") },
         text = {
+            val commitmentDialogScrollState = androidx.compose.foundation.rememberScrollState()
             Column(
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
+                    .kipuScrollbar(commitmentDialogScrollState)
+                    .verticalScroll(commitmentDialogScrollState)
                     .imePadding(),
             ) {
                 Text(

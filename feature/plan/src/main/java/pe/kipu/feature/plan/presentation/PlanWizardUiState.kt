@@ -18,10 +18,12 @@ sealed interface PlanWizardUiState {
 
     data class Content(
         val step: PlanWizardStep,
+        val startStep: PlanWizardStep = PlanWizardStep.Income,
         val incomeProfile: IncomeProfile = IncomeProfile.FIXED,
         val fixedBaseText: String = "",
         val secondQuincenaText: String = "",
         val initialBalanceText: String = "",
+        val reserveMonthlyContributionText: String = "",
         val payFrequency: PayFrequency = PayFrequency.MONTHLY,
         val extraIncomeText: String = "",
         val additionalIncomeLines: List<PlanWizardLineItem> = emptyList(),

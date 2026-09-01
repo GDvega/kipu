@@ -11,6 +11,7 @@ data class FinancialPlan(
     val estimatedMonthlyIncome: Money,
     val fixedExpenses: Money,
     val initialBalance: Money = Money.ZERO,
+    val reserveMonthlyContribution: Money = Money.ZERO,
     val envelopeIds: List<EntityId> = emptyList(),
     val incomeProfile: IncomeProfile = IncomeProfile.FIXED,
     val payFrequency: PayFrequency = PayFrequency.MONTHLY,
@@ -19,6 +20,14 @@ data class FinancialPlan(
     val antSpendingAlertEnabled: Boolean = true,
     val antSpendingAlertPercent: Int = 80,
     val antSpendingTrackedCategoryIds: Set<EntityId> = emptySet(),
+    val electricityExpenses: Money? = null,
+    val waterExpenses: Money? = null,
+    val internetExpenses: Money? = null,
+    val rentExpenses: Money? = null,
+    val phoneExpenses: Money? = null,
+    val debtsExpenses: Money? = null,
+    val educationExpenses: Money? = null,
+    val customFixedExpensesJson: String? = null,
 ) {
     fun validate(): DomainResult<Unit> = when {
         id.isBlank() -> DomainResult.Err(DomainError.InvalidId("Financial plan id must not be blank"))

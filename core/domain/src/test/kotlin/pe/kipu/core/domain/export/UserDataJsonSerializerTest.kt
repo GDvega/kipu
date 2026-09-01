@@ -10,16 +10,22 @@ import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Gathering
 import pe.kipu.core.domain.model.GatheringExpense
 import pe.kipu.core.domain.model.Movement
+import pe.kipu.core.domain.model.MovementAuditAction
+import pe.kipu.core.domain.model.MovementAuditEntry
 import pe.kipu.core.domain.model.MovementSource
 import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.PaymentChannel
+import pe.kipu.core.domain.model.ReserveEvent
+import pe.kipu.core.domain.model.ReserveEventType
 import pe.kipu.core.domain.model.ThemeMode
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.plan.IncomeProfile
 import pe.kipu.core.domain.plan.PayFrequency
+import pe.kipu.core.domain.receipt.MonthlyServiceReceipt
+import pe.kipu.core.domain.receipt.ServiceReceiptKey
 
 class UserDataJsonSerializerTest {
 
@@ -40,6 +46,7 @@ class UserDataJsonSerializerTest {
                     estimatedMonthlyIncome = money("2500.00"),
                     fixedExpenses = money("900.00"),
                     initialBalance = money("350.00"),
+                    reserveMonthlyContribution = money("100.00"),
                     envelopeIds = listOf("envelope-1"),
                     incomeProfile = IncomeProfile.VARIABLE,
                     payFrequency = PayFrequency.BIWEEKLY,
@@ -48,6 +55,8 @@ class UserDataJsonSerializerTest {
                     antSpendingAlertEnabled = false,
                     antSpendingAlertPercent = 75,
                     antSpendingTrackedCategoryIds = setOf("category-food"),
+                    electricityExpenses = money("45.00"),
+                    customFixedExpensesJson = "[{\"label\":\"Gas\"}]",
                 ),
             ),
             gatherings = listOf(
@@ -78,11 +87,45 @@ class UserDataJsonSerializerTest {
                 widgetDailyAvailableUpdatedAtMillis = 1_786_122_600_000L,
                 budgetCycle = BudgetCycle.DAILY,
             ),
+            monthlyServiceReceipts = listOf(
+                MonthlyServiceReceipt(
+                    key = ServiceReceiptKey.LIGHT,
+                    title = "Luz",
+                    configuredAmount = money("60.00"),
+                    monthKey = "2026-06",
+                    isPaid = true,
+                    paidMovementId = "movement-1",
+                    paidAt = instant,
+                    paidAmount = money("55.00"),
+                ),
+            ),
+            movementAuditEntries = listOf(
+                MovementAuditEntry(
+                    id = "audit-1",
+                    movementId = "movement-1",
+                    action = MovementAuditAction.CREATED,
+                    movementType = MovementType.EXPENSE,
+                    amount = money("25.50"),
+                    categoryId = "category-food",
+                    channel = PaymentChannel.YAPE,
+                    timestamp = instant,
+                ),
+            ),
+            reserveEvents = listOf(
+                ReserveEvent(
+                    id = "reserve-use-1",
+                    type = ReserveEventType.USE,
+                    amount = money("80.00"),
+                    sourceMovementId = "movement-1",
+                    occurredAt = instant,
+                    createdAt = instant,
+                ),
+            ),
         )
 
         val json = serializer.serialize(snapshot)
 
-        assertTrue(json.contains("\"exportVersion\":3"))
+        assertTrue(json.contains("\"exportVersion\":5"))
         assertTrue(json.contains("\"counterpartyName\":\"María\""))
         assertTrue(json.contains("\"themeMode\":\"DARK\""))
         assertTrue(json.contains("\"dismissedDuplicatePairKeys\":[\"pair-1\"]"))
@@ -94,6 +137,14 @@ class UserDataJsonSerializerTest {
         assertTrue(json.contains("\"isSettled\":true"))
         assertTrue(json.contains("\"budgetCycle\":\"DAILY\""))
         assertTrue(json.contains("\"widgetDailyAvailableUpdatedAtMillis\":1786122600000"))
+        assertTrue(json.contains("\"monthlyServiceReceipts\":[{\"key\":\"LIGHT\""))
+        assertTrue(json.contains("\"movementAuditEntries\":[{\"id\":\"audit-1\""))
+        assertTrue(json.contains("\"envelopeId\":\"envelope-1\""))
+        assertTrue(json.contains("\"reserveMonthlyContribution\":\"100.00\""))
+        assertTrue(json.contains("\"electricityExpenses\":\"45.00\""))
+        assertTrue(json.contains("\"customFixedExpensesJson\":\"[{\\\"label\\\":\\\"Gas\\\"}]\""))
+        assertTrue(json.contains("\"paidAmount\":\"55.00\""))
+        assertTrue(json.contains("\"reserveEvents\":[{\"id\":\"reserve-use-1\""))
     }
 
     private fun sampleMovement(): Movement = Movement(
@@ -105,6 +156,7 @@ class UserDataJsonSerializerTest {
         source = MovementSource.RECEIPT,
         status = MovementStatus.CONFIRMED,
         counterpartyName = "María",
+        envelopeId = "envelope-1",
         recordedAt = instant,
         createdAt = instant,
     )

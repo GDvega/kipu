@@ -29,6 +29,7 @@ fun MovementEntity.toDomain(): Movement {
         counterpartyName = counterpartyName,
         operationNumber = operationNumber,
         commitmentId = commitmentId,
+        envelopeId = envelopeId,
         recordedAt = Instant.ofEpochMilli(recordedAtMillis),
         createdAt = Instant.ofEpochMilli(createdAtMillis),
     )
@@ -46,6 +47,7 @@ fun Movement.toEntity(): MovementEntity = MovementEntity(
     counterpartyName = counterpartyName,
     operationNumber = operationNumber,
     commitmentId = commitmentId,
+    envelopeId = envelopeId,
     recordedAtMillis = recordedAt.toEpochMilli(),
     createdAtMillis = createdAt.toEpochMilli(),
 )

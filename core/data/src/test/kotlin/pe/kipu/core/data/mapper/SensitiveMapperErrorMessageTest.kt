@@ -6,6 +6,7 @@ import org.junit.Test
 import pe.kipu.core.data.local.entity.CommitmentEntity
 import pe.kipu.core.data.local.entity.EnvelopeEntity
 import pe.kipu.core.data.local.entity.FinancialPlanEntity
+import pe.kipu.core.data.local.entity.MonthlyServiceReceiptEntity
 import pe.kipu.core.data.local.seed.DefaultEnvelopeIds
 import pe.kipu.core.data.test.MapperTestFixtures
 import pe.kipu.core.domain.category.CategoryIds
@@ -66,5 +67,21 @@ class SensitiveMapperErrorMessageTest {
         }
 
         assertEquals("Invalid stored financial plan amount cents", exception.message)
+    }
+
+    @Test
+    fun `monthly receipt mapper error omits stored amount`() {
+        val exception = assertThrows(IllegalStateException::class.java) {
+            MonthlyServiceReceiptEntity(
+                id = "2026-08_LIGHT",
+                monthKey = "2026-08",
+                serviceKeyIdentifier = "LIGHT",
+                title = "Luz",
+                configuredAmountCents = -12_345L,
+                isPaid = false,
+            ).toDomain()
+        }
+
+        assertEquals("Invalid stored receipt amount cents", exception.message)
     }
 }

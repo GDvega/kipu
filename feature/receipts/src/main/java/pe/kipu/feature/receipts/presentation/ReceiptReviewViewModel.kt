@@ -1,11 +1,9 @@
 package pe.kipu.feature.receipts.presentation
 
-import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -30,13 +28,11 @@ import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.usecase.ConfirmReceiptMovementUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
-import pe.kipu.feature.receipts.ReceiptCaptureUriFactory
 import pe.kipu.feature.receipts.navigation.ReceiptRoutes
 
 @HiltViewModel
 class ReceiptReviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    @ApplicationContext private val appContext: Context,
     private val receiptImageLoader: ReceiptImageLoader,
     private val processReceiptImage: ProcessReceiptImageUseCase,
     private val confirmReceiptMovement: ConfirmReceiptMovementUseCase,
@@ -135,11 +131,6 @@ class ReceiptReviewViewModel @Inject constructor(
         }
         publishReady(isSaving = true, errorMessage = null, duplicatePending = null)
         launchConfirmation(resolution)
-    }
-
-    override fun onCleared() {
-        ReceiptCaptureUriFactory.deleteIfOwnedCapture(appContext, contentUri)
-        super.onCleared()
     }
 
     private fun launchConfirmation(resolution: DuplicateResolution? = null) {

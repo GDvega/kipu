@@ -101,3 +101,26 @@ fun Movement.channelVisual(): MovementChannelVisual = when (channel) {
 }
 
 fun Movement.isIncome(): Boolean = type == MovementType.INCOME
+
+fun pe.kipu.core.domain.model.MovementAuditEntry.actionLabel(): String = when (action) {
+    pe.kipu.core.domain.model.MovementAuditAction.CREATED ->
+        if (movementType == MovementType.INCOME) "Ingreso registrado" else "Pago registrado"
+    pe.kipu.core.domain.model.MovementAuditAction.UPDATED -> "Editado"
+    pe.kipu.core.domain.model.MovementAuditAction.DELETED -> "Eliminado"
+}
+
+fun pe.kipu.core.domain.model.MovementAuditEntry.actionBadgeTone(): KipuBadgeTone = when (action) {
+    pe.kipu.core.domain.model.MovementAuditAction.CREATED ->
+        if (movementType == MovementType.INCOME) KipuBadgeTone.Primary else KipuBadgeTone.Info
+    pe.kipu.core.domain.model.MovementAuditAction.UPDATED -> KipuBadgeTone.Warning
+    pe.kipu.core.domain.model.MovementAuditAction.DELETED -> KipuBadgeTone.Critical
+}
+
+fun pe.kipu.core.domain.model.MovementAuditEntry.channelVisual(): MovementChannelVisual = when (channel) {
+    PaymentChannel.YAPE -> MovementChannelVisual(KipuPurpleDim, KipuPurple)
+    PaymentChannel.PLIN -> MovementChannelVisual(KipuBlueDim, KipuBlue)
+    PaymentChannel.CASH -> MovementChannelVisual(KipuAmberDim, KipuAmber)
+    PaymentChannel.MANUAL,
+    PaymentChannel.OTHER,
+    -> MovementChannelVisual(KipuPrimaryDim, KipuPrimary)
+}

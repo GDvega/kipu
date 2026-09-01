@@ -55,6 +55,7 @@ class PlanWizardHomeConsistencyTest {
             envelopeRepository = FakeEnvelopeRepository(envelopes),
             movementRepository = FakeMovementRepository(),
             gatheringExpenseRepository = FakeGatheringExpenseRepository(),
+            monthlyServiceReceiptRepository = FakeMonthlyServiceReceiptRepository(),
             financialPlanRepository = FakeFinancialPlanRepository(plan),
             calculateEnvelopeBudgetState = CalculateEnvelopeBudgetStateUseCase(
                 CalculateCategoryPeriodSpentUseCase(),
@@ -69,12 +70,21 @@ class PlanWizardHomeConsistencyTest {
             observeEnvelopeBudgets = observeEnvelopeBudgets,
             movementRepository = FakeMovementRepository(),
             commitmentRepository = FakeCommitmentRepository(),
+            categoryRepository = FakeCategoryRepository(),
             userPreferencesRepository = FakeUserPreferencesRepository(),
             financialPlanRepository = FakeFinancialPlanRepository(plan),
+            reserveEventRepository = object : pe.kipu.core.domain.repository.ReserveEventRepository {
+                override fun observeAll() = flowOf(emptyList<pe.kipu.core.domain.model.ReserveEvent>())
+                override suspend fun getById(id: String): pe.kipu.core.domain.model.ReserveEvent? = null
+                override suspend fun record(event: pe.kipu.core.domain.model.ReserveEvent) = Result.success(Unit)
+            },
             calculateCycleAvailable = calculateCycleAvailable,
             detectAntSpending = DetectAntSpendingUseCase(),
             detectAntSpendingWeeklyLimitUseCase = DetectAntSpendingWeeklyLimitUseCase(),
             calculateCashFlowSummary = CalculateCashFlowSummaryUseCase(),
+            calculateCategoryExpenseDistribution = CalculateCategoryExpenseDistributionUseCase(),
+            calculateReserveBalance = CalculateReserveBalanceUseCase(),
+            calculateAvailableBalance = CalculateAvailableBalanceUseCase(),
             cycleRangeCalculator = cycleRangeCalculator,
             timeProvider = timeProvider,
         )
@@ -152,5 +162,19 @@ class PlanWizardHomeConsistencyTest {
         override suspend fun getById(id: String) = null
         override suspend fun save(commitment: pe.kipu.core.domain.model.Commitment) = Result.success(Unit)
         override suspend fun delete(id: String) = Result.success(Unit)
+    }
+
+    private class FakeMonthlyServiceReceiptRepository : pe.kipu.core.domain.repository.MonthlyServiceReceiptRepository {
+        override fun observeReceiptsForMonth(monthKey: String) = flowOf(emptyList<pe.kipu.core.domain.receipt.MonthlyServiceReceipt>())
+        override fun observeAllPaidMovementIds(): Flow<Set<String>> = flowOf(emptySet())
+        override suspend fun saveReceipt(receipt: pe.kipu.core.domain.receipt.MonthlyServiceReceipt) {}
+        override suspend fun getReceipt(monthKey: String, serviceKeyIdentifier: String) = null
+    }
+
+    private class FakeCategoryRepository : pe.kipu.core.domain.repository.CategoryRepository {
+        override fun observeCategories(): Flow<List<pe.kipu.core.domain.model.Category>> = flowOf(emptyList())
+        override suspend fun getById(id: String): pe.kipu.core.domain.model.Category? = null
+        override suspend fun save(category: pe.kipu.core.domain.model.Category): Result<Unit> = Result.success(Unit)
+        override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
     }
 }

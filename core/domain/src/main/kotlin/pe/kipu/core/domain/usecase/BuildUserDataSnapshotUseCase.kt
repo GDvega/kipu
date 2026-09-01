@@ -11,6 +11,9 @@ import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.GatheringRepository
 import pe.kipu.core.domain.repository.GatheringExpenseRepository
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.MonthlyServiceReceiptRepository
+import pe.kipu.core.domain.repository.MovementAuditRepository
+import pe.kipu.core.domain.repository.ReserveEventRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.TimeProvider
 
@@ -24,6 +27,9 @@ class BuildUserDataSnapshotUseCase @Inject constructor(
     private val gatheringExpenseRepository: GatheringExpenseRepository,
     private val duplicateDismissalRepository: DuplicateDismissalRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val monthlyServiceReceiptRepository: MonthlyServiceReceiptRepository,
+    private val movementAuditRepository: MovementAuditRepository,
+    private val reserveEventRepository: ReserveEventRepository,
     private val timeProvider: TimeProvider,
 ) {
     suspend operator fun invoke(): UserDataSnapshot = UserDataSnapshot(
@@ -37,5 +43,8 @@ class BuildUserDataSnapshotUseCase @Inject constructor(
         gatheringExpenses = gatheringExpenseRepository.observeExpensesByGathering().first().values.flatten(),
         dismissedDuplicatePairKeys = duplicateDismissalRepository.observeDismissedPairKeys().first(),
         preferences = userPreferencesRepository.observePreferences().first(),
+        monthlyServiceReceipts = monthlyServiceReceiptRepository.getAll(),
+        movementAuditEntries = movementAuditRepository.getAll(),
+        reserveEvents = reserveEventRepository.observeAll().first(),
     )
 }

@@ -10,11 +10,18 @@ import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.HomeInsights
 
 import pe.kipu.core.domain.model.BudgetCycle
+import pe.kipu.core.domain.model.Category
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.model.MonthlyBudgetSummary
+import pe.kipu.core.domain.model.Movement
+import pe.kipu.core.domain.model.MovementStatus
+import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds
+import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.FinancialPlanRepository
 import pe.kipu.core.domain.repository.MovementRepository
+import pe.kipu.core.domain.repository.ReserveEventRepository
 import pe.kipu.core.domain.repository.UserPreferencesRepository
 import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.time.CycleRangeCalculator
@@ -24,12 +31,17 @@ class ObserveHomeInsightsUseCase @Inject constructor(
     private val observeEnvelopeBudgets: ObserveEnvelopeBudgetsUseCase,
     private val movementRepository: MovementRepository,
     private val commitmentRepository: CommitmentRepository,
+    private val categoryRepository: CategoryRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val financialPlanRepository: FinancialPlanRepository,
+    private val reserveEventRepository: ReserveEventRepository,
     private val calculateCycleAvailable: CalculateCycleAvailableUseCase,
     private val detectAntSpending: DetectAntSpendingUseCase,
     private val detectAntSpendingWeeklyLimitUseCase: DetectAntSpendingWeeklyLimitUseCase,
     private val calculateCashFlowSummary: CalculateCashFlowSummaryUseCase,
+    private val calculateCategoryExpenseDistribution: CalculateCategoryExpenseDistributionUseCase,
+    private val calculateReserveBalance: CalculateReserveBalanceUseCase,
+    private val calculateAvailableBalance: CalculateAvailableBalanceUseCase,
     private val cycleRangeCalculator: CycleRangeCalculator,
     private val timeProvider: TimeProvider,
 ) {
@@ -39,22 +51,26 @@ class ObserveHomeInsightsUseCase @Inject constructor(
             observeEnvelopeBudgets(),
             movementRepository.observeMovements(),
             commitmentRepository.observeCommitments(),
-            userPreferencesRepository.observePreferences(),
+            categoryRepository.observeCategories(),
             financialPlanRepository.observePlans(),
-        ) { budgets, movements, commitments, preferences, plans ->
-            val plan = plans.firstOrNull()
+        ) { budgets, movements, commitments, categories, plans ->
             HomeInputs(
                 budgets = budgets,
                 movements = movements,
                 commitments = commitments,
-                preferences = preferences,
-                plan = plan,
+                categories = categories,
+                plan = plans.firstOrNull(),
             )
+        }.combine(reserveEventRepository.observeAll()) { inputs, reserveEvents ->
+            inputs.copy(reserveEvents = reserveEvents)
+        }.combine(userPreferencesRepository.observePreferences()) { inputs, preferences ->
+            inputs.copy(preferences = preferences)
         }.combine(timeProvider.refreshTicks()) { inputs, referenceInstant ->
             val budgets = inputs.budgets
             val movements = inputs.movements
             val commitments = inputs.commitments
-            val preferences = inputs.preferences
+            val categories = inputs.categories
+            val preferences = inputs.preferences ?: pe.kipu.core.domain.model.UserPreferences()
             val plan = inputs.plan
             val cycle = plan?.budgetCycle ?: BudgetCycle.WEEKLY
             val cycleRange = cycleRangeCalculator.currentCycleRange(cycle, referenceInstant)
@@ -114,6 +130,18 @@ class ObserveHomeInsightsUseCase @Inject constructor(
                 commitments = commitments,
                 initialBalance = plan?.initialBalance ?: Money.ZERO,
             )
+            val reserveBalance = calculateReserveBalance(inputs.reserveEvents)
+            val availableBalance = calculateAvailableBalance(cashFlowSummary, reserveBalance)
+            val categoryDistribution = calculateCategoryExpenseDistribution(
+                movements = movements,
+                categories = categories,
+                cycleRange = cycleRange,
+            )
+            val monthlyBudgetSummary = calculateMonthlyBudgetSummary(
+                plan = plan,
+                movements = movements,
+                referenceInstant = referenceInstant,
+            )
             HomeInsights(
                 cycleAvailable = cycleAvailable,
                 antSpendingAlerts = antSpendingAlerts,
@@ -123,8 +151,50 @@ class ObserveHomeInsightsUseCase @Inject constructor(
                 recentMovements = recentMovements,
                 userPreferences = preferences,
                 cashFlowSummary = cashFlowSummary,
+                financialPlan = plan,
+                categoryDistribution = categoryDistribution,
+                monthlyBudgetSummary = monthlyBudgetSummary,
+                reserveBalance = reserveBalance,
+                availableBalance = availableBalance,
+                hasCurrentMonthReserveContribution = hasActiveMonthlyReserveContribution(
+                    inputs.reserveEvents,
+                    referenceInstant,
+                ),
             )
         }
+
+    private fun calculateMonthlyBudgetSummary(
+        plan: FinancialPlan?,
+        movements: List<Movement>,
+        referenceInstant: java.time.Instant,
+    ): MonthlyBudgetSummary? {
+        val plannedIncome = plan?.estimatedMonthlyIncome?.takeUnless(Money::isZero) ?: return null
+        val monthRange = cycleRangeCalculator.currentCycleRange(BudgetCycle.MONTHLY, referenceInstant)
+        val actualExpenses = movements
+            .asSequence()
+            .filter { movement ->
+                movement.type == MovementType.EXPENSE &&
+                    movement.status == MovementStatus.CONFIRMED &&
+                    movement.recordedAt >= monthRange.start &&
+                    movement.recordedAt < monthRange.end
+            }
+            .fold(Money.ZERO) { total, movement -> total + movement.amount }
+        val isOverBudget = actualExpenses.amount > plannedIncome.amount
+        val remaining = if (isOverBudget) {
+            Money.ZERO
+        } else {
+            when (val result = plannedIncome - actualExpenses) {
+                is pe.kipu.core.domain.model.DomainResult.Ok -> result.value
+                is pe.kipu.core.domain.model.DomainResult.Err -> Money.ZERO
+            }
+        }
+        return MonthlyBudgetSummary(
+            plannedIncome = plannedIncome,
+            actualExpenses = actualExpenses,
+            remaining = remaining,
+            isOverBudget = isOverBudget,
+        )
+    }
 
     private companion object {
         const val RECENT_MOVEMENTS_LIMIT = 3
@@ -136,7 +206,9 @@ class ObserveHomeInsightsUseCase @Inject constructor(
         val budgets: List<pe.kipu.core.domain.model.EnvelopeBudgetState>,
         val movements: List<pe.kipu.core.domain.model.Movement>,
         val commitments: List<pe.kipu.core.domain.model.Commitment>,
-        val preferences: pe.kipu.core.domain.model.UserPreferences,
+        val categories: List<Category>,
+        val preferences: pe.kipu.core.domain.model.UserPreferences? = null,
         val plan: FinancialPlan?,
+        val reserveEvents: List<pe.kipu.core.domain.model.ReserveEvent> = emptyList(),
     )
 }

@@ -86,6 +86,21 @@ class ValidateFinancialPlanUseCaseTest {
     }
 
     @Test
+    fun `monthly reserve contribution is part of planned outflows`() {
+        val plan = plan(income = "500.00", fixed = "400.00").copy(
+            reserveMonthlyContribution = Money.of(BigDecimal("200.00")).getOrError(),
+        )
+
+        val result = useCase(plan, envelopes = emptyList(), commitments = emptyList())
+
+        assertTrue(result is FinancialPlanValidationResult.Invalid)
+        assertEquals(
+            BigDecimal("100.00"),
+            (result as FinancialPlanValidationResult.Invalid).deficit.amount,
+        )
+    }
+
+    @Test
     fun `returns structured result without throwing for business cases`() {
         val result = useCase(
             plan = plan(income = "100.00", fixed = "500.00"),

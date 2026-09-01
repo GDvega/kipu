@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kipu.core.designsystem.component.KipuCard
 import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuLayout
 import pe.kipu.core.designsystem.component.KipuLinearProgress
 import pe.kipu.core.designsystem.component.KipuScreenLoadingState
@@ -95,10 +96,13 @@ fun CommitmentsScreen(
                 val invalidPlan =
                     state.insights.planValidation as? FinancialPlanValidationResult.Invalid
 
+                val commitmentsListState = androidx.compose.foundation.lazy.rememberLazyListState()
                 LazyColumn(
+                    state = commitmentsListState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .kipuScrollbar(commitmentsListState),
                     verticalArrangement = Arrangement.spacedBy(KipuLayout.listItemSpacing),
                     contentPadding = KipuLayout.screenContentPadding(),
                 ) {

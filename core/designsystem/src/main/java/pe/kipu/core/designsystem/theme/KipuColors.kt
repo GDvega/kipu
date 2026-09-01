@@ -83,3 +83,17 @@ val KipuOnSurface = KipuTextPrimary
 val KipuError = KipuRed
 val KipuIncome = KipuPrimary
 val KipuExpense = KipuRed
+
+// Multi-category chart color palette
+val KipuChartPalette = listOf(
+    KipuPrimary,             // Emerald #34D399
+    KipuPurple,              // Purple #A855F7
+    KipuAmber,               // Amber #F59E0B
+    KipuBlue,                // Bright Blue #3B82F6
+    KipuRed,                 // Coral Red #FF5467
+    Color(0xFF06B6D4),       // Cyan #06B6D4
+    Color(0xFFEC4899),       // Pink #EC4899
+    Color(0xFF84CC16),       // Lime #84CC16
+)
+
+fun getChartColor(index: Int): Color = KipuChartPalette[index % KipuChartPalette.size]

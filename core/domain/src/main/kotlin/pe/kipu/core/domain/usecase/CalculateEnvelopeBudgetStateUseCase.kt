@@ -22,12 +22,19 @@ class CalculateEnvelopeBudgetStateUseCase @Inject constructor(
         movements: List<Movement>,
         cycleRange: CycleRange,
         gatheringLinkedMovementIds: Set<EntityId> = emptySet(),
+        allEnvelopes: List<Envelope> = listOf(envelope),
     ): EnvelopeBudgetState {
+        val legacyEnvelopeIdForCategory = allEnvelopes
+            .filter { it.categoryId == envelope.categoryId }
+            .singleOrNull()
+            ?.id
         val spentAmount = calculateCategoryPeriodSpent(
             categoryId = envelope.categoryId,
             movements = movements,
             cycleRange = cycleRange,
             gatheringLinkedMovementIds = gatheringLinkedMovementIds,
+            envelopeId = envelope.id,
+            legacyEnvelopeIdForCategory = legacyEnvelopeIdForCategory,
         )
         val percentUsed = calculatePercentUsed(spentAmount, envelope.weeklyLimit)
         val status = resolveStatus(spentAmount, envelope.weeklyLimit, percentUsed)

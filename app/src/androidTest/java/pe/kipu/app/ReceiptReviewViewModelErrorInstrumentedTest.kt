@@ -3,16 +3,10 @@ package pe.kipu.app
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +20,7 @@ import pe.kipu.core.domain.parser.PlinReceiptParser
 import pe.kipu.core.domain.parser.ReceiptParserRouter
 import pe.kipu.core.domain.parser.YapeReceiptParser
 import pe.kipu.core.domain.repository.CategoryRepository
+import pe.kipu.core.domain.repository.MovementAuditRepository
 import pe.kipu.core.domain.repository.MovementRepository
 import pe.kipu.core.domain.time.TimeProvider
 import pe.kipu.core.domain.usecase.ConfirmReceiptMovementUseCase
@@ -35,7 +30,6 @@ import pe.kipu.core.domain.usecase.ParseReceiptTextUseCase
 import pe.kipu.core.domain.usecase.ProcessReceiptImageUseCase
 import pe.kipu.core.domain.usecase.SuggestCategoryFromPlinHistoryUseCase
 import pe.kipu.core.domain.usecase.SuggestCategoryFromYapeMessageUseCase
-import pe.kipu.feature.receipts.ReceiptCaptureUriFactory
 import pe.kipu.feature.receipts.navigation.ReceiptRoutes
 import pe.kipu.feature.receipts.presentation.ReceiptReviewUiState
 import pe.kipu.feature.receipts.presentation.ReceiptReviewViewModel
@@ -77,28 +71,6 @@ class ReceiptReviewViewModelErrorInstrumentedTest {
         assertEquals(2, attempts)
     }
 
-    @Test
-    fun clearingReviewDeletesItsOwnCameraCapture() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val captureUri = ReceiptCaptureUriFactory.create(context)
-        val captureFile = File(context.cacheDir, "receipts/${captureUri.lastPathSegment}")
-        captureFile.writeBytes(MINIMAL_JPEG)
-        val store = ViewModelStore()
-
-        try {
-            composeRule.runOnIdle {
-                ViewModelProvider(store, viewModelFactory(captureUri.toString()))[
-                    ReceiptReviewViewModel::class.java
-                ]
-                store.clear()
-            }
-
-            assertFalse(captureFile.exists())
-        } finally {
-            captureFile.delete()
-        }
-    }
-
     private fun createViewModel(
         contentUri: String,
         receiptImageLoader: ReceiptImageLoader,
@@ -106,26 +78,12 @@ class ReceiptReviewViewModelErrorInstrumentedTest {
         savedStateHandle = SavedStateHandle(
             mapOf(ReceiptRoutes.CONTENT_URI_ARG to encode(contentUri)),
         ),
-        appContext = InstrumentationRegistry.getInstrumentation().targetContext,
         receiptImageLoader = receiptImageLoader,
         processReceiptImage = processReceiptImage(),
         confirmReceiptMovement = unusedConfirmReceiptMovement(),
         categoryRepository = EmptyCategoryRepository,
         timeProvider = TimeProvider { Instant.EPOCH },
     )
-
-    private fun viewModelFactory(contentUri: String): ViewModelProvider.Factory =
-        object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                createViewModel(
-                    contentUri = contentUri,
-                    receiptImageLoader = object : ReceiptImageLoader {
-                        override suspend fun load(contentUri: String): Result<OcrImage> =
-                            Result.failure(IllegalStateException("not needed"))
-                    },
-                ) as T
-        }
 
     private fun encode(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8.name())
 
@@ -144,6 +102,7 @@ class ReceiptReviewViewModelErrorInstrumentedTest {
         confirmWithDuplicateCheck = ConfirmSuggestedMovementWithDuplicateCheckUseCase(
             movementRepository = EmptyMovementRepository,
             detectDuplicateMovement = DetectDuplicateMovementUseCase(MovementDuplicateMatcher()),
+            movementAuditRepository = EmptyMovementAuditRepository,
         ),
         timeProvider = TimeProvider { Instant.EPOCH },
     )
@@ -163,9 +122,11 @@ class ReceiptReviewViewModelErrorInstrumentedTest {
         override suspend fun delete(id: String): Result<Unit> = Result.success(Unit)
     }
 
-    private companion object {
-        val MINIMAL_JPEG: ByteArray = byteArrayOf(
-            0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte(),
-        )
+    private object EmptyMovementAuditRepository : MovementAuditRepository {
+        override fun observeAuditLogs() = flowOf(emptyList<pe.kipu.core.domain.model.MovementAuditEntry>())
+        override suspend fun recordAudit(entry: pe.kipu.core.domain.model.MovementAuditEntry): Result<Unit> =
+            Result.success(Unit)
+        override suspend fun getAll(): List<pe.kipu.core.domain.model.MovementAuditEntry> = emptyList()
     }
+
 }

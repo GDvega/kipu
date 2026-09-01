@@ -21,7 +21,7 @@ import pe.kipu.core.domain.plan.SavingsGoalBurdenCalculator
  * - monthlyEnvelopeReserve = sum(cycleLimit) proyectado a mes según [FinancialPlan.budgetCycle]
  *   (×30 diario, ×4 semanal, ×1 mensual) para los sobres del plan (o todos si [FinancialPlan.envelopeIds] vacío)
  * - commitmentsBurden = monthly savings quotas for goals + unsettled social debts / pending payments
- * - totalOutflows = fixedExpenses + monthlyEnvelopeReserve + commitmentsBurden
+ * - totalOutflows = fixedExpenses + monthlyEnvelopeReserve + reserveMonthlyContribution + commitmentsBurden
  * - deficit = totalOutflows - estimatedMonthlyIncome when income is insufficient
  */
 class ValidateFinancialPlanUseCase @Inject constructor() {
@@ -52,11 +52,13 @@ class ValidateFinancialPlanUseCase @Inject constructor() {
         val commitmentsBurden = commitments.fold(Money.ZERO) { acc, commitment ->
             acc + commitmentBurden(commitment, linkedIncomeByCommitmentId)
         }
-        val totalOutflows = plan.fixedExpenses + monthlyEnvelopeReserve + commitmentsBurden
+        val totalOutflows = plan.fixedExpenses + monthlyEnvelopeReserve +
+            plan.reserveMonthlyContribution + commitmentsBurden
 
         if (plan.estimatedMonthlyIncome.isZero()) {
             return FinancialPlanBreakdown(
                 monthlyEnvelopeReserve = monthlyEnvelopeReserve,
+                reserveMonthlyContribution = plan.reserveMonthlyContribution,
                 commitmentsBurden = commitmentsBurden,
                 totalOutflows = totalOutflows,
                 monthlySurplus = plan.estimatedMonthlyIncome.amount.subtract(totalOutflows.amount),
@@ -73,6 +75,7 @@ class ValidateFinancialPlanUseCase @Inject constructor() {
 
         return FinancialPlanBreakdown(
             monthlyEnvelopeReserve = monthlyEnvelopeReserve,
+            reserveMonthlyContribution = plan.reserveMonthlyContribution,
             commitmentsBurden = commitmentsBurden,
             totalOutflows = totalOutflows,
             monthlySurplus = monthlySurplus,

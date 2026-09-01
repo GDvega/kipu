@@ -31,10 +31,10 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 | Package / `applicationId` `pe.kipu.app` | ✅ Activo |
 | Hilt + KSP (DI) | ✅ Activo |
 | `core/domain` (JVM puro + parsers/UseCases financieros) | ✅ Activo |
-| `core/data` (Room v16 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
+| `core/data` (Room v22 + DataStore + ML Kit OCR + NotificationListener) | ✅ Activo |
 | ViewModels + UiState por feature | ✅ Activo |
 | DataStore (preferencias usuario) | ✅ Activo |
-| Room (`kipu.db` v16 — movimientos, categorías, sobres, compromisos, plan + configuración de gasto hormiga) | ✅ Activo |
+| Room (`kipu.db` v22 — movimientos, categorías, sobres, compromisos, plan, recibos, auditoría y reserva) | ✅ Activo |
 | UseCases presupuesto semanal (sobres) | ✅ Activo |
 | Disponible diario + gastos hormiga (Home insights) | ✅ Activo |
 | Duplicados con confirmación humana | ✅ Activo |
@@ -87,7 +87,7 @@ kipu/
 │   │   ├── ocr/                  → ReceiptOcrEngine (interface)
 │   │   └── category/             → CategoryIds, YapeMessageCategoryRules
 │   └── data/
-│       ├── local/                → Room v16: movements, categories, envelopes, plan
+│       ├── local/                → Room v22: movimientos, categorías, sobres, plan, recibos, auditoría y reserva
 │       ├── repository/           → RoomMovement/Category/EnvelopeRepository
 │       ├── ocr/                  → MlKitReceiptOcrEngine
 │       └── di/                   → DatabaseModule, OcrModule, DataStoreModule, TimeModule

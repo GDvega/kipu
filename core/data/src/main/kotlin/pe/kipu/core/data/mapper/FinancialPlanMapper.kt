@@ -16,6 +16,7 @@ fun FinancialPlanEntity.toDomain(): FinancialPlan = FinancialPlan(
     estimatedMonthlyIncome = centsToMoney(estimatedMonthlyIncomeCents),
     fixedExpenses = centsToMoney(fixedExpensesCents),
     initialBalance = centsToMoney(initialBalanceCents),
+    reserveMonthlyContribution = centsToMoney(reserveMonthlyContributionCents),
     envelopeIds = parseEnvelopeIds(envelopeIds),
     incomeProfile = parseIncomeProfile(incomeProfile),
     payFrequency = parsePayFrequency(payFrequency),
@@ -24,6 +25,14 @@ fun FinancialPlanEntity.toDomain(): FinancialPlan = FinancialPlan(
     antSpendingAlertEnabled = antSpendingAlertEnabled,
     antSpendingAlertPercent = antSpendingAlertPercent,
     antSpendingTrackedCategoryIds = parseIds(antSpendingTrackedCategoryIds, CATEGORY_ID_SEPARATOR).toSet(),
+    electricityExpenses = electricityExpensesCents?.let(::centsToMoney),
+    waterExpenses = waterExpensesCents?.let(::centsToMoney),
+    internetExpenses = internetExpensesCents?.let(::centsToMoney),
+    rentExpenses = rentExpensesCents?.let(::centsToMoney),
+    phoneExpenses = phoneExpensesCents?.let(::centsToMoney),
+    debtsExpenses = debtsExpensesCents?.let(::centsToMoney),
+    educationExpenses = educationExpensesCents?.let(::centsToMoney),
+    customFixedExpensesJson = customFixedExpensesJson,
 )
 
 fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
@@ -31,6 +40,7 @@ fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
     estimatedMonthlyIncomeCents = moneyToCents(estimatedMonthlyIncome),
     fixedExpensesCents = moneyToCents(fixedExpenses),
     initialBalanceCents = moneyToCents(initialBalance),
+    reserveMonthlyContributionCents = moneyToCents(reserveMonthlyContribution),
     envelopeIds = envelopeIds.joinToString(ENVELOPE_ID_SEPARATOR),
     incomeProfile = incomeProfile.name,
     payFrequency = payFrequency.name,
@@ -41,6 +51,14 @@ fun FinancialPlan.toEntity(): FinancialPlanEntity = FinancialPlanEntity(
     antSpendingTrackedCategoryIds = antSpendingTrackedCategoryIds
         .sorted()
         .joinToString(CATEGORY_ID_SEPARATOR),
+    electricityExpensesCents = electricityExpenses?.let(::moneyToCents),
+    waterExpensesCents = waterExpenses?.let(::moneyToCents),
+    internetExpensesCents = internetExpenses?.let(::moneyToCents),
+    rentExpensesCents = rentExpenses?.let(::moneyToCents),
+    phoneExpensesCents = phoneExpenses?.let(::moneyToCents),
+    debtsExpensesCents = debtsExpenses?.let(::moneyToCents),
+    educationExpensesCents = educationExpenses?.let(::moneyToCents),
+    customFixedExpensesJson = customFixedExpensesJson,
 )
 
 private fun parseIncomeProfile(raw: String): IncomeProfile =

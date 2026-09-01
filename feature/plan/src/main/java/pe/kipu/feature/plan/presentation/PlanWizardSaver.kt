@@ -17,6 +17,7 @@ import pe.kipu.core.domain.model.EnvelopeBudgetState
 import pe.kipu.core.domain.model.FinancialPlanValidationResult
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.plan.FixedExpenseBreakdownCalculator
+import pe.kipu.core.domain.plan.CustomFixedExpenseSerializer
 import pe.kipu.core.domain.plan.DefaultPlanEnvelopeIds
 import pe.kipu.core.domain.plan.PlanSetupPreparationError
 import pe.kipu.core.domain.plan.PlanSetupPreparationInput
@@ -71,6 +72,9 @@ class PlanWizardSaver @Inject constructor(
             return Result.Error("Revisa el desglose de gastos fijos")
         }
 
+        val reserveMonthlyContribution = parseReserveMonthlyContribution(content)
+            ?: return Result.Error("Revisa el aporte mensual para imprevistos")
+
         val limitsValidation = validateLimits(content.envelopeLimits, content.budgets)
         if (limitsValidation != null) {
             return Result.Error(limitsValidation)
@@ -80,7 +84,7 @@ class PlanWizardSaver @Inject constructor(
             return Result.Error("Revisa el límite de gastos hormiga")
         }
 
-        if (!content.goalSkipped) {
+        if (!content.goalSkipped && content.goalTargetText.isNotBlank()) {
             val target = parseGoalAmount(content.goalTargetText)
             if (target == null || target.isZero()) return Result.Error("Revisa el monto de tu meta")
         }
@@ -109,6 +113,7 @@ class PlanWizardSaver @Inject constructor(
                 estimatedMonthlyIncome = income,
                 fixedExpenses = fixedExpenses ?: Money.ZERO,
                 initialBalance = initialBalance,
+                reserveMonthlyContribution = reserveMonthlyContribution,
                 incomeProfile = content.incomeProfile,
                 payFrequency = content.payFrequency,
                 budgetCycle = content.budgetCycle,
@@ -130,6 +135,14 @@ class PlanWizardSaver @Inject constructor(
                 existingCategories = existingData.categories,
                 existingEnvelopes = existingData.envelopes,
                 existingCommitments = existingData.commitments,
+                electricityExpenses = parseOptionalBreakdownMoney(content.electricityText),
+                waterExpenses = parseOptionalBreakdownMoney(content.waterText),
+                internetExpenses = parseOptionalBreakdownMoney(content.internetText),
+                rentExpenses = parseOptionalBreakdownMoney(content.rentText),
+                phoneExpenses = parseOptionalBreakdownMoney(content.phoneText),
+                debtsExpenses = parseOptionalBreakdownMoney(content.debtsText),
+                educationExpenses = parseOptionalBreakdownMoney(content.educationText),
+                customFixedExpensesJson = CustomFixedExpenseSerializer.serialize(content.customExpenseLines),
             ),
         )
         if (preparation is PlanSetupPreparationResult.Error) {
@@ -267,5 +280,22 @@ class PlanWizardSaver @Inject constructor(
             is DomainResult.Err -> null
         }
     }
-}
 
+    fun parseReserveMonthlyContribution(content: PlanWizardUiState.Content): Money? {
+        val text = content.reserveMonthlyContributionText.trim()
+        if (text.isEmpty()) return Money.ZERO
+        return when (val parsed = MoneyInputParser.parsePen(text)) {
+            is DomainResult.Ok -> parsed.value
+            is DomainResult.Err -> null
+        }
+    }
+
+    private fun parseOptionalBreakdownMoney(text: String): Money? {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return null
+        return when (val parsed = MoneyInputParser.parsePen(trimmed)) {
+            is DomainResult.Ok -> parsed.value.takeUnless { it.isZero() }
+            is DomainResult.Err -> null
+        }
+    }
+}

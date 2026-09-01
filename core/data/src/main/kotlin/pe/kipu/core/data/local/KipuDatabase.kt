@@ -9,7 +9,10 @@ import pe.kipu.core.data.local.dao.EnvelopeDao
 import pe.kipu.core.data.local.dao.FinancialPlanDao
 import pe.kipu.core.data.local.dao.GatheringDao
 import pe.kipu.core.data.local.dao.GatheringExpenseDao
+import pe.kipu.core.data.local.dao.MonthlyServiceReceiptDao
+import pe.kipu.core.data.local.dao.MovementAuditDao
 import pe.kipu.core.data.local.dao.MovementDao
+import pe.kipu.core.data.local.dao.ReserveEventDao
 import pe.kipu.core.data.local.entity.DismissedDuplicatePairEntity
 import pe.kipu.core.data.local.entity.CategoryEntity
 import pe.kipu.core.data.local.entity.CommitmentEntity
@@ -17,7 +20,10 @@ import pe.kipu.core.data.local.entity.EnvelopeEntity
 import pe.kipu.core.data.local.entity.FinancialPlanEntity
 import pe.kipu.core.data.local.entity.GatheringEntity
 import pe.kipu.core.data.local.entity.GatheringExpenseEntity
+import pe.kipu.core.data.local.entity.MonthlyServiceReceiptEntity
+import pe.kipu.core.data.local.entity.MovementAuditEntity
 import pe.kipu.core.data.local.entity.MovementEntity
+import pe.kipu.core.data.local.entity.ReserveEventEntity
 
 @Database(
     entities = [
@@ -29,8 +35,11 @@ import pe.kipu.core.data.local.entity.MovementEntity
         FinancialPlanEntity::class,
         GatheringEntity::class,
         GatheringExpenseEntity::class,
+        MonthlyServiceReceiptEntity::class,
+        MovementAuditEntity::class,
+        ReserveEventEntity::class,
     ],
-    version = 16,
+    version = 22,
     exportSchema = true,
 )
 abstract class KipuDatabase : RoomDatabase() {
@@ -49,6 +58,12 @@ abstract class KipuDatabase : RoomDatabase() {
     abstract fun gatheringDao(): GatheringDao
 
     abstract fun gatheringExpenseDao(): GatheringExpenseDao
+
+    abstract fun monthlyServiceReceiptDao(): MonthlyServiceReceiptDao
+
+    abstract fun movementAuditDao(): MovementAuditDao
+
+    abstract fun reserveEventDao(): ReserveEventDao
 
     companion object {
         const val DATABASE_NAME = "kipu.db"

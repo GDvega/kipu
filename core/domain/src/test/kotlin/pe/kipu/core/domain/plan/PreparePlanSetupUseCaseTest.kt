@@ -34,6 +34,7 @@ class PreparePlanSetupUseCaseTest {
             success.validation,
         )
         assertEquals(money("20"), success.setup.plan.antSpendingLimit)
+        assertEquals(money("75"), success.setup.plan.reserveMonthlyContribution)
         assertFalse(success.setup.plan.antSpendingAlertEnabled)
         assertEquals(75, success.setup.plan.antSpendingAlertPercent)
         assertEquals(
@@ -225,6 +226,7 @@ class PreparePlanSetupUseCaseTest {
         estimatedMonthlyIncome = money("2000"),
         fixedExpenses = money("100"),
         initialBalance = Money.ZERO,
+        reserveMonthlyContribution = money("75"),
         budgetCycle = BudgetCycle.WEEKLY,
         envelopeLimits = mapOf(DefaultPlanEnvelopeIds.FOOD to "100"),
         antSpendingLimitText = "20",

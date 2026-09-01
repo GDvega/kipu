@@ -52,7 +52,9 @@ fun MovementHtmlCard(
     movement: Movement,
     categoryName: String?,
     linkedGoalTitle: String? = null,
-    onChangeCategory: () -> Unit,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    onChangeCategory: () -> Unit = {},
     onLinkGoal: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -164,10 +166,26 @@ fun MovementHtmlCard(
                         )
                     }
                 }
-                KipuTextLink(
-                    text = "Cambiar categoría",
-                    onClick = onChangeCategory,
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    KipuTextLink(
+                        text = "Editar",
+                        onClick = onEdit,
+                    )
+                    KipuTextLink(
+                        text = "Eliminar",
+                        onClick = onDelete,
+                    )
+                    KipuTextLink(
+                        text = "Categoría",
+                        onClick = onChangeCategory,
+                    )
+                }
                 if (movement.type == MovementType.INCOME && onLinkGoal != null) {
                     if (linkedGoalTitle != null) {
                         Text(

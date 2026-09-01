@@ -1,6 +1,6 @@
 # Política de privacidad — Kipu
 
-**Última actualización:** 13 de agosto de 2026
+**Última actualización:** 25 de agosto de 2026
 **Aplicación:** Kipu (`pe.kipu.app`)
 **Ámbito:** usuarios en Perú
 
@@ -10,16 +10,16 @@
 
 ## 1. Resumen
 
-Kipu es una app de finanzas personales. **Tus datos financieros se guardan en tu dispositivo.** Kipu **no pide claves bancarias**, **no accede a tu banca** y **no sube tus movimientos a servidores propios** en el MVP.
+Kipu es una app de finanzas personales. **Tus movimientos se guardan en tu dispositivo.** Kipu **no pide claves bancarias** ni **accede a tu banca**. Si usas comandos de voz, Kipu interpreta la transcripción localmente después del reconocimiento del sistema; nada se guarda hasta que lo confirmas.
 
 ## 2. Qué datos trata Kipu
 
 | Dato | Origen | Dónde se guarda |
 |------|--------|-----------------|
 | Movimientos (montos, categorías, fechas, contrapartes) | Registro manual, comprobantes compartidos, notificaciones opcionales | Base de datos local (Room) en el dispositivo |
-| Sobres, compromisos, plan financiero, juntas | Lo ingresas tú en la app | Base de datos local |
+| Sobres, compromisos, plan financiero, cuentas compartidas | Lo ingresas tú en la app | Base de datos local |
 | Preferencias (tema, flags de notificaciones, onboarding) | Configuración en Perfil | DataStore local |
-| Imágenes de comprobantes | Comprobante compartido/elegido o foto tomada desde Kipu | Las imágenes compartidas o elegidas se leen desde su app de origen. Las fotos tomadas desde Kipu usan caché temporal durante captura y revisión; no se suben por defecto |
+| Imágenes de comprobantes | Comprobante compartido o imagen elegida | Se leen desde su app de origen para revisión y OCR local; Kipu no toma ni conserva fotos con la cámara |
 | Exportaciones JSON/CSV | Acción explícita tuya | Archivo local que **tú** compartes con otras apps |
 
 Kipu **no recopila** nombre legal, DNI, número de cuenta bancaria ni contraseñas de Yape, Plin o bancos.
@@ -34,7 +34,11 @@ Si lo activas en Perfil, Kipu puede leer **solo notificaciones de ingresos** de 
 
 Cuando compartes una imagen desde Yape/Plin hacia Kipu, la imagen se procesa **en el dispositivo** con OCR local (ML Kit). No enviamos la imagen a servicios de IA generativa ni a nube propia por defecto.
 
-Las fotos tomadas desde Kipu se guardan temporalmente en la caché de la app durante la captura y revisión. Se eliminan al cancelar, salir o terminar el flujo. Si la app se interrumpe antes, la caché puede permanecer temporalmente hasta que Android la limpie o elimines tus datos locales. Esto no elimina imágenes compartidas o elegidas, que siguen perteneciendo a su app de origen.
+Kipu no ofrece captura con cámara. Las imágenes compartidas o elegidas siguen perteneciendo a su app de origen y Kipu solo las lee durante la revisión.
+
+### Comandos de voz (opcional)
+
+Al tocar el micrófono, el servicio de reconocimiento de voz configurado en tu dispositivo convierte tu voz en texto según las condiciones de su proveedor. Después, Kipu interpreta esa transcripción en el dispositivo para proponer el tipo de movimiento, monto, categoría y medio de pago. No enviamos la transcripción a servidores de Kipu. El resultado aparece para revisión y **solo se guarda cuando lo confirmas**.
 
 ### Métricas técnicas de ML Kit
 
@@ -44,8 +48,9 @@ Fuentes oficiales: [privacidad de ML Kit](https://developers.google.com/ml-kit/t
 
 ## 4. Cómo usamos tus datos
 
-- Mostrar tu resumen financiero, sobres, metas y juntas **solo para ti** en el dispositivo.
+- Mostrar tu resumen financiero, sobres, metas y cuentas compartidas **solo para ti** en el dispositivo.
 - Detectar posibles duplicados y pedirte confirmación antes de guardar.
+- Interpretar una transcripción de voz cuando activas voluntariamente esa función.
 - Exportar o eliminar tus datos cuando lo pidas en Perfil.
 
 **No vendemos ni compartimos** tus datos financieros con terceros con fines publicitarios.

@@ -1,9 +1,6 @@
 package pe.kipu.feature.receipts.presentation
 
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.lifecycle.SavedStateHandle
-import java.io.File
 import java.math.BigDecimal
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -110,10 +107,16 @@ class ReceiptReviewViewModelTest {
             suggestCategoryFromPlinHistory = SuggestCategoryFromPlinHistoryUseCase(fakeMovementRepository),
         )
         processReceiptImage = ProcessReceiptImageUseCase(fakeOcrEngine, parseReceiptText)
+        val fakeMovementAuditRepository = object : pe.kipu.core.domain.repository.MovementAuditRepository {
+            override fun observeAuditLogs(): Flow<List<pe.kipu.core.domain.model.MovementAuditEntry>> = MutableStateFlow(emptyList())
+            override suspend fun recordAudit(entry: pe.kipu.core.domain.model.MovementAuditEntry): Result<Unit> = Result.success(Unit)
+            override suspend fun getAll(): List<pe.kipu.core.domain.model.MovementAuditEntry> = emptyList()
+        }
         detectDuplicate = DetectDuplicateMovementUseCase(MovementDuplicateMatcher())
         confirmWithDuplicateCheck = ConfirmSuggestedMovementWithDuplicateCheckUseCase(
             movementRepository = fakeMovementRepository,
             detectDuplicateMovement = detectDuplicate,
+            movementAuditRepository = fakeMovementAuditRepository,
         )
         confirmReceiptMovement = ConfirmReceiptMovementUseCase(
             confirmWithDuplicateCheck = confirmWithDuplicateCheck,
@@ -128,12 +131,10 @@ class ReceiptReviewViewModelTest {
 
     private fun createViewModel(
         contentUriArg: String = encodedUri,
-        appContext: Context = FakeContext(),
     ): ReceiptReviewViewModel {
         val savedStateHandle = SavedStateHandle(mapOf(ReceiptRoutes.CONTENT_URI_ARG to contentUriArg))
         return ReceiptReviewViewModel(
             savedStateHandle = savedStateHandle,
-            appContext = appContext,
             receiptImageLoader = fakeImageLoader,
             processReceiptImage = processReceiptImage,
             confirmReceiptMovement = confirmReceiptMovement,
@@ -364,11 +365,6 @@ class ReceiptReviewViewModelTest {
     }
 
     // --- Fakes ---
-
-    private class FakeContext : ContextWrapper(null) {
-        override fun getPackageName(): String = "pe.kipu.app"
-        override fun getCacheDir(): File = File(System.getProperty("java.io.tmpdir"), "kipu-test-cache")
-    }
 
     private class FakeReceiptImageLoader : ReceiptImageLoader {
         var shouldFail = false

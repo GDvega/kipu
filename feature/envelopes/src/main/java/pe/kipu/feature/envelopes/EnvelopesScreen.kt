@@ -15,9 +15,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -38,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.kipu.core.designsystem.component.KipuCardStyle
 import pe.kipu.core.designsystem.component.KipuEmptyState
 import pe.kipu.core.designsystem.component.KipuErrorState
+import pe.kipu.core.designsystem.component.kipuScrollbar
 import pe.kipu.core.designsystem.component.KipuPlanShortcut
 import pe.kipu.core.designsystem.component.KipuPlanShortcutRow
 import pe.kipu.core.designsystem.component.KipuScreenLoadingState
@@ -139,8 +144,12 @@ fun EnvelopesScreen(
                         },
                     )
                 } else {
+                    val envelopesListState = androidx.compose.foundation.lazy.rememberLazyListState()
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
+                        state = envelopesListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .kipuScrollbar(envelopesListState),
                         verticalArrangement = Arrangement.spacedBy(KipuLayout.sectionSpacing),
                         contentPadding = PaddingValues(bottom = KipuLayout.screenHorizontalPadding),
                     ) {
@@ -214,10 +223,26 @@ private fun EnvelopePlanShortcuts(
 ) {
     KipuPlanShortcutRow(
         shortcuts = listOf(
-            KipuPlanShortcut("Ingresos") { onNavigateToPlan("income") },
-            KipuPlanShortcut("Gastos") { onNavigateToPlan("expenses") },
-            KipuPlanShortcut("Sobres") { onNavigateToPlan("envelopes") },
-            KipuPlanShortcut("Meta") { onNavigateToPlan("goal") },
+            KipuPlanShortcut(
+                label = "Ingresos",
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                iconTint = pe.kipu.core.designsystem.theme.KipuPrimary,
+            ) { onNavigateToPlan("income") },
+            KipuPlanShortcut(
+                label = "Gastos",
+                icon = Icons.Filled.Receipt,
+                iconTint = pe.kipu.core.designsystem.theme.KipuAmber,
+            ) { onNavigateToPlan("expenses") },
+            KipuPlanShortcut(
+                label = "Sobres",
+                icon = Icons.Filled.AccountBalanceWallet,
+                iconTint = pe.kipu.core.designsystem.theme.KipuBlue,
+            ) { onNavigateToPlan("envelopes") },
+            KipuPlanShortcut(
+                label = "Meta",
+                icon = Icons.Filled.Savings,
+                iconTint = pe.kipu.core.designsystem.theme.KipuPurple,
+            ) { onNavigateToPlan("goal") },
         ),
         modifier = modifier,
     )
@@ -406,7 +431,7 @@ private fun EnvelopeBudgetState.categoryIcon(): ImageVector = when (categoryId) 
     CategoryIds.SERVICES -> Icons.Filled.Home
     else -> when {
         name.contains("hormiga", ignoreCase = true) -> Icons.Filled.ShoppingCart
-        name.contains("meta", ignoreCase = true) -> Icons.Filled.Star
-        else -> Icons.Filled.MailOutline
+        name.contains("meta", ignoreCase = true) -> Icons.Filled.Savings
+        else -> Icons.Filled.AccountBalanceWallet
     }
 }
