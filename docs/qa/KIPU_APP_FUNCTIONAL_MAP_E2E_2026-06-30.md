@@ -1,4 +1,6 @@
-Revisión profunda de Kipu — errores e inconsistencias
+# Revisión profunda de Kipu — errores e inconsistencias (histórico de junio)
+
+> **No es el mapa funcional vigente.** El nombre del archivo se conserva para no romper referencias; su contenido es una revisión histórica. Ver la [guía actual](KIPU_USER_GUIDE.md), la [auditoría de septiembre](KIPU_AUDIT_2026-09-09.md) y [PROJECT_STATE](../ai/PROJECT_STATE.md). Los hallazgos de este texto no deben interpretarse automáticamente como abiertos hoy.
 
   Revisé el estado actual en disco (incluyendo el refactor sin commitear). Marco severidad y doy escenario concreto para cada hallazgo. Verifiqué cada
   afirmación leyendo el código; los falsos positivos descartados van al final.

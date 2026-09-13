@@ -1,5 +1,7 @@
 # Auditoría Kipu — 2026-06-21
 
+> **Histórico, no estado actual.** Se conserva la evidencia de junio sin reescribir sus conclusiones. Para decisiones actuales, consultar la [auditoría de septiembre](../qa/KIPU_AUDIT_2026-09-09.md) y [PROJECT_STATE](PROJECT_STATE.md). Los conteos y versiones siguientes corresponden a la fecha original.
+
 > Auditoría sistemática del repositorio (14 módulos Gradle, 434 archivos `.kt`). **Sin modificaciones de código.** Metodología ECC + checklists en `docs/ai/`.
 
 ---
@@ -22,7 +24,7 @@ No se encontraron fugas de datos financieros en logs ni bypass de confirmación 
 | Compilación (`assembleDebug`) | OK | PASS |
 | Tests unitarios (`testDebugUnitTest` + `:core:domain:test`) | OK | PASS |
 | Lint (`lintDebug`) | OK | PASS |
-| E2E instrumentado | NO LISTO | Dispositivo `ZT322PDDPK` no encontrado |
+| E2E instrumentado | NO LISTO | Dispositivo `[IDENTIFICADOR OMITIDO]` no encontrado |
 | QA manual pre-release | NO LISTO | No ejecutado (requiere hardware + Yape/Plin) |
 | Arquitectura / dependencias | PARCIAL | Sin cruces feature↔feature; `receipts→data` viola ideal AGENTS.md |
 | Dominio / parsers / plan | PARCIAL | TDD sólido; gaps plan vs ingresos vinculados |
@@ -64,7 +66,7 @@ No se encontraron fugas de datos financieros en logs ni bypass de confirmación 
 | `./gradlew :core:domain:test` | **PASS** (239 tests) |
 | `./gradlew assembleDebug` | **PASS** |
 | `./gradlew lintDebug` | **PASS** |
-| `./gradlew :app:connectedDebugAndroidTest` | **FAIL** — `DeviceException: Connected device with serial 'ZT322PDDPK' not found!` |
+| `./gradlew :app:connectedDebugAndroidTest` | **FAIL** — `DeviceException: Connected device with serial '[IDENTIFICADOR OMITIDO]' not found!` |
 
 ---
 

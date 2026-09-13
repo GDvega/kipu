@@ -3,6 +3,8 @@
 Resumen corto de la integración entre **ECC Engineering System** y el flujo de trabajo de Kipu.  
 Documento de referencia; el detalle operativo está en `AGENTS.md` y `KIPU_AI_WORKFLOW.md`.
 
+Revisión documental: **9 septiembre 2026**. El [estado vigente](PROJECT_STATE.md), la [auditoría](../qa/KIPU_AUDIT_2026-09-09.md) y la [verificación](../qa/VERIFICATION_2026-09-09.md) distinguen entregas históricas de riesgos abiertos. Este documento describe la metodología del repositorio; no demuestra que una skill o Ponytail se haya usado en una ejecución concreta. Registrar únicamente herramientas realmente disponibles y utilizadas; no instalar complementos ni delegar por inferencia de esta referencia.
+
 ---
 
 ## Principio rector
@@ -42,8 +44,8 @@ Brief → Evidencia → Cambio mínimo → TDD → Revisión → Cierre (LISTO/N
 
 ## Escalera de verificación
 
-1. Test unitario focalizado (`:<módulo>:testDebugUnitTest`)
-2. Suite unitaria (`testDebugUnitTest`)
+1. Test unitario focalizado (`:core:domain:test` para JVM; `:<módulo Android>:testDebugUnitTest` para Android)
+2. Suites unitarias (`:core:domain:test testDebugUnitTest`)
 3. Compilación (`assembleDebug`) — **mínimo universal**
 4. Lint (`lintDebug`)
 5. Instrumentado (`connectedDebugAndroidTest`) — flujos críticos

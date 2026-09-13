@@ -1,13 +1,47 @@
-# PROJECT_STATE.md — Snapshot post-Fase 27 (internal testing Play Store)
+# PROJECT_STATE.md — Estado actual de Kipu e historial de entregas
 
-Última actualización: **30 agosto 2026**.
+Última actualización documental: **12 septiembre 2026**. Base auditada: `bc0547e`; correcciones y pruebas versionadas en `9d03f3d`.
 Este documento es la **fuente de verdad** del estado del repositorio entre fases. Actualizar al cerrar cada fase o bloque de entrega significativo.
 
 > **Para IAs:** leer primero [Trampas conocidas para futuras sesiones](#trampas-conocidas-para-futuras-sesiones-ia), [Navegación extendida](#navegación-extendida-post-fase-14) y [Dependencias entre módulos](#dependencias-actuales). Evitar reintroducir pasos de onboarding eliminados, rutas duplicadas o dependencias circulares feature↔feature.
 
 ---
 
-## Mapa de fases (canónico)
+## Estado vigente — 12 septiembre 2026
+
+**Correcciones verificadas:** H01–H04, M01–M02 y L01 tienen cambios implementados y regresiones específicas; se corrigió además H05 (IDs manuales que colisionaban). Pasaron **551 unitarias, 48 pruebas de la app, 55 de datos, assembleDebug y lintDebug** (50 entradas de advertencia, 0 errores). L02 permanece en observación sin causa reproducida. Evidencia detallada y límites en [Remediación](../qa/REMEDIATION_2026-09-09.md).
+
+### Línea base histórica del 9 septiembre
+
+La auditoría original no implementó correcciones y encontró **4 HIGH, 2 MEDIUM y 2 LOW**; no hubo CRITICAL demostrados dentro de ese alcance. La tabla siguiente conserva sus resultados anteriores a las correcciones. No significa ausencia de riesgos ni autorización para publicar.
+
+| Área | Evidencia actual | Límite |
+|---|---|---|
+| Unitarias | 523/523 PASS, incluidas 400 de dominio | Sin porcentaje de cobertura medido; módulos sin tests propios son NO-SOURCE |
+| Moto G24 / Android 14 / fuente 1.0 | App 44/44 + datos 43/43 PASS | Share bancario real, voz audible y TalkBack no verificados aquí |
+| Lint | PASS sin errores bloqueantes; 64 advertencias | No equivale a cero advertencias ni a certificado de seguridad |
+| Primer fallo conectado | App 43/44; una prueba de Atrás falló | Pasó al repetir sin cambios; componente sin callers de producción, AUD-L02 |
+| Release / Play Console | No verificado en esta auditoría | Firma, contacto de privacidad, publicación y QA humano pendientes |
+
+[Auditoría vigente](../qa/KIPU_AUDIT_2026-09-09.md) · [Comandos y evidencia](../qa/VERIFICATION_2026-09-09.md) · [Guía funcional actual](../qa/KIPU_USER_GUIDE.md) · [Índice documental](../README.md).
+
+La ruta de esta copia es `/media/toshiba/gerson/PROYECTOS/proyectos/kipu`. La ruta antigua `/home/gerson/proyectos/kipu` ya no es el directorio de trabajo. No inferir una migración de la configuración de la tarea en Codex: comprobar siempre el directorio real del comando.
+
+### Cambios y límites de las correcciones actuales
+
+- AUD-H01: cobertura separa obligaciones proyectadas, reserva respaldada y falta de efectivo; requiere registros completos. Protege conservadoramente el ciclo actual completo y estima los siguientes hasta fin de mes.
+- AUD-H02: aporte manual/voz actualiza ahorro declarado transaccionalmente sin crear ingreso/gasto; rechaza meta inexistente, ambigua, cerrada o no PEN. Los aportes históricos incorrectos necesitan revisión, no se convierten automáticamente.
+- AUD-H03: escritura y lectura reconcilian recibos al borrar/invalidar pagos. Se conserva monto real frente a referencia; JVM y Room pasan.
+- AUD-H04: fusión atómica con vínculos compatibles y reversas de reserva. Conflictos, devoluciones o cambios de estado exigen revisión manual y no borran movimientos.
+- AUD-M01: confirmación compara snapshot financiero y fecha antes de escribir; valida todos los límites contra gasto vigente, incluido el de la compra. Rechaza y revierte si no procede.
+- AUD-M02: título semanal/mensual dice «POR DÍA…»; no se cambió el cálculo.
+- AUD-L01: contacto proporcionado por el responsable y verificado en pantalla; entrega de correo y aprobación final de la política no comprobadas.
+- AUD-L02: fallo de prueba de componente sin uso en producción, no repetido en la suite final ni en tres ejecuciones aisladas adicionales sin cambios; causa pendiente, en observación.
+- AUD-H05 (nuevo): IDs manuales incluyen UUID; reproducción de colisión pasa tras corregir en dominio y Room, conservando dos movimientos y sus auditorías.
+
+La reserva y el efectivo se acumulan por historial; no existe rollover individual de sobres. La verificación automática global terminó PASS; no constituye una certificación de todas las rutas de la aplicación ni una garantía de financiación. Permanecen los límites humanos y la observación L02 descritos en Remediación.
+
+## Mapa de fases (histórico canónico)
 
 Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa **17–27** sin saltos.
 
@@ -26,11 +60,13 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | **26** | QA Play Store + cierre ECC F14 | 26 |
 | **27** | Internal testing (release pipeline) | 27 |
 
-**Próximo incremento:** subir AAB firmado a Play Console (pasos humanos en `docs/release/INTERNAL_TESTING.md`).
+**Próximo trabajo:** completar la revisión humana de voz audible, TalkBack, fuentes grandes y share real; mantener L02 en observación. Las correcciones financieras tienen regresiones automáticas aprobadas. Firma y Play Console son pasos separados que requieren intervención del responsable.
 
 ---
 
-## Resumen ejecutivo (jun 2026)
+## Registro histórico de entregas — junio a agosto 2026
+
+Los cierres, nombres de componentes, versiones y PASS de esta sección pertenecen a las fechas indicadas. No sustituyen el estado vigente ni prueban que los hallazgos AUD de septiembre estén corregidos.
 
 | Área | Estado |
 |------|--------|
@@ -41,7 +77,7 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | Optimización APK (14c) | ✅ `arm64-v8a` + R8/shrink release (~14 MB vs ~27 MB debug) |
 | Fase 15 — Comprobantes UI | ✅ **MVP funcional** (share intent + revisión manual) |
 | Fase 16 — Cuentas compartidas + pulido | ✅ **MVP funcional** (módulo interno `:feature:juntas`) |
-| Fases 17–27 — Post-MVP | ✅ Repo listo — Play Console pendiente |
+| Fases 17–27 — Post-MVP | Entregas históricas registradas; ver riesgos vigentes antes de publicar |
 | Fase 17 — Cierre riesgos F16 | ✅ Migraciones Room, editar/reparto juntas, KSP, backup |
 | Fase 18 — Cierre riesgos restantes | ✅ Wipe instrumentado, liquidación juntas, Room v7 |
 | Fase 19 — Riesgos críticos | ✅ Backup, wipe cache comprobantes, plan inválido, wizard persistente |
@@ -53,7 +89,7 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 | Fase 25 — MERGE duplicados notificación | ✅ Paridad con diálogo movimientos/comprobantes (F12-06) |
 | Fase 26 — QA Play Store | ✅ Política privacidad in-app + docs release; ECC F14 cerrado |
 | Fase 27 — Internal testing pipeline | ⚠️ Pipeline con guard de firma; AAB firmado y carga humana pendientes |
-| Verificación reciente | 30 ago 2026: `:app` **44/44 PASS** y `:core:data` **43/43 PASS** en Moto G24 (Android 14) con Gradle offline. Incluye la confirmación accesible de compras imprevistas, transacciones Room, migraciones hasta v22 y reconciliación de reserva. Los históricos del 27, 25, 24, 13 y 11 ago se conservan abajo |
+| Verificación de agosto | 30 ago 2026: `:app` **44/44 PASS** y `:core:data` **43/43 PASS** en Moto G24 (Android 14) con Gradle offline. Resultado histórico; ver arriba la ejecución de septiembre y su fallo previo conservado |
 
 ### Implementación del plan integral (25 ago 2026)
 
@@ -71,16 +107,16 @@ Numeración **continua 0–27**. Tras el MVP (Fase 16), el trabajo post-MVP usa 
 
 Verificación del 25 ago: `testDebugUnitTest`, `assembleDebug` y `lintDebug` PASS con Gradle offline. Tras autorizar ADB, `:app:connectedDebugAndroidTest` terminó **42/42 PASS** y `:core:data:connectedDebugAndroidTest` **36/36 PASS** en Moto G24. Las corridas focalizadas de pago mensual real y parser de share terminaron **1/1 PASS** y **4/4 PASS**. El conteo de app cambia respecto del 24 ago porque se retiraron dos pruebas exclusivas de captura propia y se añadió la regresión del pago real.
 
-### Reserva acumulable y recuperación — implementación cerrada (30 ago 2026)
+### Reserva acumulable y recuperación — entrega del 30 ago, con límites detectados en septiembre
 
 | Lote | Estado | Evidencia |
 |------|--------|-----------|
 | 0 — Identidad movimiento→sobre | ✅ Cerrado | Room v20 añade `movements.envelopeId` nullable e indexado; movimientos históricos permanecen sin sobre, y una categoría compartida solo consume el sobre asignado explícitamente. RED/GREEN de dominio y mapper, migración 19→20 instrumentada en Moto G24, suites `:core:domain:test` y `:core:data:testDebugUnitTest` PASS |
 | 1 — Ledger de reserva | ✅ Cerrado | Room v21 añade el aporte mensual al plan y un ledger append-only de aportes, usos, devoluciones y reversas; Room v22 permite reemplazar un uso solo después de su reversa y mantiene un único uso activo por movimiento. RED/GREEN de dominio y mappers; migraciones y repositorio real PASS en Moto G24 |
-| 2 — Disponible/cobertura | ✅ Cerrado | Cálculos puros acumulan aportes no usados, separan reserva de efectivo libre y cubren compras en orden reserva → saldo disponible → faltante; GREEN focalizado en JVM |
-| 3 — Operación atómica y reajuste | ✅ Cerrado | El creador compartido de movimientos admite sobre y consumo de reserva dentro de la misma transacción que la auditoría; una falla revierte las tres escrituras (**2/2 PASS** en Moto G24). El reajuste solo propone Gastos hormiga/Ocio/Familia, protege Comida/Transporte y exige confirmación vigente antes de persistir |
-| 4 — Wizard, Inicio y entradas | ✅ Cerrado | El wizard persiste la meta mensual; Inicio separa saldo disponible y reserva acumulada. El aporte real es explícito e idempotente por mes. El alta manual y la voz permiten elegir sobre y marcar explícitamente una compra imprevista; antes de guardar muestran cobertura reserva → saldo disponible → faltante y un reajuste opcional que protege Comida/Transporte |
-| 5 — Reversiones, reconciliación, export/wipe | ✅ Cerrado | Editar, convertir a ingreso o borrar un movimiento respaldado por reserva registra la reversa correspondiente dentro de la misma transacción. JSON v5 exporta el ledger y los nuevos campos; wipe elimina el ledger. Migraciones v21→v22, rollback Room y suites completas PASS |
+| 2 — Disponible/cobertura | Implementado; AUD-H01 abierto | Reserva → efectivo no reservado → faltante; no separa necesidades pendientes. GREEN focalizado no certifica capacidad segura de gasto |
+| 3 — Operación atómica y reajuste | Implementado; AUD-M01 abierto | Escrituras de creación compartida son transaccionales; recorta Hormiga/Ocio/Familia. Evitar Comida/Transporte en el orden no protege su financiación. La vigencia no comprueba nuevos gastos |
+| 4 — Wizard, Inicio y entradas | Implementado con limitaciones | Aporte explícito con comprobación mensual; no certificada concurrencia entre aportes. Manual/voz muestran confirmación; aporte por voz a metas inconsistente (AUD-H02) y etiqueta temporal pendiente (AUD-M02) |
+| 5 — Reversiones, reconciliación, export/wipe | Implementado; AUD-H03/H04 abiertos | Borrado/edición normales reconcilian uso de reserva, pero no todas las rutas: recibos y fusión requieren corrección. JSON v5 y wipe incluyen ledger; migraciones/rollback con PASS |
 
 Invariantes ya fijadas: un movimiento afecta cero o un sobre; los históricos ambiguos no se reasignan; `envelopeId` explícito prevalece sobre `categoryId`; no existe rollover individual de sobres en este incremento.
 
@@ -1063,6 +1099,8 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 
 ## Navegación extendida (post-Fase 14)
 
+Referencia actualizada contra `KipuNavGraph` el 9 de septiembre; las entregas anteriores a esta sección son históricas.
+
 ### Tabs bottom bar (sin cambios de rutas base)
 
 | Tab | Ruta exacta | Pantalla | Bottom bar |
@@ -1077,11 +1115,11 @@ Al confirmar un ingreso detectado por notificación, si ya existe un movimiento 
 
 | Ruta plantilla | Argumentos | Pantalla | Cómo llegar | Back stack |
 |----------------|------------|----------|-------------|------------|
-| `plan/{startStep}` | `startStep`: `income` \| `expenses` \| `envelopes` \| `ant` \| `goal` \| `summary` | `PlanWizardScreen` | Onboarding; Sobres → chips Ingresos/Gastos/Sobres/Meta | `popBackStack()` al terminar |
+| `plan/{startStep}` | `startStep`: `income` \| `expenses` \| `envelopes` \| `ant` \| `goal` \| `summary` | `PlanWizardScreen` | Onboarding; Sobres → chips Ingresos/Gastos/Sobres/Meta; Inicio → gastos | `popBackStack()` al terminar |
 | `privacy` | — | `PrivacyPolicyScreen` | Perfil → Política de privacidad | Back del sistema |
 | `movements/category/{categoryId}` | `categoryId`: ej. `category-food` | `MovementsScreen(initialCategoryId=…)` | Sobres → Ver movimientos | Back del sistema |
 | `gatherings` | — | `GatheringsScreen` | Perfil → Ver cuentas compartidas | Back del sistema |
-| `receipts` | — | `ReceiptsScreen` | Inicio / Movimientos vacío | Back del sistema |
+| `receipts` | — | `ReceiptsScreen` | Acción de comprobantes en Movimientos; el callback recibido por Inicio no tiene uso visible actual | Back del sistema |
 | `receipts/review/{contentUri}` | `contentUri` (encoded) | `ReceiptReviewScreen` | Hub comprobantes; share intent | Back o Cancelar vuelve atrás; tras guardar/fusionar, el resultado permanece hasta pulsar `Listo` |
 
 **Helpers:** `KipuPlanRoutes.wizard(startStep)`, `KipuPlanRoutes.movementsByCategory(categoryId)`, `GatheringRoutes.LIST`, `ReceiptRoutes.review(uri)`.
@@ -1110,7 +1148,7 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 1. **KSP y domain jar stale:** tras añadir UseCases en `:core:domain`, si KSP dice "could not resolve XUseCase", ejecutar `./gradlew :core:domain:clean :core:domain:jar` antes de culpar imports.
 2. **`combine` máximo 5 flows:** en `MovementsViewModel` y similares, agrupar en data class intermedia (`MovementsData`) — error de compilación silencioso hasta compileKotlin.
 3. **Sandbox Gradle:** en algunos entornos CI/sandbox falla con "Could not determine a usable wildcard IP" — requiere permisos completos para `./gradlew`.
-4. **Emulador x86:** con `arm64-v8a` only, build instala solo en arm64 — documentado en F14c.
+4. **ABI:** arm64 por defecto; la opción de pruebas `-Pkipu.x86Emulator=true` permite x86. No se verificó emulador en la auditoría de septiembre.
 
 ### Arquitectura / módulos
 
@@ -1130,12 +1168,12 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 
 13. **`MaterialTheme` en default parameter** de `@Composable` — prohibido (error compilación); pasar `Color?` y resolver dentro del composable (patrón `EnvelopeStatCell`).
 14. **`material3` en feature modules:** si se añade `material.icons`, verificar que `libs.androidx.compose.material3` sigue en `build.gradle.kts` del feature.
-15. **Onboarding eliminado:** no recrear Welcome, Cómo funciona, Permisos, Tutorial Yape salvo nueva petición explícita.
+15. **Onboarding reducido:** existe la bienvenida `PlanIntroStep`. No recrear el antiguo conjunto de pantallas Welcome/Cómo funciona/Permisos/Tutorial Yape salvo petición explícita.
 
 ### Navegación
 
 16. **No registrar rutas duplicadas** para `movements` — la ruta con categoría es **distinta** (`movements/category/...`).
-17. **Meta en Sobres** navega a **Compromisos**, no a `plan/summary`.
+17. **Chip Meta en Sobres** llama `onNavigateToPlan("goal")`: abre ese paso del wizard, no `plan/summary`. Compromisos es otra pestaña.
 18. **Flag wizard post-onboarding** se persiste en `UserPreferences.pendingPlanWizard`; los tests deben esperar su consumo antes de navegar o recrear la actividad.
 19. **Share de comprobante:** enrutar `pendingReceiptUri` mediante un único `LaunchedEffect`; no volver a consumir ni navegar la misma URI desde otro efecto.
 
@@ -1155,18 +1193,20 @@ Definidos en `core/domain/.../CategoryIds.kt` — **única fuente canónica en d
 | `:app` | `pe.kipu.app` | `KipuApplication`, `MainActivity`, `MainViewModel`, Hilt, `KipuNavGraph`, `KipuPlanRoutes`, bottom bar |
 | `:core:designsystem` | `pe.kipu.core.designsystem` | Tema, componentes UI (`KipuFilterChip`, `KipuCompactBadge`, botones, cards, headers) |
 | `:core:domain` | `pe.kipu.core.domain` | Modelos puros, UseCases, `CategoryIds`, `FinancialPlanIds`, repositorios (interfaces) |
-| `:core:data` | `pe.kipu.core.data` | Room (`kipu.db` v16), DataStore, seeds, notification listener, OCR ML Kit |
-| `:feature:home` | `pe.kipu.feature.home` | `HomeScreen` — disponible hoy + alertas hormiga |
-| `:feature:movements` | `pe.kipu.feature.movements` | Lista movimientos HTML, filtros, duplicados, notificaciones pending, **cambio categoría** |
+| `:core:data` | `pe.kipu.core.data` | Room (`kipu.db` v22), DataStore, seeds, notification listener, OCR ML Kit |
+| `:feature:home` | `pe.kipu.feature.home` | Efectivo, reserva, resumen mensual, ciclo, pagos mensuales, voz y alertas; límites AUD abiertos |
+| `:feature:movements` | `pe.kipu.feature.movements` | Lista Compose, filtros, duplicados, notificaciones pendientes, registro/edición/borrado e imprevistos |
 | `:feature:envelopes` | `pe.kipu.feature.envelopes` | Sobres HTML, crear/eliminar, ajuste límite, últimos movimientos, nav plan/compromisos |
 | `:feature:commitments` | `pe.kipu.feature.commitments` | CRUD metas/deudas/pagos pendientes + alerta plan inválido |
-| `:feature:profile` | `pe.kipu.feature.profile` | Preferencias + toggle notificaciones |
+| `:feature:profile` | `pe.kipu.feature.profile` | Preferencias, notificaciones, export/wipe, privacidad y acceso a cuentas compartidas |
 | `:feature:onboarding` | `pe.kipu.feature.onboarding` | **Solo** `PlanIntroStep` + completar onboarding |
 | `:feature:plan` | `pe.kipu.feature.plan` | Wizard plan 6 pasos (`PlanWizardScreen`, `PlanWizardViewModel`) |
 | `:feature:receipts` | `pe.kipu.feature.receipts` | Hub + revisión OCR comprobantes |
 | `:feature:juntas` | `pe.kipu.feature.juntas` | UI «Cuentas compartidas» + crear/eliminar |
 
-### Dependencias actuales (grafo — **leer antes de añadir módulos**)
+### Dependencias actuales
+
+Grafo de referencia: leer antes de añadir módulos.
 
 ```
 app
@@ -1185,7 +1225,7 @@ feature/home, movements, envelopes, commitments, profile, onboarding, plan, rece
 
 **Regla:** `feature/*` **no** debe depender de `core/data` ni de otros `feature/*`; no hay excepciones activas.
 
-Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **cuentas compartidas**, gastos compartidos, recibos mensuales y auditoría de movimientos. DataStore: preferencias no sensibles (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v19** (sin destructive fallback).
+Room persiste: movimientos, categorías, sobres, compromisos, plan financiero, pares duplicados descartados, **cuentas compartidas**, gastos compartidos, recibos mensuales, auditoría de movimientos y eventos de reserva. DataStore: preferencias (`onboardingCompleted`, tema, flags notificaciones). **Migraciones incrementales v1→v22** (sin destructive fallback).
 
 ### `settings.gradle.kts` — módulos incluidos (orden canónico)
 
@@ -1260,6 +1300,8 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 
 ## Decisiones tomadas
 
+Registro histórico de decisiones: no todas describen el estado actual. Las sustituciones conocidas se indican en su fila; las fechas de fase no equivalen a una nueva validación.
+
 | Decisión | Razón | Fase |
 |----------|-------|------|
 | Package `pe.kipu.app` | Identidad peruana; distinto de plantilla `com.example` | 0 |
@@ -1289,11 +1331,11 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | `totalRemaining` global en disponible diario | `totalLimit - totalSpent`; no sumar remainings por sobre (F9b) | 9b |
 | Hormiga por categoría en ventana 48 h | Umbrales en `AntSpendingThresholds`; alertas no persistidas | 9 |
 | `TimeProvider` inyectable | Tests deterministas; `WeekRangeCalculator` y Home insights | 9 |
-| Duplicados solo con confirmación humana | `ResolveDuplicateMovementUseCase` único punto de delete; sin fusión silenciosa | 10 |
+| Duplicados solo con confirmación humana | No hay fusión silenciosa. Existen varias rutas de borrado; la divergencia de reserva en la fusión está abierta en AUD-H04 | 10 |
 | Match fuerte por `operationNumber` + mismo monto | Duplicado aunque fecha exceda tolerancia de 15 min | 10c |
 | Dismiss duplicados persistido en Room | Tabla `dismissed_duplicate_pairs`; clave canónica por par | 10c |
 | Refresh periódico insights Home/sobres | `TimeProvider.refreshTicks()` cada 60 s | 10c |
-| Reserva mensual sobres en plan | `sum(weeklyLimit) * 4` en `ValidateFinancialPlanUseCase` | 11 |
+| Proyección mensual de sobres | Hoy `ValidateFinancialPlanUseCase` proyecta `cycleLimit` con ×30 diario, ×4 semanal o ×1 mensual; el aporte a reserva es un rubro separado | 11, ampliado agosto |
 | Progreso meta cap 100 % | `CalculateSavingsGoalProgressUseCase`; completada si settled o ahorrado ≥ meta | 11 |
 | Validación de plan | Histórico: el gate se difería. Hoy `SaveFinancialPlanUseCase` rechaza un plan inválido además de informar en UI | 11b |
 | Alerta plan visible sin compromisos | `CommitmentsScreen` muestra tarjeta aunque lista vacía | 11b |
@@ -1301,7 +1343,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 | Dedup notificación solo pendiente | Mismo draft id: skip si PENDING; tras CONFIRMED, id con sufijo temporal | 12b |
 | Listener allowlist Yape/Plin | `MonitoredPaymentApps`; respeta `notificationsEnabled` | 12 |
 | Onboarding reducido a intro plan | Welcome/permisos/tutorial Yape eliminados por producto | 14 |
-| Wizard plan sin editar sobres | Límites semanales solo vía seed + diálogo Ajustar en Sobres | 14 |
+| Wizard plan sin editar sobres | Histórico: reemplazado por edición desde el wizard; admite ciclos, sobres y aporte previsto a reserva | 14, reemplazado |
 | Flag wizard en memoria (`MainViewModel`) | Histórico: hoy `UserPreferences.pendingPlanWizard` lo persiste y se consume al abrir el wizard | 14 |
 | `feature:envelopes` → `feature:movements` | Histórico: resuelto al mover `MovementDisplayLabels` a domain; no existe dependencia feature→feature | 14b |
 | `MovementsData` para combine flows | Kotlin `combine` máx. 5 parámetros | 14b |
@@ -1315,7 +1357,7 @@ Implementación: `app/.../KipuNavGraph.kt`, `KipuBottomBar.kt`, `MainActivity.kt
 
 ## Hallazgos abiertos
 
-No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones instrumentadas añadidas el 13 ago pasaron en Moto G24; siguen pendientes las comprobaciones humanas de share real y locución audible con TalkBack.
+Seguimiento vigente en [Remediación](../qa/REMEDIATION_2026-09-09.md): **AUD-H01–H05, AUD-M01–M02 y AUD-L01** tienen correcciones y regresiones; **AUD-L02** permanece en observación sin causa reproducida. La tabla de lotes distingue verificaciones terminadas de pendientes. Los IDs de fases anteriores no sustituyen estos hallazgos. Continúan pendientes las comprobaciones humanas de share real y locución audible con TalkBack; los 64 avisos lint pertenecen a la línea base histórica, no al resultado actual.
 
 ## Hallazgos cerrados
 
@@ -1389,6 +1431,8 @@ No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones inst
 
 ## Roadmap de fases
 
+Histórico de entregas del repositorio. Los checks no cierran los hallazgos AUD ni prueban publicación. La corrección de AUD-H01–H04 es el próximo trabajo técnico; no se inventa una nueva fase numerada.
+
 > **Numeración canónica** tras Fase 1. Las tablas en `TDD_CHECKLIST.md` y `SECURITY_CHECKLIST.md` deben reflejar estos números.
 
 | Fase | Nombre | Entregable principal | Estado | TDD | Seguridad |
@@ -1446,9 +1490,9 @@ No hay hallazgos LOW confirmados abiertos en este snapshot. Las regresiones inst
 
 ---
 
-## Post-MVP (Fases 17–24 completadas)
+## Próximo trabajo técnico y humano
 
-MVP funcional **completo** (Fases 0–16) + post-MVP **17–27 cerradas en repo**. Pendiente humano:
+Las fases 0–27 son entregas históricas. Las correcciones AUD-H01–H05 tienen regresiones aprobadas en septiembre; no equivalen a verificar todos los recorridos de usuarios. Conservar L02 en observación y completar la matriz humana de Remediación. Pendientes humanos separados, no ejecutados ni autorizados por esta revisión:
 
 - Crear keystore y `bundleRelease` firmado — `docs/release/INTERNAL_TESTING.md`
 - Activar GitHub Pages → URL privacidad
@@ -1462,7 +1506,7 @@ MVP funcional **completo** (Fases 0–16) + post-MVP **17–27 cerradas en repo*
 ### Producto / features
 
 - CRUD completo de plan financiero fuera del wizard (solo wizard edita ingresos/gastos fijos/sobres/meta)
-- Edición de movimientos manuales existentes en UI (el alta manual sí está implementada)
+- Fusión automática de vínculos incompatibles: AUD-H03/H04 ya tienen corrección y pruebas; conflictos o devoluciones que requieren una decisión se rechazan sin borrar datos
 - Pasos onboarding eliminados: Welcome, Cómo funciona, Permisos, Tutorial Yape — **no reintroducir** sin petición
 - Firebase / sync en nube
 - Detección de **gastos** desde notificaciones (F12 solo ingresos)
@@ -1473,16 +1517,17 @@ MVP funcional **completo** (Fases 0–16) + post-MVP **17–27 cerradas en repo*
 
 - Emulador x86 en build actual (F14c — solo arm64; usar `-Pkipu.x86Emulator=true` para tests)
 
-### Comandos de verificación recomendados (jun 2026)
+### Comandos de verificación actuales
 
 ```bash
-./gradlew :core:domain:test assembleDebug
-./gradlew :core:data:testDebugUnitTest          # opcional, más lento
-./gradlew :app:lintDebug                         # antes de release
-./gradlew assembleRelease                        # verificar R8/ProGuard
+./gradlew :core:domain:test testDebugUnitTest assembleDebug lintDebug
+adb devices -l
+./gradlew --no-daemon --max-workers=1 --continue :core:data:connectedDebugAndroidTest :app:connectedDebugAndroidTest
 ```
 
-Tras cambios en `:core:domain` UseCases, si KSP falla en features (mitigado en Fase 17 con `dependsOn(:core:domain:jar)`):
+Usar `--offline` solo con la caché completa; la ejecución del 9 de septiembre necesitó descarga autorizada sin actualizar versiones. Las tareas instrumentadas usan debug, no validan el AAB instalado desde Play. Para firma y R8 release, seguir la guía humana de publicación sin usar credenciales reales desde una auditoría.
+
+Tras cambios en `:core:domain` UseCases, si se confirma un problema de artefactos KSP obsoletos (no ante cualquier error):
 
 ```bash
 ./gradlew :core:domain:clean :core:domain:jar :app:assembleDebug

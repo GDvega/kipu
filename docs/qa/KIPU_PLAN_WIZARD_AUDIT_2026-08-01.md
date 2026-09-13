@@ -1,5 +1,7 @@
 # Auditoría del wizard de plan — 1 agosto 2026
 
+> **Histórico de auditoría y remediaciones PLAN.** Los cierres siguientes corresponden a sus fechas y no cierran los nuevos IDs AUD de septiembre. Consultar [auditoría vigente](KIPU_AUDIT_2026-09-09.md) y [verificación actual](VERIFICATION_2026-09-09.md) antes de decidir el siguiente trabajo.
+
 Alcance de la auditoría inicial: creación, resumen, guardado, reapertura, persistencia y presentación de los seis pasos del plan en un Moto G24 con Android 14. Esa etapa fue de solo análisis y no modificó producción ni pruebas; la sección del 9–10 de agosto documenta las remediaciones posteriores.
 
 ## Hallazgos

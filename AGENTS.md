@@ -9,17 +9,19 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 
 **Kipu** es una app Android de finanzas personales para usuarios en **Perú**.
 
-**Audiencia:** personas que usan Yape, Plin y efectivo diario; quieren controlar gastos hormiga, sobres semanales, metas, deudas sociales y juntas sin entregar claves bancarias.
+**Audiencia:** personas que usan Yape, Plin y efectivo diario; quieren controlar gastos hormiga, sobres por ciclo, metas, deudas sociales y cuentas compartidas sin entregar claves bancarias.
 
 **Idioma:** código en inglés; strings de UI en español peruano.
 
-**Estado actual:** Fases 0–27 completadas en repo. Siguiente paso humano: Play Console internal testing. Ver `docs/release/INTERNAL_TESTING.md`.
+**Estado actual (12 septiembre 2026):** correcciones verificadas y versionadas en `9d03f3d` para H01–H04, M01–M02, L01 y el nuevo H05 (colisión de IDs). Pasaron 551 unitarias, 48 pruebas de la app, 55 de datos, assembleDebug y lintDebug (50 entradas de advertencia, 0 errores). L02 permanece en observación sin causa reproducida. Los 523 tests unitarios, 87 instrumentados y 64 avisos lint del 9 septiembre son la línea base histórica. No equivale a producto sin bugs ni a release aprobado. Ver `docs/qa/REMEDIATION_2026-09-09.md` y `docs/ai/PROJECT_STATE.md`.
+
+**Directorio actual de esta copia:** `/media/toshiba/gerson/PROYECTOS/proyectos/kipu`. Usar la raíz real de cada checkout y verificarla, no asumir la antigua `/home/gerson/proyectos/kipu`.
 
 ---
 
 ## 2. Stack técnico
 
-### Actual (hasta Fase 12)
+### Actual (verificado contra la configuración del 9 septiembre 2026)
 
 | Tecnología | Estado |
 |------------|--------|
@@ -35,8 +37,8 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 | ViewModels + UiState por feature | ✅ Activo |
 | DataStore (preferencias usuario) | ✅ Activo |
 | Room (`kipu.db` v22 — movimientos, categorías, sobres, compromisos, plan, recibos, auditoría y reserva) | ✅ Activo |
-| UseCases presupuesto semanal (sobres) | ✅ Activo |
-| Disponible diario + gastos hormiga (Home insights) | ✅ Activo |
+| UseCases presupuesto diario/semanal/mensual (sobres) | Activos; etiquetas y cobertura corregidas con regresiones de septiembre; ver límites y estado de verificación |
+| Inicio: efectivo, reserva, ciclo, pagos mensuales y gastos hormiga | Activo; no confundir efectivo no reservado con dinero libre de obligaciones |
 | Duplicados con confirmación humana | ✅ Activo |
 | Compromisos / metas + validación plan | ✅ Activo |
 | Listener notificaciones ingresos Yape/Plin (opcional) | ✅ Activo |
@@ -75,7 +77,7 @@ Complementa `docs/ai/KIPU_AI_WORKFLOW.md`, `docs/ai/PROJECT_STATE.md` y los chec
 
 ## 4. Arquitectura obligatoria
 
-### Estructura REAL actual (Fase 9)
+### Estructura real actual — 13 módulos
 
 ```
 kipu/
@@ -95,7 +97,7 @@ kipu/
 │   └── home/                     → HomeScreen insights (disponible hoy + hormiga)
 ```
 
-### Estructura objetivo (fases futuras)
+El árbol anterior resume algunos paquetes, no enumera todos los módulos. Inventario completo actual:
 
 ```
 core/
@@ -105,7 +107,7 @@ core/
 
 feature/
 ├── home, movements, envelopes, commitments, profile  (existentes)
-├── onboarding, comprobantes, juntas                  (futuros)
+├── onboarding, plan, receipts, juntas                (existentes; juntas = Cuentas compartidas)
 └── cada feature expone pantallas públicas; ViewModels en presentation
 ```
 
@@ -114,7 +116,7 @@ feature/
 | Regla | Descripción |
 |-------|-------------|
 | `app` → `feature/*` + `core/*` | El módulo app ensambla features y core; contiene navegación global. |
-| `feature/*` → `core/designsystem` (+ `domain` vía presentation en fases futuras) | Ningún feature depende de otro feature. |
+| `feature/*` → `core/designsystem` + `core/domain` | Ningún feature depende de otro feature ni de `core/data` en producción. |
 | `feature/*` ↛ `feature/*` | Prohibidas dependencias cruzadas entre features. |
 | `domain` ↛ Android / Room / Compose / Firebase | Capa de dominio pura Kotlin. |
 | `data` → `domain` | Implementa interfaces definidas en domain. |

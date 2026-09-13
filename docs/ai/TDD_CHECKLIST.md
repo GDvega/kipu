@@ -2,6 +2,8 @@
 
 Checklist accionable para pruebas en Kipu, alineado con ECC y `AGENTS.md`.
 
+Revisado el **12 septiembre 2026**. [Línea base: 523 unitarias y 87 instrumentadas PASS](../qa/VERIFICATION_2026-09-09.md). Las casillas describen casos cubiertos, no garantías de todos los flujos. [Correcciones y ejecución actual](../qa/REMEDIATION_2026-09-09.md): 551 unitarias, 48 app y 55 datos PASS; assembleDebug/lintDebug PASS. L02 sigue en observación.
+
 ---
 
 ## 1. Cuándo aplica TDD
@@ -43,15 +45,16 @@ Checklist accionable para pruebas en Kipu, alineado con ECC y `AGENTS.md`.
 
 | Comando | Cuándo usar |
 |---------|-------------|
-| `./gradlew :<módulo>:testDebugUnitTest` | Test focalizado en un módulo (ej. `:core:domain:testDebugUnitTest`) |
+| `./gradlew :core:domain:test` | Dominio JVM puro: no tiene variantes Android |
+| `./gradlew :<módulo-Android>:testDebugUnitTest` | Test focalizado, por ejemplo `:core:data:testDebugUnitTest` |
 | `./gradlew testDebugUnitTest` | Suite unitaria de todos los módulos con tests |
 | `./gradlew assembleDebug` | **Siempre** — confirma compilación (no sustituye unit tests de lógica) |
 | `./gradlew connectedDebugAndroidTest` | Flujos instrumentados; requiere emulador o dispositivo |
 
-### Ejemplos por módulo futuro
+### Ejemplos por módulo actual
 
 ```bash
-./gradlew :core:domain:testDebugUnitTest
+./gradlew :core:domain:test
 ./gradlew :core:data:testDebugUnitTest
 ./gradlew connectedDebugAndroidTest   # smoke MainActivity, permisos
 ```
@@ -160,7 +163,21 @@ Los tests deben vivir en `src/test/` del módulo que contiene la lógica (prefer
 | `core:data` (mappers) | **≥ 80 %** en mappers con lógica |
 | UI / Compose | Tests de UI opcionales; priorizar lógica de dominio |
 
-Medir cobertura a partir de Fase 5 (cuando exista `core:domain` con lógica).
+Los porcentajes anteriores son objetivos, **no mediciones actuales**. El 9 de septiembre se contaron pruebas y resultados, no cobertura de líneas/ramas. `NO-SOURCE` no cuenta como una suite aprobada.
+
+### Casos cruzados de septiembre
+
+- [x] Cobertura con obligaciones pendientes y reserva superior al efectivo (AUD-H01): pruebas de dominio.
+- [x] Aporte por voz válido/inexistente/ambiguo sin ingreso/gasto ficticio (AUD-H02): HomeVM; concurrencia en Room.
+- [x] Pago mensual → editar/eliminar/convertir a ingreso y cambiar de mes (AUD-H03): dominio y Room.
+- [x] Fusión con reserva/recibo/sobre, conflicto y repetición (AUD-H04): Room.
+- [x] Confirmar tras cambios de efectivo/reserva/fecha (AUD-M01): HomeVM; rechazo/rollback de recortes en Room.
+- [x] Etiqueta temporal del importe diario (AUD-M02): HomeCycleTextTest.
+- [x] Dos registros manuales con el mismo reloj (AUD-H05): reproducción y corrección unitarias y Room, preservando auditorías.
+- [x] Verificación global, incluida UI: 48 app y 55 datos PASS. Legibilidad exige caracteres completos y control negativo con texto recortado.
+- [ ] Resolver causa de la intermitencia de Atrás (L02): no reproducida; consultar Remediación, no confundir repetición PASS con corrección.
+
+No añadir esperas, ignorar pruebas ni cambiar aserciones correctas para esconder el fallo de Atrás conservado como AUD-L02.
 
 ---
 
@@ -175,11 +192,11 @@ Medir cobertura a partir de Fase 5 (cuando exista `core:domain` con lógica).
 | 4 | DI + presentation base | No | `assembleDebug` |
 | 5 | DataStore + preferencias | Parcial | `:core:data:testDebugUnitTest` |
 | 6 | Room + movimientos | Sí (mappers) | `testDebugUnitTest` |
-| 7 | Parsers + OCR | **Sí** | `:core:domain:testDebugUnitTest` |
-| 8 | Sobres | **Sí** | `:core:domain:testDebugUnitTest` |
-| 9 | Disponible diario + hormiga | **Sí** | `:core:domain:testDebugUnitTest` |
-| 10 | Duplicados | **Sí** | `:core:domain:testDebugUnitTest` |
-| 11 | Compromisos / metas | **Sí** | `:core:domain:testDebugUnitTest` |
+| 7 | Parsers + OCR | **Sí** | `:core:domain:test` |
+| 8 | Sobres | **Sí** | `:core:domain:test` |
+| 9 | Disponible diario + hormiga | **Sí** | `:core:domain:test` |
+| 10 | Duplicados | **Sí** | `:core:domain:test` |
+| 11 | Compromisos / metas | **Sí** | `:core:domain:test` |
 | 12 | Notificaciones | Parcial | `:core:domain:test` + `:core:data:testDebugUnitTest` |
 | 13 | Exportar / eliminar datos | Parcial | `testDebugUnitTest` + seguridad |
 | 14 | Onboarding | No | `assembleDebug` |
