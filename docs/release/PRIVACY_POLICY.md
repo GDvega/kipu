@@ -1,10 +1,10 @@
 # Política de privacidad — Kipu
 
-**Última actualización:** 25 de agosto de 2026
+**Última revisión documental:** 12 de septiembre de 2026 · **Borrador pendiente de revisión final del responsable**
 **Aplicación:** Kipu (`pe.kipu.app`)
 **Ámbito:** usuarios en Perú
 
-> Publicar esta URL en Google Play Console (puede ser el archivo en GitHub o una copia en tu sitio web).
+> El contacto fue proporcionado por el responsable y actualizado también en la app; su prueba de pantalla pasó. Sigue pendiente revisar la build final y aprobar la política completa antes de publicar. No se probó entrega de correo. Véase la [versión HTML](../privacy/index.html) y la [guía de publicación](PLAY_STORE.md).
 
 ---
 
@@ -16,19 +16,19 @@ Kipu es una app de finanzas personales. **Tus movimientos se guardan en tu dispo
 
 | Dato | Origen | Dónde se guarda |
 |------|--------|-----------------|
-| Movimientos (montos, categorías, fechas, contrapartes) | Registro manual, comprobantes compartidos, notificaciones opcionales | Base de datos local (Room) en el dispositivo |
-| Sobres, compromisos, plan financiero, cuentas compartidas | Lo ingresas tú en la app | Base de datos local |
+| Movimientos (montos, categorías, fechas, contrapartes) | Registro manual, voz confirmada, comprobantes compartidos, notificaciones opcionales | Base de datos local (Room) en el dispositivo |
+| Sobres, compromisos, plan financiero, servicios mensuales, reserva y su historial, ajustes aceptados, cuentas compartidas | Lo ingresas tú en la app | Base de datos local |
 | Preferencias (tema, flags de notificaciones, onboarding) | Configuración en Perfil | DataStore local |
 | Imágenes de comprobantes | Comprobante compartido o imagen elegida | Se leen desde su app de origen para revisión y OCR local; Kipu no toma ni conserva fotos con la cámara |
 | Exportaciones JSON/CSV | Acción explícita tuya | Archivo local que **tú** compartes con otras apps |
 
-Kipu **no recopila** nombre legal, DNI, número de cuenta bancaria ni contraseñas de Yape, Plin o bancos.
+Kipu no pide DNI ni credenciales bancarias para funcionar. El texto que ingreses y los comprobantes que compartas pueden incluir nombres de contrapartes u otros datos personales; revisa lo que guardas y exportas. No ingreses contraseñas de Yape, Plin o bancos.
 
 ## 3. Permisos opcionales
 
 ### Acceso a notificaciones (opcional)
 
-Si lo activas en Perfil, Kipu puede leer **solo notificaciones de ingresos** de apps de pago configuradas (Yape, Plin) para sugerirte registrar un movimiento. **Nunca es obligatorio** para usar la app. Puedes desactivarlo cuando quieras.
+Si lo activas en Perfil, Android concede acceso a notificaciones. Kipu filtra las apps de pago configuradas y los formatos de ingresos para sugerirte registrar un movimiento; ese filtro de la app no limita el alcance del permiso que concede Android. **Nunca es obligatorio** para usar la app. Puedes desactivarlo cuando quieras.
 
 ### Compartir comprobantes
 
@@ -38,13 +38,13 @@ Kipu no ofrece captura con cámara. Las imágenes compartidas o elegidas siguen 
 
 ### Comandos de voz (opcional)
 
-Al tocar el micrófono, el servicio de reconocimiento de voz configurado en tu dispositivo convierte tu voz en texto según las condiciones de su proveedor. Después, Kipu interpreta esa transcripción en el dispositivo para proponer el tipo de movimiento, monto, categoría y medio de pago. No enviamos la transcripción a servidores de Kipu. El resultado aparece para revisión y **solo se guarda cuando lo confirmas**.
+Al tocar el micrófono, el servicio de reconocimiento de voz configurado en tu dispositivo convierte tu voz en texto y puede enviar audio a servidores de su proveedor. No se garantiza reconocimiento sin conexión; consulta la [documentación de Android](https://developer.android.com/reference/android/speech/SpeechRecognizer). Después, Kipu interpreta esa transcripción en el dispositivo para proponer el tipo de movimiento, monto, categoría y medio de pago. No enviamos la transcripción a servidores de Kipu. El resultado aparece para revisión y **solo se guarda cuando lo confirmas**.
 
 ### Métricas técnicas de ML Kit
 
 ML Kit procesa la imagen, el texto reconocido y el resultado del OCR completamente en el dispositivo; esos datos financieros no se envían a Google. El SDK sí recopila y envía a Google información técnica del dispositivo y la aplicación, identificadores por instalación, métricas de rendimiento, configuración de la API, tamaños de entrada/salida, versión de la función, eventos y códigos de error para diagnóstico y analítica de uso. Google declara que cifra estos datos en tránsito mediante HTTPS y no los transfiere a terceros.
 
-Fuentes oficiales: [privacidad de ML Kit](https://developers.google.com/ml-kit/terms) y [divulgación de datos de ML Kit para Android](https://developers.google.com/ml-kit/android-data-disclosure).
+La documentación de divulgación describe las versiones más recientes del SDK; el responsable debe comprobar la versión resuelta y la build antes de publicar. Fuentes oficiales: [privacidad de ML Kit](https://developers.google.com/ml-kit/terms) y [divulgación de datos de ML Kit para Android](https://developers.google.com/ml-kit/android-data-disclosure).
 
 ## 4. Cómo usamos tus datos
 
@@ -78,7 +78,9 @@ Publicaremos cambios relevantes en esta política y actualizaremos la fecha arri
 
 ## 9. Contacto
 
-Para consultas sobre privacidad: **privacidad@kipu.pe** (reemplazar con el correo real del responsable antes de publicar en Play Store).
+Consultas sobre privacidad: [vegacisneros.gd@gmail.com](mailto:vegacisneros.gd@gmail.com).
+
+Contacto proporcionado y confirmado por el responsable el 10 septiembre 2026. No se ha realizado una prueba de entrega ni se han enviado mensajes desde esta revisión.
 
 ---
 

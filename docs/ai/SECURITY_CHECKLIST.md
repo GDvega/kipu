@@ -2,6 +2,8 @@
 
 Checklist de seguridad y privacidad alineado con ECC y `AGENTS.md`.
 
+Revisión documental: **12 septiembre 2026**. [Auditoría original](../qa/KIPU_AUDIT_2026-09-09.md) y [correcciones verificadas y pendientes](../qa/REMEDIATION_2026-09-09.md). No se realizó una auditoría de seguridad exhaustiva ni se validó una publicación. Contacto de privacidad confirmado por el responsable y comprobado en pantalla (AUD-L01); entrega de correo no comprobada.
+
 ---
 
 ## 1. Cuándo activar revisión de seguridad
@@ -43,7 +45,7 @@ Skill de referencia: `docs/ai/skills/security-review.md`.
 - Texto OCR (ML Kit)
 - Intents `ACTION_SEND` (comprobantes compartidos)
 - Notificaciones del sistema (si se activa listener)
-- Archivos importados (export/import CSV JSON)
+- Archivos importados, si se añade importación (no es un flujo soportado actualmente)
 - Input manual del usuario
 
 ### Fronteras de confianza
@@ -52,9 +54,9 @@ Skill de referencia: `docs/ai/skills/security-review.md`.
 |----------|-------|
 | UI ↔ Domain | UI nunca persiste sin confirmación en movimientos sugeridos |
 | Domain ↔ Data | Solo modelos de dominio; mappers obligatorios |
-| App ↔ Red | Sin envío de datos financieros en MVP |
+| App ↔ Red | Sin backend financiero propio; distinguir OCR local, métricas técnicas de ML Kit y servicio de reconocimiento de voz del sistema |
 | App ↔ IA externa | Prohibido en MVP |
-| App ↔ Backup Android | Revisar cuando exista Room (Fase 5+) |
+| App ↔ Backup Android | Room v22 y DataStore: comprobar manifiesto y reglas vigentes, no asumir backup/restauración soportados |
 
 ---
 
@@ -69,10 +71,10 @@ Ejecutar antes de cada commit que toque código:
 - [ ] No hay logs con contenido de comprobantes
 - [ ] No se guardan imágenes de comprobantes en nube por defecto
 - [ ] Todo permiso nuevo tiene explicación clara en UI
-- [ ] El permiso de notificaciones es opcional (cuando exista)
+- [ ] El acceso a notificaciones y su permiso siguen siendo opcionales
 - [ ] La app funciona sin permisos sensibles
-- [ ] El usuario puede eliminar sus datos (cuando esté implementado)
-- [ ] El usuario puede exportar sus datos (cuando esté implementado)
+- [ ] El flujo existente de eliminación funciona y conserva su doble confirmación
+- [ ] El flujo existente de exportación funciona y advierte sobre datos sensibles
 - [ ] Los datos financieros no se envían a IA en el MVP
 - [ ] Los parsers validan entradas incompletas o maliciosas
 - [ ] Si OCR falla, el usuario puede editar manualmente
@@ -96,6 +98,9 @@ Ejecutar antes de cada commit que toque código:
 
 ### Room / DataStore
 
+- [x] Al borrar/fusionar/editar, reconciliar reserva y recibos vinculados (AUD-H03/H04): regresiones de dominio y Room PASS; conflictos incompatibles se rechazan sin borrar datos.
+- [x] Validar gasto y reserva actuales dentro de la confirmación transaccional de reajustes (AUD-M01): snapshot y gasto posterior a compra; regresiones HomeVM/Room PASS.
+- [x] No contar reserva dos veces ni considerar libre dinero comprometido (AUD-H01): cálculo probado con obligaciones y reserva nominal superior al efectivo. Depende de registros completos; no garantiza financiación.
 - [ ] Entidades no expuestas a Compose ni ViewModels
 - [ ] Migraciones versionadas y probadas
 - [ ] Queries sin interpolación de strings de usuario
@@ -190,5 +195,5 @@ Ejecutar antes de cada commit que toque código:
 ## Referencias
 
 - `AGENTS.md` — secciones 3 y 6
-- `PROJECT_STATE.md` — hallazgos abiertos F0-02 (`allowBackup`)
+- `PROJECT_STATE.md` — hallazgos AUD vigentes e historial del cierre de F0-02 (`allowBackup`)
 - `docs/ai/skills/security-review.md` — guía ECC detallada

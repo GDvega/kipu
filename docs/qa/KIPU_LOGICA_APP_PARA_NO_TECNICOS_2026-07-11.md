@@ -1,5 +1,7 @@
 # Kipu — Explicacion completa de la app para personas no tecnicas
 
+> **Guía histórica de julio, sustituida por la [guía de uso vigente](KIPU_USER_GUIDE.md).** Se conserva como referencia de la evolución del producto. Sus nombres, fórmulas, capturas y ejemplos no describen necesariamente la app actual; para reserva, servicios variables y riesgos abiertos consultar la nueva guía y la [auditoría de septiembre](KIPU_AUDIT_2026-09-09.md).
+
 Ultima revision: 11 de julio de 2026.  
 Audiencia de este documento: personas que quieren entender que hace Kipu sin saber programacion.
 

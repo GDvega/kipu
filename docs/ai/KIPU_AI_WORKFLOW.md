@@ -3,6 +3,10 @@
 Guía para el gestor humano y para cualquier IA programadora en Kipu.  
 Leer junto con `AGENTS.md`, `PROJECT_STATE.md` y los checklists en `docs/ai/`.
 
+Revisión documental: **9 septiembre 2026**. Comenzar por el [índice](../README.md), el [estado vigente](PROJECT_STATE.md) y los nuevos hallazgos [AUD](../qa/KIPU_AUDIT_2026-09-09.md), no por el último número de fase. La copia actual está en `/media/toshiba/gerson/PROYECTOS/proyectos/kipu`.
+
+Las plantillas siguientes son referencias para preparar encargos; no certifican el uso de ECC, Ponytail u otra skill. Comprobar disponibilidad y registrar uso real; si falta una herramienta, explicarlo sin simular resultados. Una petición de documentación no autoriza modificar lógica, publicar, usar credenciales ni delegar trabajo por sí sola.
+
 ---
 
 ## 1. Cómo usar este workflow
@@ -196,7 +200,7 @@ Frases cortas para dirigir la sesión sin reescribir la plantilla completa:
 | **Dame siguiente prompt** | Generar plantilla de sección 3 lista para la siguiente fase/tarea |
 | **Corrige error** | Diagnosticar con evidencia, cambio mínimo, re-verificar Gradle |
 | **Revisa IA** | Ejecutar plantilla de revisión (sección 4) sobre el último diff |
-| **Siguiente fase** | Proponer encargo de la fase N+1 según roadmap en `PROJECT_STATE.md` |
+| **Siguiente fase** | Consultar primero riesgos vigentes y evidencia en `PROJECT_STATE.md`; proponer el siguiente lote, sin asumir que solo falta publicar |
 
 ---
 
