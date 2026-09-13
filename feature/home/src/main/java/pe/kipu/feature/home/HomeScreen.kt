@@ -413,7 +413,7 @@ private fun ReserveAndAvailableCard(
         modifier = modifier
             .fillMaxWidth()
             .semantics {
-                contentDescription = "Saldo disponible acumulado: " +
+                contentDescription = "Efectivo sin reservar: " + (if (availableIsNegative) "menos " else "") +
                     formatPenAmountForDisplay(available.availableBalance.abs()) +
                     "; reserva para imprevistos: " + formatPenAmountForDisplay(reserve.balance.max(java.math.BigDecimal.ZERO))
             },
@@ -424,7 +424,8 @@ private fun ReserveAndAvailableCard(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Se conserva mientras no lo gastes. La reserva está separada del monto libre.",
+            text = "Se conserva mientras no lo gastes. El efectivo sin reservar todavía puede estar " +
+                "comprometido para recibos y necesidades pendientes.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
@@ -436,7 +437,7 @@ private fun ReserveAndAvailableCard(
         ) {
             Column {
                 Text(
-                    text = "Disponible",
+                    text = "Efectivo sin reservar",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -467,6 +468,13 @@ private fun ReserveAndAvailableCard(
                     )
                 }
             }
+        }
+        if (reserve.balance > available.netCash.max(java.math.BigDecimal.ZERO)) {
+            Text(
+                text = "La reserva registrada supera tu efectivo actual; no está completamente respaldada.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
         monthlyTarget?.takeUnless { it.isZero() }?.let {
             val hasEnoughAvailable = available.availableBalance >= it.amount
@@ -853,7 +861,7 @@ private fun MonthlyBudgetProgress(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "${formatPenAmountForDisplay(summary.remaining.amount)} disponibles",
+                    text = "${formatPenAmountForDisplay(summary.remaining.amount)} restantes del plan",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = progressColor,

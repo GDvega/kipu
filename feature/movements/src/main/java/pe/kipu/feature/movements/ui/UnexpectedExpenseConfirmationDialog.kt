@@ -51,8 +51,20 @@ fun UnexpectedExpenseConfirmationDialog(
             ) {
                 Text("Kipu no moverá tu dinero. Esta es la distribución que quedará registrada.")
                 CoverageLine("De tu reserva", coverage.fromReserve.amount)
-                CoverageLine("De tu saldo disponible", coverage.fromAvailableBalance.amount)
+                CoverageLine("De efectivo no comprometido", coverage.fromAvailableBalance.amount)
                 CoverageLine("Aún por compensar", coverage.uncovered.amount)
+                CoverageLine("Compromisos y gastos previstos pendientes", coverage.protectedObligations.amount)
+                if (!coverage.existingShortfall.isZero()) {
+                    CoverageLine("Faltante que ya tenía tu plan", coverage.existingShortfall.amount)
+                }
+                if (!coverage.liquidityGap.isZero()) {
+                    CoverageLine("Falta de efectivo (los recortes no crean dinero)", coverage.liquidityGap.amount)
+                }
+                Text(
+                    "Proyección según tus registros: protege el ciclo actual completo y estima los siguientes " +
+                        "hasta fin de mes. No cuenta ingresos futuros como efectivo. No garantiza gastos que no registraste.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
 
                 if (state.preview.recoveryPlan.adjustments.isNotEmpty()) {
                     Text(
@@ -61,7 +73,9 @@ fun UnexpectedExpenseConfirmationDialog(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "Puedes quitar cualquier ajuste. Comida y transporte no se reducen.",
+                        text = "Puedes quitar cualquier ajuste. No se recortan los límites de comida y transporte. " +
+                            "Si Familia contiene gastos esenciales, desmárcalo. Los nuevos límites continuarán " +
+                            "en próximos ciclos hasta que los cambies.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -154,7 +168,7 @@ private fun CoverageLine(label: String, amount: java.math.BigDecimal) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label)
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Text(formatPenAmountForDisplay(amount), fontWeight = FontWeight.SemiBold)
     }
 }

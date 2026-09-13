@@ -11,7 +11,12 @@ interface MonthlyServiceReceiptDao {
     @Query("SELECT * FROM monthly_service_receipts WHERE monthKey = :monthKey ORDER BY serviceKeyIdentifier ASC")
     fun observeForMonth(monthKey: String): Flow<List<MonthlyServiceReceiptEntity>>
 
-    @Query("SELECT paidMovementId FROM monthly_service_receipts WHERE isPaid = 1 AND paidMovementId IS NOT NULL")
+    @Query("""
+        SELECT r.paidMovementId FROM monthly_service_receipts r
+        INNER JOIN movements m ON m.id = r.paidMovementId
+        WHERE r.isPaid = 1 AND m.type = 'EXPENSE' AND m.status = 'CONFIRMED'
+        AND r.monthKey = strftime('%Y-%m', m.recordedAtMillis / 1000, 'unixepoch', '-5 hours')
+    """)
     fun observeAllPaidMovementIds(): Flow<List<String>>
 
     @Query("SELECT * FROM monthly_service_receipts WHERE monthKey = :monthKey AND serviceKeyIdentifier = :serviceKeyIdentifier LIMIT 1")

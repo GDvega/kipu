@@ -30,5 +30,8 @@ class PrivacyPolicyScreenTest {
         composeRule.onNodeWithText("Notificaciones (opcional)").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Métricas técnicas de ML Kit").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Exportar y eliminar").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Consultas sobre privacidad: vegacisneros.gd@gmail.com")
+            .performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("actualizar antes de publicar", substring = true).assertDoesNotExist()
     }
 }

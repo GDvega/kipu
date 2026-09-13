@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
@@ -55,9 +56,47 @@ class CreateManualMovementUseCaseTest {
         assertEquals(PaymentChannel.CASH, saved.channel)
         assertEquals(MovementSource.MANUAL, saved.source)
         assertEquals(MovementStatus.CONFIRMED, saved.status)
-        assertEquals("manual-${fixedInstant.toEpochMilli()}", saved.id)
+        val prefix = "manual-${fixedInstant.toEpochMilli()}-"
+        assertTrue(saved.id.startsWith(prefix))
+        java.util.UUID.fromString(saved.id.removePrefix(prefix))
+        assertEquals(fixedInstant, saved.recordedAt)
+        assertEquals(fixedInstant, saved.createdAt)
         assertEquals("Mercado de barrio", saved.description)
         assertEquals("goal-1", saved.commitmentId)
+    }
+
+    @Test
+    fun `distinct manual operations in the same millisecond keep both movements`() = runTest {
+        val firstAmount = Money.of(BigDecimal("25.50")).getOrError()
+        val secondAmount = Money.of(BigDecimal("80.00")).getOrError()
+        val firstResult = useCase(
+            type = MovementType.EXPENSE,
+            amount = firstAmount,
+            categoryId = CategoryIds.FOOD,
+            channel = PaymentChannel.CASH,
+            description = "Mercado",
+        )
+        assertTrue(firstResult.isSuccess)
+        val first = requireNotNull(repository.lastSaved)
+
+        val secondResult = useCase(
+            type = MovementType.EXPENSE,
+            amount = secondAmount,
+            categoryId = CategoryIds.OTHER,
+            channel = PaymentChannel.CASH,
+            description = "Reparación",
+        )
+        assertTrue(secondResult.isSuccess)
+        val second = requireNotNull(repository.lastSaved)
+
+        assertEquals(fixedInstant, first.recordedAt)
+        assertEquals(fixedInstant, second.recordedAt)
+        assertEquals(2, repository.savedCount)
+        assertEquals("El upsert no debe reemplazar una operación distinta", 2, repository.savedById.size)
+        assertNotEquals(first.id, second.id)
+        assertEquals(first, repository.getById(first.id))
+        assertEquals(second, repository.getById(second.id))
+        assertEquals(setOf(firstAmount, secondAmount), repository.savedById.values.map { it.amount }.toSet())
     }
 
     @Test
@@ -113,16 +152,18 @@ class CreateManualMovementUseCaseTest {
     private class RecordingMovementRepository : MovementRepository {
         var lastSaved: Movement? = null
         var savedCount: Int = 0
+        val savedById = linkedMapOf<EntityId, Movement>()
 
-        override fun observeMovements(): Flow<List<Movement>> = flowOf(emptyList())
+        override fun observeMovements(): Flow<List<Movement>> = flowOf(savedById.values.toList())
 
-        override suspend fun getById(id: EntityId): Movement? = null
+        override suspend fun getById(id: EntityId): Movement? = savedById[id]
 
         override suspend fun findByCounterpartyName(counterpartyName: String): List<Movement> = emptyList()
 
         override suspend fun save(movement: Movement): Result<Unit> {
             lastSaved = movement
             savedCount++
+            savedById[movement.id] = movement
             return Result.success(Unit)
         }
 

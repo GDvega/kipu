@@ -115,7 +115,6 @@ private val privacySections = listOf(
     ),
     PrivacySection(
         title = "Contacto",
-        body = "Consultas sobre privacidad: privacidad@kipu.pe (actualizar antes de publicar " +
-            "en Play Store).",
+        body = "Consultas sobre privacidad: vegacisneros.gd@gmail.com",
     ),
 )

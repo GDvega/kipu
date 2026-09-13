@@ -50,13 +50,19 @@ fun SavingsContributionDialog(
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Ahorro actual: S/ ${state.currentAmount.amount.stripTrailingZeros().toPlainString()}" +
+                    text = "Ahorro declarado: S/ ${state.currentAmount.amount.stripTrailingZeros().toPlainString()}" +
                         (state.targetAmount?.let { " de S/ ${it.amount.stripTrailingZeros().toPlainString()}" } ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Actualiza el ahorro declarado; no registra ingreso ni gasto. " +
+                        "No incluyas ingresos ya vinculados a esta meta.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
 
                 KipuFilterChipRow(
                     labels = listOf("Abonar (+)", "Retirar (-)"),

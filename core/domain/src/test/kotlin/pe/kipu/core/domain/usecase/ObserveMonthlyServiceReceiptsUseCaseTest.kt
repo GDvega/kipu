@@ -95,6 +95,21 @@ class ObserveMonthlyServiceReceiptsUseCaseTest {
                 paidAt = now,
             )
         )
+        movementRepo.setMovements(
+            listOf(
+                Movement(
+                    id = "mov-123",
+                    type = MovementType.EXPENSE,
+                    amount = Money.of(BigDecimal("20")).getOrError(),
+                    categoryId = pe.kipu.core.domain.category.CategoryIds.SERVICES,
+                    channel = PaymentChannel.CASH,
+                    source = MovementSource.MANUAL,
+                    status = MovementStatus.CONFIRMED,
+                    recordedAt = now,
+                    createdAt = now,
+                ),
+            ),
+        )
 
         val receipts = useCase().first()
 

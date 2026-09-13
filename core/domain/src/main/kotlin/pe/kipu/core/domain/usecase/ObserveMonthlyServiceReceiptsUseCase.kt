@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.Money
+import pe.kipu.core.domain.model.MovementStatus
+import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.plan.CustomFixedExpenseSerializer
 import pe.kipu.core.domain.receipt.MonthlyServiceReceipt
 import pe.kipu.core.domain.receipt.ServiceReceiptKey
@@ -41,17 +43,21 @@ class ObserveMonthlyServiceReceiptsUseCase @Inject constructor(
                     if (plan == null) return@combine emptyList<MonthlyServiceReceipt>()
 
                     val savedByKey = savedReceipts.associateBy { it.key.identifier }
-                    val movementAmountsById = movements.associate { it.id to it.amount }
+                    val validPaymentsById = movements.filter {
+                        it.type == MovementType.EXPENSE && it.status == MovementStatus.CONFIRMED &&
+                            monthFormatter.format(it.recordedAt) == currentMonthKey
+                    }.associateBy { it.id }
                     val definedServices = buildDefinedReceipts(plan, currentMonthKey)
 
                     definedServices.map { defined ->
                         val saved = savedByKey[defined.key.identifier]
-                        if (saved != null) {
+                        val payment = saved?.takeIf { it.isPaid }?.paidMovementId?.let(validPaymentsById::get)
+                        if (payment != null) {
                             defined.copy(
-                                isPaid = saved.isPaid,
-                                paidMovementId = saved.paidMovementId,
-                                paidAt = saved.paidAt,
-                                paidAmount = saved.paidMovementId?.let(movementAmountsById::get),
+                                isPaid = true,
+                                paidMovementId = payment.id,
+                                paidAt = payment.recordedAt,
+                                paidAmount = payment.amount,
                             )
                         } else {
                             defined

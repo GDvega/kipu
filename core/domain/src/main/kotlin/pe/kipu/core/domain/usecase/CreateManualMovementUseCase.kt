@@ -52,7 +52,7 @@ class CreateManualMovementUseCase @Inject constructor(
         }
         val now = timeProvider.now()
         val movement = Movement(
-            id = "manual-${now.toEpochMilli()}",
+            id = "manual-${now.toEpochMilli()}-${UUID.randomUUID()}",
             type = type,
             amount = amount,
             categoryId = categoryId,
