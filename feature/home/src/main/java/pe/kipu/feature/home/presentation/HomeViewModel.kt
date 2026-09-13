@@ -20,12 +20,15 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.MovementType
+import pe.kipu.core.domain.model.CommitmentType
+import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.receipt.MonthlyServiceReceipt
 import pe.kipu.core.domain.repository.CategoryRepository
 import pe.kipu.core.domain.repository.CommitmentRepository
 import pe.kipu.core.domain.repository.EnvelopeRepository
 import pe.kipu.core.domain.usecase.CreateManualMovementUseCase
+import pe.kipu.core.domain.usecase.AdjustSavingsGoalContributionUseCase
 import pe.kipu.core.domain.usecase.ContributeMonthlyReserveUseCase
 import pe.kipu.core.domain.usecase.MarkServiceReceiptPaidUseCase
 import pe.kipu.core.domain.usecase.AnalyzeVoiceIntentUseCase
@@ -49,6 +52,7 @@ class HomeViewModel @Inject constructor(
     private val unmarkServiceReceiptPaid: UnmarkServiceReceiptPaidUseCase,
     private val createManualMovement: CreateManualMovementUseCase,
     private val commitmentRepository: CommitmentRepository,
+    private val adjustSavingsGoalContribution: AdjustSavingsGoalContributionUseCase,
     private val analyzeVoiceIntent: AnalyzeVoiceIntentUseCase,
     private val contributeMonthlyReserve: ContributeMonthlyReserveUseCase,
     private val prepareUnexpectedExpense: PrepareUnexpectedExpenseUseCase,
@@ -185,7 +189,11 @@ class HomeViewModel @Inject constructor(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (_: Exception) {
-                _voiceSaveError.value = "No pudimos guardar el movimiento. Intenta nuevamente."
+                _voiceSaveError.value = if (intent is VoiceFinancialIntent.GoalContribution) {
+                    "No pudimos actualizar el ahorro. Indica una única meta activa en soles y vuelve a intentar."
+                } else {
+                    "No pudimos guardar el movimiento. Intenta nuevamente."
+                }
             } finally {
                 _isSavingVoice.value = false
             }
@@ -221,6 +229,7 @@ class HomeViewModel @Inject constructor(
             try {
                 registerUnexpectedExpense(
                     amount = state.intent.amount,
+                    expectedPreview = state.preview,
                     categoryId = state.intent.categoryId,
                     channel = state.intent.channel,
                     description = state.intent.description,
@@ -238,7 +247,8 @@ class HomeViewModel @Inject constructor(
             } catch (_: Exception) {
                 _voiceUnexpectedExpense.value = state.copy(
                     isSaving = false,
-                    errorMessage = "No pudimos guardar la compra ni sus ajustes",
+                    errorMessage = "No se guardó la compra. Los datos cambiaron o el reajuste no es aplicable; " +
+                        "vuelve atrás y revisa la propuesta.",
                 )
             }
         }
@@ -283,14 +293,16 @@ class HomeViewModel @Inject constructor(
 
             is VoiceFinancialIntent.GoalContribution -> {
                 val commitments = commitmentRepository.observeCommitments().firstOrNull().orEmpty()
-                val matchedGoal = commitments.find { it.title.contains(intent.goalQuery, ignoreCase = true) }
-                createManualMovement(
-                    type = MovementType.EXPENSE,
+                val query = intent.goalQuery.trim()
+                require(query.isNotEmpty()) { "Goal query is empty" }
+                val matchedGoal = requireNotNull(commitments.filter {
+                    it.type == CommitmentType.SAVINGS_GOAL && !it.isSettled &&
+                        it.currencyCode == Money.CURRENCY_CODE && it.title.contains(query, ignoreCase = true)
+                }.singleOrNull()) { "Goal is missing or ambiguous" }
+                adjustSavingsGoalContribution(
+                    commitmentId = matchedGoal.id,
                     amount = intent.amount,
-                    categoryId = CategoryIds.OTHER,
-                    channel = PaymentChannel.CASH,
-                    description = intent.description,
-                    commitmentId = matchedGoal?.id,
+                    isDeposit = true,
                 ).getOrThrow()
             }
 

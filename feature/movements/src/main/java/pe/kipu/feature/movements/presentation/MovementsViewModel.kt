@@ -622,6 +622,7 @@ class MovementsViewModel @Inject constructor(
             try {
                 register(
                     amount = amount,
+                    expectedPreview = state.preview,
                     categoryId = categoryId,
                     channel = state.form.channel,
                     description = state.form.description,
@@ -638,7 +639,8 @@ class MovementsViewModel @Inject constructor(
                 unexpectedExpenseConfirmation.update {
                     it?.copy(
                         isSaving = false,
-                        errorMessage = "No pudimos guardar la compra ni sus ajustes",
+                        errorMessage = "No se guardó la compra. Los datos cambiaron o el reajuste no es aplicable; " +
+                            "vuelve atrás y revisa la propuesta.",
                     )
                 }
             }

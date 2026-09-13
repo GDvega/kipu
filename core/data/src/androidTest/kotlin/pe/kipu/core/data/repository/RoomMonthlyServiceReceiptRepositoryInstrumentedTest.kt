@@ -8,12 +8,15 @@ import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import pe.kipu.core.data.local.KipuDatabase
 import pe.kipu.core.data.local.seed.DefaultCategorySeed
+import pe.kipu.core.data.mapper.toEntity
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
@@ -44,6 +47,72 @@ class RoomMonthlyServiceReceiptRepositoryInstrumentedTest {
 
     @After
     fun tearDown() = database.close()
+
+    @Test
+    fun deletingPaymentClearsReceiptAndPaidMovementExclusion() = runBlocking {
+        val movement = savedPayment()
+        database.movementDao().deleteById(movement.id)
+        val receipt = requireNotNull(repository.getReceipt("2026-09", "LIGHT"))
+        assertFalse(receipt.isPaid)
+        assertNull(receipt.paidMovementId)
+        assertNull(receipt.paidAt)
+    }
+
+    @Test
+    fun editingAmountPreservesReferenceAndValidPayment() = runBlocking {
+        val movement = savedPayment()
+        database.movementDao().upsert(movement.copy(amount = money("65")).toEntity())
+        val receipt = requireNotNull(repository.getReceipt("2026-09", "LIGHT"))
+        assertTrue(receipt.isPaid)
+        assertEquals(money("45"), receipt.configuredAmount)
+        assertEquals(6500L, database.movementDao().getById(movement.id)?.amountCents)
+    }
+
+    @Test
+    fun convertingPaymentToIncomeClearsReceipt() = runBlocking {
+        val movement = savedPayment()
+        database.movementDao().upsert(movement.copy(type = MovementType.INCOME).toEntity())
+        assertFalse(requireNotNull(repository.getReceipt("2026-09", "LIGHT")).isPaid)
+    }
+
+    @Test
+    fun movingPaymentAcrossLimaMonthBoundaryClearsOldReceipt() = runBlocking {
+        val movement = savedPayment()
+        database.movementDao().upsert(
+            movement.copy(recordedAt = Instant.parse("2026-09-01T04:59:59Z")).toEntity(),
+        )
+        assertFalse(requireNotNull(repository.getReceipt("2026-09", "LIGHT")).isPaid)
+    }
+
+    private fun money(value: String) = Money.of(BigDecimal(value)).getOrError()
+
+    private suspend fun savedPayment(): Movement {
+        val now = Instant.parse("2026-09-09T15:00:00Z")
+        val movement = Movement(
+            id = "light-payment",
+            type = MovementType.EXPENSE,
+            amount = money("55"),
+            categoryId = CategoryIds.SERVICES,
+            channel = PaymentChannel.CASH,
+            source = MovementSource.MANUAL,
+            status = MovementStatus.CONFIRMED,
+            recordedAt = now,
+            createdAt = now,
+        )
+        database.movementDao().upsert(movement.toEntity())
+        repository.saveReceipt(
+            MonthlyServiceReceipt(
+                key = ServiceReceiptKey.LIGHT,
+                title = "Luz",
+                configuredAmount = money("45"),
+                monthKey = "2026-09",
+                isPaid = true,
+                paidMovementId = movement.id,
+                paidAt = now,
+            ),
+        )
+        return movement
+    }
 
     @Test
     fun markPaidRollsBackMovementAndReceiptWhenAuditWriteFails() = runBlocking {

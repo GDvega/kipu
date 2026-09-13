@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.flowOf
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -23,16 +24,19 @@ import org.junit.Test
 import pe.kipu.core.domain.category.CategoryIds
 import pe.kipu.core.domain.model.Category
 import pe.kipu.core.domain.model.Commitment
+import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.model.EntityId
 import pe.kipu.core.domain.model.Envelope
 import pe.kipu.core.domain.model.FinancialPlan
 import pe.kipu.core.domain.model.GatheringExpense
 import pe.kipu.core.domain.model.Money
 import pe.kipu.core.domain.model.Movement
+import pe.kipu.core.domain.model.MovementSource
 import pe.kipu.core.domain.model.MovementStatus
 import pe.kipu.core.domain.model.MovementType
 import pe.kipu.core.domain.model.PaymentChannel
 import pe.kipu.core.domain.model.ReserveEvent
+import pe.kipu.core.domain.model.ReserveEventType
 import pe.kipu.core.domain.model.UserPreferences
 import pe.kipu.core.domain.model.getOrError
 import pe.kipu.core.domain.receipt.MonthlyServiceReceipt
@@ -110,9 +114,13 @@ class HomeViewModelTest {
     }
 
     private class FakeCommitmentRepository : CommitmentRepository {
-        override fun observeCommitments(): Flow<List<Commitment>> = flowOf(emptyList())
-        override suspend fun getById(id: EntityId): Commitment? = null
-        override suspend fun save(commitment: Commitment): Result<Unit> = Result.success(Unit)
+        val commitments = MutableStateFlow<List<Commitment>>(emptyList())
+        override fun observeCommitments(): Flow<List<Commitment>> = commitments
+        override suspend fun getById(id: EntityId): Commitment? = commitments.value.find { it.id == id }
+        override suspend fun save(commitment: Commitment): Result<Unit> {
+            commitments.value = commitments.value.filterNot { it.id == commitment.id } + commitment
+            return Result.success(Unit)
+        }
         override suspend fun delete(id: EntityId): Result<Unit> = Result.success(Unit)
     }
 
@@ -139,9 +147,11 @@ class HomeViewModelTest {
 
     private class FakeReserveEventRepository : ReserveEventRepository {
         val events = MutableStateFlow<List<ReserveEvent>>(emptyList())
+        var recordCalls = 0
         override fun observeAll(): Flow<List<ReserveEvent>> = events
         override suspend fun getById(id: String): ReserveEvent? = events.value.find { it.id == id }
         override suspend fun record(event: ReserveEvent): Result<Unit> {
+            recordCalls++
             events.value = events.value + event
             return Result.success(Unit)
         }
@@ -218,7 +228,8 @@ class HomeViewModelTest {
     private val fakeWidgetGateway = FakeDailyAvailableWidgetGateway()
 
     private val fixedTime = Instant.parse("2026-08-16T12:00:00Z")
-    private val timeProvider = TimeProvider { fixedTime }
+    private var currentTime = fixedTime
+    private val timeProvider = TimeProvider { currentTime }
 
     private val localAnalyzer = LocalVoiceIntentAnalyzer()
     private val analyzeVoiceIntent = AnalyzeVoiceIntentUseCase(localAnalyzer)
@@ -308,6 +319,17 @@ class HomeViewModelTest {
             reserveEventRepository = fakeReserveEventRepository,
         )
 
+        val prepareUnexpected = PrepareUnexpectedExpenseUseCase(
+            movementRepository = fakeMovementRepository,
+            reserveEventRepository = fakeReserveEventRepository,
+            financialPlanRepository = fakeFinancialPlanRepository,
+            commitmentRepository = fakeCommitmentRepository,
+            observeEnvelopeBudgets = observeEnvelopeBudgets,
+            observeMonthlyServiceReceipts = observeReceipts,
+            timeProvider = timeProvider,
+            calculateCoverage = CalculateUnexpectedExpenseCoverageUseCase(),
+            buildRecoveryPlan = BuildUnexpectedExpenseRecoveryPlanUseCase(),
+        )
         return HomeViewModel(
             observeHomeInsights = observeInsights,
             categoryRepository = fakeCategoryRepository,
@@ -318,17 +340,16 @@ class HomeViewModelTest {
             unmarkServiceReceiptPaid = unmarkPaid,
             createManualMovement = createManualMovement,
             commitmentRepository = fakeCommitmentRepository,
+            adjustSavingsGoalContribution = pe.kipu.core.domain.usecase.AdjustSavingsGoalContributionUseCase(
+                fakeCommitmentRepository,
+            ),
             analyzeVoiceIntent = analyzeVoiceIntent,
             contributeMonthlyReserve = ContributeMonthlyReserveUseCase(fakeReserveEventRepository, timeProvider),
-            prepareUnexpectedExpense = PrepareUnexpectedExpenseUseCase(
-                observeHomeInsights = observeInsights,
-                observeEnvelopeBudgets = observeEnvelopeBudgets,
-                calculateCoverage = CalculateUnexpectedExpenseCoverageUseCase(),
-                buildRecoveryPlan = BuildUnexpectedExpenseRecoveryPlanUseCase(),
-            ),
+            prepareUnexpectedExpense = prepareUnexpected,
             registerUnexpectedExpense = RegisterUnexpectedExpenseUseCase(
                 createManualMovement = createManualMovement,
                 applyRecoveryPlan = ApplyRecoveryPlanUseCase(fakeEnvelopeRepository),
+                prepareUnexpectedExpense = prepareUnexpected,
             ),
         )
     }
@@ -375,6 +396,104 @@ class HomeViewModelTest {
         assertEquals(1, fakeMovementRepository.savedMovements.size)
         assertNull(viewModel.voiceUnexpectedExpense.value)
         viewModel.viewModelScope.cancel()
+    }
+
+    @Test
+    fun `voice unexpected expense rejects confirmation after another expense changes cash`() = runTest {
+        assertStaleUnexpectedExpenseRejected {
+            fakeMovementRepository.save(
+                Movement(
+                    id = "expense-after-preview",
+                    type = MovementType.EXPENSE,
+                    amount = Money.of(BigDecimal("900.00")).getOrError(),
+                    categoryId = CategoryIds.OTHER,
+                    channel = PaymentChannel.CASH,
+                    source = MovementSource.MANUAL,
+                    status = MovementStatus.CONFIRMED,
+                    description = "Compra posterior a la propuesta",
+                    recordedAt = currentTime,
+                    createdAt = currentTime,
+                ),
+            ).getOrThrow()
+        }
+    }
+
+    @Test
+    fun `voice unexpected expense rejects confirmation after the reserve balance changes`() = runTest {
+        assertStaleUnexpectedExpenseRejected {
+            fakeReserveEventRepository.record(
+                ReserveEvent(
+                    id = "reserve-contribution-after-preview",
+                    type = ReserveEventType.CONTRIBUTION,
+                    amount = Money.of(BigDecimal("50.00")).getOrError(),
+                    occurredAt = currentTime,
+                    createdAt = currentTime,
+                ),
+            ).getOrThrow()
+        }
+    }
+
+    @Test
+    fun `voice unexpected expense rejects confirmation after the date changes`() = runTest {
+        assertStaleUnexpectedExpenseRejected {
+            currentTime = fixedTime.plusSeconds(24 * 60 * 60L)
+        }
+    }
+
+    private suspend fun TestScope.assertStaleUnexpectedExpenseRejected(changeAfterPreview: suspend () -> Unit) {
+        fakeFinancialPlanRepository.planFlow.value = listOf(
+            FinancialPlan(
+                id = "plan-1",
+                estimatedMonthlyIncome = Money.of(BigDecimal("2000.00")).getOrError(),
+                fixedExpenses = Money.ZERO,
+                initialBalance = Money.of(BigDecimal("1000.00")).getOrError(),
+            ),
+        )
+        fakeReserveEventRepository.events.value = listOf(
+            ReserveEvent(
+                id = "reserve-before-preview",
+                type = ReserveEventType.CONTRIBUTION,
+                amount = Money.of(BigDecimal("100.00")).getOrError(),
+                occurredAt = currentTime,
+                createdAt = currentTime,
+            ),
+        )
+        val viewModel = createViewModel()
+        try {
+            viewModel.onVoiceTranscriptionReceived("Gasté 300 soles en un microondas")
+            runCurrent()
+            val intent = requireNotNull(viewModel.parsedVoiceIntent.value)
+            assertTrue(intent is VoiceFinancialIntent.Expense)
+            viewModel.saveVoiceIntent(intent, isUnexpectedExpense = true)
+            runCurrent()
+            val originalConfirmation = requireNotNull(viewModel.voiceUnexpectedExpense.value)
+            assertEquals(BigDecimal("100.00"), originalConfirmation.preview.coverage.fromReserve.amount)
+            assertTrue(fakeMovementRepository.savedMovements.isEmpty())
+
+            changeAfterPreview()
+            runCurrent()
+            val existingMovements = fakeMovementRepository.savedMovements.toList()
+            val existingReserveEvents = fakeReserveEventRepository.events.value.toList()
+            val movementSaveCalls = fakeMovementRepository.saveCalls
+            val reserveRecordCalls = fakeReserveEventRepository.recordCalls
+            var saved = false
+
+            viewModel.confirmVoiceUnexpectedExpense(applyAdjustments = false) { saved = true }
+            runCurrent()
+
+            assertEquals("Una propuesta desactualizada no debe escribir la compra", movementSaveCalls, fakeMovementRepository.saveCalls)
+            assertEquals("Una propuesta desactualizada no debe usar la reserva", reserveRecordCalls, fakeReserveEventRepository.recordCalls)
+            assertEquals(existingMovements, fakeMovementRepository.savedMovements)
+            assertEquals(existingReserveEvents, fakeReserveEventRepository.events.value)
+            assertFalse(saved)
+            val confirmation = requireNotNull(viewModel.voiceUnexpectedExpense.value)
+            assertFalse(confirmation.isSaving)
+            assertFalse(confirmation.errorMessage.isNullOrBlank())
+            assertEquals(originalConfirmation.intent, confirmation.intent)
+            assertEquals(intent, viewModel.parsedVoiceIntent.value)
+        } finally {
+            viewModel.viewModelScope.cancel()
+        }
     }
 
     @Test
@@ -499,6 +618,96 @@ class HomeViewModelTest {
         assertEquals("Comida", saved.description)
         assertEquals(fixedTime, saved.recordedAt)
         viewModel.viewModelScope.cancel()
+    }
+
+    @Test
+    fun `voice goal contribution rejects a nonexistent goal without saving an unlinked expense`() = runTest {
+        assertGoalContributionRejected(emptyList())
+    }
+
+    @Test
+    fun `voice goal contribution updates declared savings without changing cash flow`() = runTest {
+        val goal = Commitment(
+            id = "goal-laptop", type = CommitmentType.SAVINGS_GOAL, title = "Laptop",
+            targetAmount = Money.of(BigDecimal("2000")).getOrError(),
+            currentAmount = Money.of(BigDecimal("100")).getOrError(),
+        )
+        fakeCommitmentRepository.commitments.value = listOf(goal)
+        val viewModel = createViewModel()
+        try {
+            viewModel.onVoiceTranscriptionReceived("Ahorré 50 soles para mi meta de laptop")
+            runCurrent()
+            var saved = false
+            viewModel.saveVoiceIntent(requireNotNull(viewModel.parsedVoiceIntent.value)) { saved = true }
+            runCurrent()
+            assertEquals(goal.copy(currentAmount = Money.of(BigDecimal("150")).getOrError()),
+                fakeCommitmentRepository.commitments.value.single())
+            assertEquals(0, fakeMovementRepository.saveCalls)
+            assertTrue(saved)
+            assertEquals(null, viewModel.parsedVoiceIntent.value)
+            assertEquals(null, viewModel.voiceSaveError.value)
+        } finally {
+            viewModel.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `voice goal contribution rejects an ambiguous goal instead of choosing the first match`() = runTest {
+        assertGoalContributionRejected(
+            listOf(
+                Commitment(
+                    id = "goal-work",
+                    type = CommitmentType.SAVINGS_GOAL,
+                    title = "Laptop para trabajo",
+                    targetAmount = Money.of(BigDecimal("2000.00")).getOrError(),
+                ),
+                Commitment(
+                    id = "goal-study",
+                    type = CommitmentType.SAVINGS_GOAL,
+                    title = "Laptop para estudiar",
+                    targetAmount = Money.of(BigDecimal("1500.00")).getOrError(),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `voice goal contribution rejects a pending payment that matches the goal name`() = runTest {
+        assertGoalContributionRejected(
+            listOf(
+                Commitment(
+                    id = "payment-laptop",
+                    type = CommitmentType.PENDING_PAYMENT,
+                    title = "Laptop",
+                    targetAmount = Money.of(BigDecimal("2000.00")).getOrError(),
+                ),
+            ),
+        )
+    }
+
+    private suspend fun TestScope.assertGoalContributionRejected(commitments: List<Commitment>) {
+        fakeCommitmentRepository.commitments.value = commitments
+        val viewModel = createViewModel()
+        try {
+            viewModel.onVoiceTranscriptionReceived("Ahorré 50 soles para mi meta de laptop")
+            runCurrent()
+            val intent = requireNotNull(viewModel.parsedVoiceIntent.value)
+            assertTrue(intent is VoiceFinancialIntent.GoalContribution)
+            var saved = false
+
+            viewModel.saveVoiceIntent(intent) { saved = true }
+            runCurrent()
+
+            assertEquals("Un destino inválido no debe escribir ningún movimiento", 0, fakeMovementRepository.saveCalls)
+            assertTrue(fakeMovementRepository.savedMovements.isEmpty())
+            assertEquals(commitments, fakeCommitmentRepository.commitments.value)
+            assertFalse(saved)
+            assertFalse(viewModel.isSavingVoice.value)
+            assertNotNull(viewModel.voiceSaveError.value)
+            assertEquals(intent, viewModel.parsedVoiceIntent.value)
+        } finally {
+            viewModel.viewModelScope.cancel()
+        }
     }
 
     @Test

@@ -5,8 +5,8 @@ import pe.kipu.core.domain.model.BudgetCycle
 object HomeCycleText {
     fun heroHeader(cycle: BudgetCycle): String = when (cycle) {
         BudgetCycle.DAILY -> "DISPONIBLE HOY"
-        BudgetCycle.WEEKLY -> "DISPONIBLE ESTA SEMANA"
-        BudgetCycle.MONTHLY -> "DISPONIBLE ESTE MES"
+        BudgetCycle.WEEKLY -> "POR DÍA ESTA SEMANA"
+        BudgetCycle.MONTHLY -> "POR DÍA ESTE MES"
     }
 
     fun periodTitle(cycle: BudgetCycle): String = when (cycle) {

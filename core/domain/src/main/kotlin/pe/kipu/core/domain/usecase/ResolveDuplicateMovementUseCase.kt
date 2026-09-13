@@ -15,7 +15,9 @@ class ResolveDuplicateMovementUseCase @Inject constructor(
         resolution: DuplicateResolution,
     ): Result<Unit> = when (resolution) {
         DuplicateResolution.MERGE -> {
-            movementRepository.delete(selectMovementToDeleteOnMerge(pair).id)
+            val removed = selectMovementToDeleteOnMerge(pair)
+            val kept = if (removed.id == pair.movementA.id) pair.movementB else pair.movementA
+            movementRepository.mergeDuplicates(kept, removed)
         }
 
         DuplicateResolution.SAVE_AS_NEW,

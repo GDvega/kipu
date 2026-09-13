@@ -22,4 +22,7 @@ data class UnexpectedExpenseCoverage(
     val fromAvailableBalance: Money,
     val uncovered: Money,
     val isFullyCovered: Boolean,
+    val protectedObligations: Money = Money.ZERO,
+    val liquidityGap: Money = Money.ZERO,
+    val existingShortfall: Money = Money.ZERO,
 )

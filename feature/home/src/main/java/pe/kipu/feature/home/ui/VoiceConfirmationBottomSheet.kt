@@ -477,9 +477,10 @@ private fun ParsedIntentView(
                         badgeText = "Abono a Meta",
                         badgeTone = KipuBadgeTone.Purple,
                         title = "Meta: ${intent.goalQuery}",
-                        subtitle = "Ahorro acumulado",
+                        subtitle = "Añade al ahorro declarado; no registra ingreso ni gasto. " +
+                            "No vuelvas a declarar ingresos ya vinculados a la meta.",
                         amount = intent.amount,
-                        amountType = AmountType.EXPENSE,
+                        amountType = AmountType.NEUTRAL,
                     )
                 }
 
@@ -552,13 +553,26 @@ private fun VoiceUnexpectedExpensePlanView(
         Text("Revisa esta compra imprevista", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text("Kipu no moverá tu dinero. Tú confirmas cómo quedará registrado.")
         VoiceCoverageLine("De tu reserva", coverage.fromReserve.amount)
-        VoiceCoverageLine("De tu saldo disponible", coverage.fromAvailableBalance.amount)
+        VoiceCoverageLine("De efectivo no comprometido", coverage.fromAvailableBalance.amount)
         VoiceCoverageLine("Aún por compensar", coverage.uncovered.amount)
+        VoiceCoverageLine("Compromisos y gastos previstos pendientes", coverage.protectedObligations.amount)
+        if (!coverage.existingShortfall.isZero()) {
+            VoiceCoverageLine("Faltante que ya tenía tu plan", coverage.existingShortfall.amount)
+        }
+        if (!coverage.liquidityGap.isZero()) {
+            VoiceCoverageLine("Falta de efectivo (los recortes no crean dinero)", coverage.liquidityGap.amount)
+        }
+        Text(
+            "Proyección según tus registros: protege el ciclo actual completo y estima los siguientes " +
+                "hasta fin de mes. No cuenta ingresos futuros como efectivo. No garantiza gastos que no registraste.",
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         if (state.preview.recoveryPlan.adjustments.isNotEmpty()) {
             Text("Reajuste opcional", fontWeight = FontWeight.Bold)
             Text(
-                "Comida y transporte permanecen protegidos.",
+                "No se recortan los límites de comida y transporte. Desmarca Familia si incluye gastos esenciales. " +
+                    "Los nuevos límites continuarán en próximos ciclos hasta que los cambies.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -644,7 +658,7 @@ private fun VoiceUnexpectedExpensePlanView(
 @Composable
 private fun VoiceCoverageLine(label: String, amount: java.math.BigDecimal) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label)
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Text(formatPenAmountForDisplay(amount), fontWeight = FontWeight.SemiBold)
     }
 }

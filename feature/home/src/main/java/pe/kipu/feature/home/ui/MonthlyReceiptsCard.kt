@@ -100,7 +100,7 @@ fun MonthlyReceiptsCard(
 
     val totalConfigured = receipts.fold(Money.ZERO) { acc, r -> acc + r.configuredAmount }
     val paidAmount = receipts.filter { it.isPaid }.fold(Money.ZERO) { acc, receipt ->
-        acc + (receipt.paidAmount ?: receipt.configuredAmount)
+        acc + (receipt.paidAmount ?: Money.ZERO)
     }
     val pendingAmount = receipts.filterNot { it.isPaid }
         .fold(Money.ZERO) { acc, receipt -> acc + receipt.configuredAmount }
@@ -263,7 +263,7 @@ fun MonthlyReceiptsCard(
                         )
                     }
 
-                    // Fila de operación matemática visual: Sueldo - Gastos Fijos = Libre para Sobres
+                    // Plan estimate, not received cash or the full remaining budget.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -271,7 +271,7 @@ fun MonthlyReceiptsCard(
                     ) {
                         Column {
                             Text(
-                                text = "Sueldo recibido",
+                                text = "Ingreso estimado",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -313,7 +313,7 @@ fun MonthlyReceiptsCard(
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Disponible planificado",
+                                text = "Tras estos servicios",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -590,7 +590,8 @@ private fun MonthlyReceiptRow(
                 )
                 Text(
                     text = if (receipt.isPaid) {
-                        "Pagaste ${formatPenAmountForDisplay((receipt.paidAmount ?: receipt.configuredAmount).amount)}"
+                        receipt.paidAmount?.let { "Pagaste ${formatPenAmountForDisplay(it.amount)}" }
+                            ?: "Importe del pago no disponible"
                     } else {
                         "Referencia ${formatPenAmountForDisplay(receipt.configuredAmount.amount)}"
                     },

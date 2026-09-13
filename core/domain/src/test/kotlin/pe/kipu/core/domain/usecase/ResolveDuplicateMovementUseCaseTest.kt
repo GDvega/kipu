@@ -120,5 +120,7 @@ class ResolveDuplicateMovementUseCaseTest {
             deletedIds += id
             return Result.success(Unit)
         }
+
+        override suspend fun mergeDuplicates(kept: Movement, removed: Movement): Result<Unit> = delete(removed.id)
     }
 }

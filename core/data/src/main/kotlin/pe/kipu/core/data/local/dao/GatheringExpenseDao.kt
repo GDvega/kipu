@@ -37,6 +37,9 @@ interface GatheringExpenseDao {
     @Query("SELECT COUNT(*) > 0 FROM gathering_expenses WHERE movementId = :movementId LIMIT 1")
     suspend fun isMovementLinked(movementId: String): Boolean
 
+    @Query("UPDATE gathering_expenses SET movementId = :keptId WHERE movementId = :removedId")
+    suspend fun transferMovementLink(removedId: String, keptId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(expense: GatheringExpenseEntity)
 

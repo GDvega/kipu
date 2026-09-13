@@ -22,6 +22,7 @@ import pe.kipu.core.domain.model.CommitmentSummary
 import pe.kipu.core.domain.model.CommitmentType
 import pe.kipu.core.domain.model.DomainResult
 import pe.kipu.core.domain.usecase.DeleteCommitmentUseCase
+import pe.kipu.core.domain.usecase.AdjustSavingsGoalContributionUseCase
 import pe.kipu.core.domain.usecase.ObserveCommitmentsInsightsUseCase
 import pe.kipu.core.domain.usecase.SaveCommitmentUseCase
 import pe.kipu.core.domain.util.MoneyInputParser
@@ -33,6 +34,7 @@ class CommitmentsViewModel @Inject constructor(
     private val observeCommitmentsInsights: ObserveCommitmentsInsightsUseCase,
     private val saveCommitment: SaveCommitmentUseCase,
     private val deleteCommitment: DeleteCommitmentUseCase,
+    private val adjustSavingsGoalContribution: AdjustSavingsGoalContributionUseCase,
 ) : ViewModel() {
 
     private val showFormDialog = MutableStateFlow(false)
@@ -288,25 +290,13 @@ class CommitmentsViewModel @Inject constructor(
             return
         }
 
-        val newCurrentAmount = if (state.isDeposit) {
-            state.currentAmount + amountDelta
-        } else {
-            when (val res = state.currentAmount - amountDelta) {
-                is DomainResult.Ok -> res.value
-                is DomainResult.Err -> pe.kipu.core.domain.model.Money.ZERO
-            }
-        }
-
-
         contributionState.update { it.copy(isSaving = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                saveCommitment(
-                    existingId = commitmentId,
-                    type = CommitmentType.SAVINGS_GOAL,
-                    title = state.commitmentTitle,
-                    targetAmount = state.targetAmount,
-                    currentAmount = newCurrentAmount,
+                adjustSavingsGoalContribution(
+                    commitmentId = commitmentId,
+                    amount = amountDelta,
+                    isDeposit = state.isDeposit,
                 )
                     .onSuccess {
                         showContributionDialog.value = false

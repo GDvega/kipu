@@ -14,4 +14,8 @@ interface MovementRepository {
     suspend fun save(movement: Movement): Result<Unit>
 
     suspend fun delete(id: EntityId): Result<Unit>
+
+    /** Revalidates both snapshots and preserves financial links in one transaction. */
+    suspend fun mergeDuplicates(kept: Movement, removed: Movement): Result<Unit> =
+        Result.failure(UnsupportedOperationException("Atomic duplicate merge is not supported"))
 }
